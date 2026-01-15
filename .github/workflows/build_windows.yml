@@ -27,7 +27,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Compress Build Release
-        run: Compress-Archive -Path build\windows\runner\Release\* -DestinationPath clinical_warehouse_windows.zip
+        run: Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath clinical_warehouse_windows.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
