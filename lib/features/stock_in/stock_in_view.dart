@@ -190,6 +190,12 @@ class _StockInViewState extends State<StockInView> {
 
         final txId = DateTime.now().millisecondsSinceEpoch.toString() + productId;
 
+        // Parse extra fields
+        final taxPct = double.tryParse(row.cells['tax_percent']?.value.toString() ?? '0') ?? 0;
+        final taxSum = double.tryParse(row.cells['tax_sum']?.value.toString() ?? '0') ?? 0;
+        final surPct = double.tryParse(row.cells['surcharge_percent']?.value.toString() ?? '0') ?? 0;
+        final surSum = double.tryParse(row.cells['surcharge_sum']?.value.toString() ?? '0') ?? 0;
+
         await DatabaseHelper.instance.insertStockIn({
           'id': txId,
           'product_id': productId,
@@ -200,6 +206,10 @@ class _StockInViewState extends State<StockInView> {
           'price_per_unit': price,
           'total_amount': totalAmount,
           'supplier_name': supplier,
+          'tax_percent': taxPct,
+          'tax_sum': taxSum,
+          'surcharge_percent': surPct,
+          'surcharge_sum': surSum,
         });
         savedCount++;
       }

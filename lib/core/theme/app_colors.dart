@@ -18,5 +18,22 @@ class AppColors {
   // Translucency (Frosted Glass)
   static const Color glassBorder = Color(0xFFE5E5EA); // Light border
   static const Color glassSurface = Color.fromRGBO(255, 255, 255, 0.65);
-  static const Color glassSidebar = Color.fromRGBO(240, 240, 245, 0.75);
+  // Gradients
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [Color(0xFF007AFF), Color(0xFF5AC8FA)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const LinearGradient orangeGradient = LinearGradient(
+    colors: [Color(0xFFFF9500), Color(0xFFFFD60A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const LinearGradient redGradient = LinearGradient(
+    colors: [Color(0xFFFF3B30), Color(0xFFFF2D55)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }

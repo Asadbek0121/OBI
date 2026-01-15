@@ -156,8 +156,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.primary.withOpacity(0.05),
-                  AppColors.background,
+                  const Color(0xFFF5F7FA), // Light Blue-Grey
+                  const Color(0xFFE4E9F2), // Slightly darker
                   AppColors.primary.withOpacity(0.05),
                 ],
               ),
@@ -177,15 +177,16 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       child: Transform.rotate(
                         angle: _logoRotate.value,
                         child: Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(30),
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(40),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.3),
-                                blurRadius: 30,
-                                spreadRadius: 5,
+                                color: AppColors.primary.withOpacity(0.4),
+                                blurRadius: 40,
+                                spreadRadius: -5,
+                                offset: const Offset(0, 10),
                               ),
                             ],
                           ),

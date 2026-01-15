@@ -3,7 +3,8 @@ import 'package:window_manager/window_manager.dart';
 // import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 // import 'app_config.dart';
-import 'core/services/database_helper.dart';
+import 'core/database/database_helper.dart';
+import 'core/services/telegram_service.dart';
 
 import 'package:provider/provider.dart';
 import 'core/localization/app_translations.dart';
@@ -56,6 +57,18 @@ void main() async {
 
   final authProvider = AuthProvider();
   await authProvider.init();
+
+
+
+  // 🤖 TELEGRAM SCHEDULER
+  try {
+     print("🤖 System: Checking Telegram Backup Schedule...");
+     final tgService = TelegramService();
+     // We pass the DatabaseHelper instance so it can create backups
+     await tgService.checkWeeklyBackup(DatabaseHelper.instance);
+  } catch (e) {
+     print("❌ System: Telegram Scheduler Error: $e");
+  }
 
   runApp(
     MultiProvider(

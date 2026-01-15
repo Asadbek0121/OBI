@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:path_provider/path_provider.dart';
 // import 'package:sqflite_sqlcipher/sqflite_sqlcipher.dart'; // Temporarily disabled for build fix
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -36,10 +37,20 @@ class DatabaseHelper {
     // 3. Open Standard Database
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       // password: encryptionKey, // Disabled
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE stock_in ADD COLUMN tax_percent REAL DEFAULT 0');
+      await db.execute('ALTER TABLE stock_in ADD COLUMN tax_sum REAL DEFAULT 0');
+      await db.execute('ALTER TABLE stock_in ADD COLUMN surcharge_percent REAL DEFAULT 0');
+      await db.execute('ALTER TABLE stock_in ADD COLUMN surcharge_sum REAL DEFAULT 0');
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -75,6 +86,10 @@ class DatabaseHelper {
         price_per_unit REAL,
         total_amount REAL,
         supplier_name TEXT,
+        tax_percent REAL DEFAULT 0,
+        tax_sum REAL DEFAULT 0,
+        surcharge_percent REAL DEFAULT 0,
+        surcharge_sum REAL DEFAULT 0,
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
@@ -400,7 +415,7 @@ class DatabaseHelper {
     }
   }
 
-  Future<String?> createBackup(String targetDirectory) async {
+  Future<String?> createBackup(String? targetDirectory) async {
     try {
       final dbPath = await getDatabasesPath();
       final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
@@ -408,9 +423,17 @@ class DatabaseHelper {
 
       if (!await sourceFile.exists()) return null;
 
+      String dirPath;
+      if (targetDirectory == null) {
+         final temp = await getTemporaryDirectory();
+         dirPath = temp.path;
+      } else {
+         dirPath = targetDirectory;
+      }
+
       final timestamp = DateTime.now().toString().replaceAll(':', '-').replaceAll(' ', '_').substring(0, 19);
       final filename = "backup_clinical_warehouse_$timestamp.db";
-      final targetPath = join(targetDirectory, filename);
+      final targetPath = join(dirPath, filename);
       
       await sourceFile.copy(targetPath);
       return targetPath;
@@ -418,5 +441,13 @@ class DatabaseHelper {
       debugPrint("Backup Failed: $e");
       return null;
     }
+  }
+
+  Future<void> clearAllData() async {
+    final db = await instance.database;
+    await db.delete('stock_in');
+    await db.delete('stock_out');
+    // We do NOT delete products, units, or suppliers/receivers to keep master data.
+    // Only transaction history is cleared.
   }
 }

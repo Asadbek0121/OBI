@@ -341,16 +341,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _FancyStatCard(
                     title: t.text('dash_total_value'), 
                     value: totalValueStr,
-                    icon: Icons.monetization_on,
+                    icon: Icons.monetization_on_rounded,
                     color: Colors.blue,
+                    gradient: AppColors.primaryGradient,
                     width: isWide ? (width - 48) / 3 : (width - 16) / 2,
                   ),
                   _FancyStatCard(
                     title: t.text('dash_low_stock'), 
                     value: _stats['low_stock'].toString(), 
                     subvalue: t.text('unit_items'),
-                    icon: Icons.warning_amber_rounded,
+                    icon: Icons.warning_rounded,
                     color: Colors.orange,
+                    gradient: AppColors.orangeGradient,
                     width: isWide ? (width - 48) / 3 : (width - 16) / 2,
                     onTap: () async {
                       final items = await DatabaseHelper.instance.getLowStockProducts();
@@ -361,8 +363,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: t.text('dash_expiring'), 
                     value: _stats['finished'].toString(), 
                     subvalue: t.text('label_critical'),
-                    icon: Icons.timer_off_outlined,
+                    icon: Icons.timer_off_rounded,
                     color: Colors.red,
+                    gradient: AppColors.redGradient,
                     width: isWide ? (width - 48) / 3 : width, // Full width on small screens
                     onTap: () async {
                       final items = await DatabaseHelper.instance.getFinishedProducts();
@@ -377,8 +380,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 32),
           
           // Activity & Quick Actions
-          Text(t.text('dash_quick_actions'), style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
+          // Text(t.text('dash_quick_actions'), style: Theme.of(context).textTheme.titleLarge), // Removed redundant header
+          // const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -465,6 +469,7 @@ class _FancyStatCard extends StatelessWidget {
   final String? subvalue;
   final IconData icon;
   final Color color;
+  final LinearGradient? gradient;
   final double width;
   final VoidCallback? onTap;
 
@@ -474,6 +479,7 @@ class _FancyStatCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.width,
+    this.gradient,
     this.subvalue,
     this.onTap,
   });
@@ -488,24 +494,39 @@ class _FancyStatCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      color: gradient == null ? color.withOpacity(0.1) : null,
+                      gradient: gradient,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: gradient != null ? [
+                        BoxShadow(
+                          color: color.withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        )
+                      ] : null,
                     ),
-                    child: Icon(icon, color: color, size: 32),
+                    child: Icon(icon, color: gradient != null ? Colors.white : color, size: 32),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800, 
+                  letterSpacing: -0.5,
+                  fontSize: 28,
+                )),
                 if (subvalue != null)
-                  Text(subvalue!, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(subvalue!, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
               ],
             ),
           ),
@@ -603,8 +624,13 @@ class _SidebarItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: isActive ? BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
+          gradient: LinearGradient(
+              colors: [AppColors.primary.withOpacity(0.1), AppColors.primary.withOpacity(0.05)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+          ),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withOpacity(0.2)),
         ) : null,
         child: Row(
           children: [

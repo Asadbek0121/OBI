@@ -11,6 +11,7 @@ import '../../core/utils/app_notifications.dart';
 import '../../core/widgets/app_dialogs.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/services/telegram_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -208,6 +209,247 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  // --- Telegram Logic ---
+  final _telegramService = TelegramService();
+  final _tgTokenController = TextEditingController();
+
+  void _showTelegramSettings(BuildContext context) async {
+    // Load current Token
+    final token = await _telegramService.getBotToken();
+    _tgTokenController.text = token ?? '';
+    
+    // Load Users
+    List<Map<String, dynamic>> users = await _telegramService.getUsers();
+
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                   Container(
+                     padding: const EdgeInsets.all(8), 
+                     decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                     child: const Icon(Icons.send, color: Colors.white, size: 20),
+                   ),
+                   const SizedBox(width: 12),
+                   const Text("Telegram Bot"),
+                ],
+              ),
+              content: SizedBox(
+                width: 500,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _tgTokenController,
+                      decoration: const InputDecoration(
+                        labelText: "Bot Token",
+                        hintText: "123456:ABC-...",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await _telegramService.saveBotToken(_tgTokenController.text);
+                        AppNotifications.showSuccess(context, "Token saqlandi!");
+                      }, 
+                      child: const Text("Tokenni Saqlash")
+                    ),
+                    const Divider(height: 30),
+                      Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("Foydalanuvchilar", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              onPressed: () async {
+                                 // Manual add dialog
+                                 final nameCtrl = TextEditingController();
+                                 final idCtrl = TextEditingController();
+                                 await showDialog(
+                                   context: context,
+                                   builder: (c) => AlertDialog(
+                                     title: const Text("Qo'lda qo'shish"),
+                                     content: Column(
+                                       mainAxisSize: MainAxisSize.min,
+                                       children: [
+                                          const Text(
+                                            "ESLATMA: Telegram username orqali xabar yuborib bo'lmaydi. Faqat 'Chat ID' raqami orqali yuborish mumkin.\n\nChat ID ni bilish uchun @userinfobot ga xabar yozing yoki habarni forward qiling.",
+                                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          TextField(
+                                            controller: nameCtrl,
+                                            decoration: const InputDecoration(labelText: "Ism (Masalan: Bugalter)"),
+                                          ),
+                                          TextField(
+                                            controller: idCtrl,
+                                            keyboardType: TextInputType.number,
+                                            decoration: const InputDecoration(labelText: "Telegram Chat ID (Raqam)"),
+                                          ),
+                                       ],
+                                     ),
+                                     actions: [
+                                       TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
+                                       ElevatedButton(
+                                         onPressed: () async {
+                                           if (nameCtrl.text.isNotEmpty && idCtrl.text.isNotEmpty) {
+                                              await _telegramService.addUser(nameCtrl.text, idCtrl.text, 'Viewer');
+                                              final newUsers = await _telegramService.getUsers();
+                                              setState(() => users = newUsers);
+                                              Navigator.pop(c);
+                                           }
+                                         }, 
+                                         child: const Text("Qo'shish")
+                                       ),
+                                     ],
+                                   )
+                                 );
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text("Qo'lda"),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                 // "Scan" for new users
+                                 AppDialogs.showBlurDialog(context: context, title: "Qidirilmoqda...", content: const CircularProgressIndicator());
+                                 final updates = await _telegramService.getUpdates();
+                                 Navigator.pop(context); // close loader
+                                 
+                                 if (updates.isEmpty) {
+                                   AppNotifications.showError(context, "Yangi user topilmadi. Botga /start bosing.");
+                                 } else {
+                                   // Show picker
+                                   final selected = await showDialog<Map<String,dynamic>>(
+                                     context: context, 
+                                     builder: (c) => SimpleDialog(
+                                       title: const Text("Userni tanlang"),
+                                       children: updates.map((u) => SimpleDialogOption(
+                                         child: Text("${u['firstName']} (${u['username']})"),
+                                         onPressed: () => Navigator.pop(c, u),
+                                       )).toList(),
+                                     )
+                                   );
+                                   
+                                   if (selected != null) {
+                                      await _telegramService.addUser(selected['firstName'], selected['chatId'], 'Viewer');
+                                      // Refresh list
+                                      final newUsers = await _telegramService.getUsers();
+                                      setState(() => users = newUsers);
+                                   }
+                                 }
+                              },
+                              icon: const Icon(Icons.person_add),
+                              label: const Text("Scan"),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                      child: users.isEmpty 
+                        ? const Center(child: Text("Hozircha user yo'q"))
+                        : ListView.separated(
+                          itemCount: users.length,
+                          separatorBuilder: (c,i) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final u = users[index];
+                            return ListTile(
+                              leading: const CircleAvatar(child: Icon(Icons.person, size: 16)),
+                              title: Text(u['name']),
+                              subtitle: Text("ID: ${u['chatId']}"),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.send, color: Colors.blue, size: 20),
+                                    tooltip: "Test Xabar",
+                                    onPressed: () async {
+                                      final error = await _telegramService.sendMessage(u['chatId'], "🔔 Test Xabar: Tizim ishlamoqda!");
+                                      if (error == null) {
+                                         AppNotifications.showSuccess(context, "Test xabar yuborildi!");
+                                      } else {
+                                         AppDialogs.showBlurDialog(
+                                           context: context, 
+                                           title: "Xatolik", 
+                                           content: Text("Batafsil: $error\n\nMaslahat: Foydalanuvchi botga /start bosganiga ishonch hosil qiling.")
+                                         );
+                                      }
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                    onPressed: () async {
+                                      await _telegramService.deleteUser(u['chatId']);
+                                      final newUsers = await _telegramService.getUsers();
+                                      setState(() => users = newUsers);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text("Yopish")),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _clearAllData(BuildContext context) async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final confirm = await AppDialogs.showConfirmDialog(
+      context: context,
+      title: "Diqqat!",
+      content: "Siz haqiqatdan ham barcha KIRIM, CHIQIM va HISOBOT ma'lumotlarini o'chirib yubormoqchimisiz?\n\nBu amalni orqaga qaytarib bo'lmaydi! Mahsulotlar ro'yxati saqlanib qoladi.",
+    );
+
+    if (confirm == true) {
+      if (!context.mounted) return;
+      
+      // Secondary Confirmation
+      final confirm2 = await AppDialogs.showConfirmDialog(
+        context: context,
+        title: "Tasdiqlash",
+        content: "Iltimos, qayta tasdiqlang. Barcha tarixiy ma'lumotlar o'chib ketadi.",
+      );
+
+      if (confirm2 == true) {
+        if (!context.mounted) return;
+        AppDialogs.showBlurDialog(context: context, title: "Tozalanmoqda...", content: const CircularProgressIndicator());
+        
+        try {
+          await DatabaseHelper.instance.clearAllData();
+          if (!context.mounted) return;
+          Navigator.pop(context); // Close loader
+          AppNotifications.showSuccess(context, "Barcha ma'lumotlar tozalandi!");
+        } catch (e) {
+          if (!context.mounted) return;
+          Navigator.pop(context); // Close loader
+          AppNotifications.showError(context, "Xatolik: $e");
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
@@ -320,6 +562,44 @@ class _SettingsViewState extends State<SettingsView> {
 
           const SizedBox(height: 32),
           
+          // Telegram Integration
+          _SectionHeader(title: "Telegram Integratsiyasi"),
+          const SizedBox(height: 12),
+          GlassContainer(
+            child: InkWell(
+              onTap: () => _showTelegramSettings(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.send, color: Colors.blue, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Telegram Bot Sozlamalari", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text("Bot tokeni va foydalanuvchilarni boshqarish", style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+
           // Danger Zone
           _SectionHeader(title: "Xavflilar", color: AppColors.error),
           const SizedBox(height: 12),
@@ -331,6 +611,15 @@ class _SettingsViewState extends State<SettingsView> {
             color: AppColors.warning, // Yellow/Orange for caution
             onTap: () => _restoreBackup(context),
           ),
+          const SizedBox(height: 16),
+           _SettingCard(
+            width: 350,
+            icon: Icons.delete_forever,
+            title: "Ma'lumotlarni Tozalash",
+            subtitle: "Kirim, Chiqim va Hisobotlarni o'chirish",
+            color: AppColors.error, 
+            onTap: () => _clearAllData(context),
+          ),
 
           const SizedBox(height: 40),
           Center(
@@ -339,6 +628,8 @@ class _SettingsViewState extends State<SettingsView> {
                 const Text("Omborxona Boshqaruv Tizimi v2.0.1", style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text("© 2026 OMBORXONA SYSTEMS", style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 11)),
+                const SizedBox(height: 4),
+                Text("Created by Davronov Asadbek", style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 12, fontWeight: FontWeight.bold)),
               ],
             ),
           ),

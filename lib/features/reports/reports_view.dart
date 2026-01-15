@@ -10,8 +10,9 @@ import 'package:clinical_warehouse/core/database/database_helper.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/theme/grid_theme.dart';
 import '../../core/widgets/app_dialogs.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excel_pkg;
 import 'package:file_picker/file_picker.dart';
+import '../../core/services/telegram_service.dart';
 
 class ReportsView extends StatefulWidget {
   const ReportsView({super.key});
@@ -61,12 +62,17 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       _inRows = inData.map((item) => PlutoRow(
         cells: {
           'date': PlutoCell(value: item['date_time'].toString().substring(0, 10)),
+          'product_id': PlutoCell(value: item['product_id']),
           'product': PlutoCell(value: item['product_name']),
-          'quantity': PlutoCell(value: item['quantity']),
-          'unit': PlutoCell(value: item['unit']),
           'price': PlutoCell(value: item['price_per_unit']),
-          'total': PlutoCell(value: item['total_amount']),
+          'unit': PlutoCell(value: item['unit']),
+          'quantity': PlutoCell(value: item['quantity']),
+          'tax_percent': PlutoCell(value: item['tax_percent'] ?? 0),
+          'tax_sum': PlutoCell(value: item['tax_sum'] ?? 0),
+          'surcharge_percent': PlutoCell(value: item['surcharge_percent'] ?? 0),
+          'surcharge_sum': PlutoCell(value: item['surcharge_sum'] ?? 0),
           'party': PlutoCell(value: item['supplier_name']),
+          'total': PlutoCell(value: item['total_amount']),
         }
       )).toList();
 
@@ -119,84 +125,207 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     }
   }
 
-  Future<void> _exportToExcel() async {
-    final t = Provider.of<AppTranslations>(context, listen: false);
+
+
+  Future<List<int>?> _generateComprehensiveExcel() async {
+    try {
+      var excel = excel_pkg.Excel.createExcel();
+      
+      // Define Styles
+      final border = excel_pkg.Border(
+        borderStyle: excel_pkg.BorderStyle.Thin,
+        borderColorHex: excel_pkg.ExcelColor.fromHexString("#000000"),
+      );
+
+      final headerStyle = excel_pkg.CellStyle(
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString("#1976D2"), // Blue
+        fontColorHex: excel_pkg.ExcelColor.fromHexString("#FFFFFF"), // White
+        fontFamily: excel_pkg.getFontFamily(excel_pkg.FontFamily.Arial),
+        bold: true,
+        horizontalAlign: excel_pkg.HorizontalAlign.Center,
+        verticalAlign: excel_pkg.VerticalAlign.Center,
+        topBorder: border,
+        bottomBorder: border,
+        leftBorder: border,
+        rightBorder: border,
+      );
+
+      final dataStyle = excel_pkg.CellStyle(
+        fontFamily: excel_pkg.getFontFamily(excel_pkg.FontFamily.Arial),
+        verticalAlign: excel_pkg.VerticalAlign.Center,
+        topBorder: border,
+        bottomBorder: border,
+        leftBorder: border,
+        rightBorder: border,
+      );
+
+      final totalStyle = excel_pkg.CellStyle(
+        backgroundColorHex: excel_pkg.ExcelColor.fromHexString("#FFFF00"), // Yellow
+        fontFamily: excel_pkg.getFontFamily(excel_pkg.FontFamily.Arial),
+        bold: true,
+        verticalAlign: excel_pkg.VerticalAlign.Center,
+        topBorder: border,
+        bottomBorder: border,
+        leftBorder: border,
+        rightBorder: border,
+      );
+
+      // Helper to add header
+      void addHeader(excel_pkg.Sheet sheet, List<String> titles) {
+        for (var i = 0; i < titles.length; i++) {
+          var cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+          cell.value = excel_pkg.TextCellValue(titles[i]);
+          cell.cellStyle = headerStyle;
+        }
+      }
+
+      // Helper to append row with style
+      void appendRowWithStyle(excel_pkg.Sheet sheet, List<excel_pkg.CellValue> cells) {
+        sheet.appendRow(cells);
+        final rowIndex = sheet.maxRows - 1;
+        for (var i = 0; i < cells.length; i++) {
+          var cell = sheet.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: rowIndex));
+          cell.cellStyle = dataStyle;
+        }
+      }
+
+      // 1. KIRIM (IN)
+      excel_pkg.Sheet sheetIn = excel['Kirim'];
+      addHeader(sheetIn, ['Sana', 'ID', 'Mahsulot', 'Narxi', 'Birlik', 'Miqdori', 'QQS %', 'QQS Summa', 'Ustama %', 'Ustama Summa', 'Kimdan', 'Jami Summa']);
+
+      double grandTotal = 0.0;
+      for (var row in _inRows) {
+        final total = double.tryParse(row.cells['total']?.value.toString() ?? '0') ?? 0;
+        grandTotal += total;
+
+        appendRowWithStyle(sheetIn, [
+          excel_pkg.TextCellValue(row.cells['date']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['product_id']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['product']?.value.toString() ?? ''),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['price']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.TextCellValue(row.cells['unit']?.value.toString() ?? ''),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['quantity']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['tax_percent']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['tax_sum']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['surcharge_percent']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['surcharge_sum']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.TextCellValue(row.cells['party']?.value.toString() ?? ''),
+          excel_pkg.DoubleCellValue(total),
+        ]);
+      }
+
+      // Add Total Row
+      sheetIn.appendRow([
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
+        excel_pkg.DoubleCellValue(grandTotal),
+      ]);
+      
+      // Style only the last cell (Total)
+      var totalRowIndex = sheetIn.maxRows - 1;
+      var totalCell = sheetIn.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: totalRowIndex));
+      totalCell.cellStyle = totalStyle;
+
+      // 2. CHIQIM (OUT)
+      excel_pkg.Sheet sheetOut = excel['Chiqim'];
+      addHeader(sheetOut, ['Sana', 'Mahsulot', 'Miqdori', 'Birlik', 'Kimga (Qabul qiluvchi)', 'Izoh']);
+
+      for (var row in _outRows) {
+        appendRowWithStyle(sheetOut, [
+          excel_pkg.TextCellValue(row.cells['date']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['product']?.value.toString() ?? ''),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['quantity']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.TextCellValue(row.cells['unit']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['party']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['notes']?.value.toString() ?? ''),
+        ]);
+      }
+
+      // 3. QOLDIQ (STOCK)
+      excel_pkg.Sheet sheetStock = excel['Qoldiq'];
+      addHeader(sheetStock, ['Mahsulot Nomi', 'Birlik', 'Qoldiq Miqdori']);
+
+      final stockData = await DatabaseHelper.instance.getInventorySummary();
+      for (var item in stockData) {
+          appendRowWithStyle(sheetStock, [
+             excel_pkg.TextCellValue(item['name'].toString()),
+             excel_pkg.TextCellValue(item['unit'].toString()),
+             excel_pkg.DoubleCellValue((item['stock'] as num).toDouble()),
+          ]);
+      }
+
+      // Clean up default sheet
+      if (excel.sheets.containsKey('Sheet1')) {
+        excel.delete('Sheet1');
+      }
+
+      return excel.save();
+    } catch (e) {
+      debugPrint("Comprehensive Excel Error: $e");
+      return null;
+    }
+  }
+
+  Future<List<int>?> _generateExcel() async {
     final stateManager = _tabController.index == 0 ? _inStateManager : _outStateManager;
     
     if (stateManager == null || stateManager.rows.isEmpty) {
-      AppNotifications.showInfo(context, t.text('msg_no_data'));
-      return;
+      return null;
     }
 
     try {
-      var excel = Excel.createExcel();
+      var excel = excel_pkg.Excel.createExcel();
+      excel_pkg.Sheet sheet = excel['Sheet1'];
       
-      // 1. Setup Sheet
-      // Rename default sheet
-      String sheetName = _tabController.index == 0 ? "Kirim (Stock In)" : "Chiqim (Stock Out)";
-      excel.rename('Sheet1', sheetName);
-      Sheet sheet = excel[sheetName];
-
-      // 2. Add Headers with Styling
-      List<String> headers = stateManager.columns.map((c) => c.title).toList();
-      
-      for (var i = 0; i < headers.length; i++) {
-        var cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.value = TextCellValue(headers[i]);
-        cell.cellStyle = CellStyle(
-          bold: true,
-          horizontalAlign: HorizontalAlign.Center,
-          backgroundColorHex: ExcelColor.fromHexString("#E0E0E0"),
-          fontFamily: getFontFamily(FontFamily.Arial),
-        );
-        
-        // Set Column Widths
-        double width = 20.0;
-        if (stateManager.columns[i].field == 'product') width = 40.0;
-        else if (stateManager.columns[i].field == 'date') width = 15.0;
-        else if (stateManager.columns[i].field == 'unit') width = 10.0;
-        else if (stateManager.columns[i].field == 'quantity') width = 12.0;
-        
-        sheet.setColumnWidth(i, width);
+      // Headers
+      List<excel_pkg.CellValue> headers = [];
+      for (var col in stateManager.columns) {
+        headers.add(excel_pkg.TextCellValue(col.title));
       }
-
-      // 3. Add Data with Correct Types
-      int rowIndex = 1;
+      sheet.appendRow(headers);
+      
+      // Rows
       for (var row in stateManager.rows) {
-        int colIndex = 0;
+        List<excel_pkg.CellValue> rowData = [];
         for (var col in stateManager.columns) {
           var val = row.cells[col.field]?.value;
-          var cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: colIndex, rowIndex: rowIndex));
-          
-          if (val == null || val.toString().isEmpty) {
-            cell.value = TextCellValue("");
+          if (val == null) {
+            rowData.add(excel_pkg.TextCellValue(''));
+          } else if (val is num || double.tryParse(val.toString()) != null) {
+            rowData.add(excel_pkg.DoubleCellValue(double.tryParse(val.toString()) ?? 0));
           } else {
-             // Check for numeric fields to store as Number
-             if (['quantity', 'price', 'total', 'total_amount', 'tax_sum', 'surcharge_sum'].contains(col.field)) {
-                 double? numVal = double.tryParse(val.toString());
-                 if (numVal != null) {
-                    cell.value = DoubleCellValue(numVal);
-                    // Optional: Format currency if needed, but raw number is better for calculation
-                 } else {
-                    cell.value = TextCellValue(val.toString());
-                 }
-             } else {
-                 cell.value = TextCellValue(val.toString());
-             }
+            rowData.add(excel_pkg.TextCellValue(val.toString()));
           }
-          // Center align standard text columns
-           if (!['product', 'notes', 'party'].contains(col.field)) {
-              cell.cellStyle = CellStyle(horizontalAlign: HorizontalAlign.Center);
-           }
-          
-          colIndex++;
         }
-        rowIndex++;
+        sheet.appendRow(rowData);
       }
+      return excel.save();
+    } catch (e) {
+      debugPrint("Excel Error: $e");
+      return null;
+    }
+  }
 
+  Future<void> _exportToExcel() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final fileBytes = await _generateExcel();
+    if (fileBytes == null) {
+       AppNotifications.showInfo(context, t.text('msg_no_data'));
+       return;
+    }
+    
+    try {
       // 3. Save File
-      var fileBytes = excel.save();
-      if (fileBytes == null) return;
+
 
       final type = _tabController.index == 0 ? "In" : "Out";
       final fileName = "Report_${type}_${DateTime.now().toString().substring(0,10)}.xlsx";
@@ -234,6 +363,80 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     } catch (e) {
       if (mounted) {
         AppNotifications.showError(context, "${t.text('msg_error')}: $e");
+      }
+    }
+  }
+
+  final _telegramService = TelegramService();
+
+  Future<void> _sendToTelegram() async {
+    final users = await _telegramService.getUsers();
+    
+    if (!mounted) return;
+    
+    if (users.isEmpty) {
+      AppNotifications.showError(context, "Oldin sozlamalardan Telegram userni qo'shing");
+      return;
+    }
+
+    final fileBytes = await _generateComprehensiveExcel();
+    if (fileBytes == null) {
+      AppNotifications.showInfo(context, "Ma'lumot topilmadi");
+      return;
+    }
+
+    // Select User
+    final selectedUser = await showDialog<Map<String, dynamic>>(
+      context: context, 
+      builder: (c) => SimpleDialog(
+        title: const Text("Kimga yuborilsin?"),
+        children: users.map((u) => SimpleDialogOption(
+          child: ListTile(
+            leading: const Icon(Icons.person),
+            title: Text(u['name']),
+            subtitle: Text(u['role'] ?? ''),
+          ),
+          onPressed: () => Navigator.pop(c, u),
+        )).toList(),
+      )
+    );
+
+    if (selectedUser == null) return;
+    
+    if (!mounted) return;
+    
+    // Show Loading Dialog
+    AppDialogs.showBlurDialog(context: context, title: "Yuborilmoqda...", content: const CircularProgressIndicator());
+    
+    try {
+      // Save Temp File
+      final tempDir = await getTemporaryDirectory();
+      final fileName = "Hisobot_${DateTime.now().toIso8601String().substring(0,19).replaceAll(':','-')}.xlsx";
+      final file = File('${tempDir.path}/$fileName');
+      
+      // Ensure file and directory exist
+      await file.create(recursive: true);
+      await file.writeAsBytes(fileBytes);
+
+      // Send
+      final error = await _telegramService.sendDocument(
+        selectedUser['chatId'], 
+        file, 
+        caption: "📊 ${selectedUser['name']} uchun hisobot.\nSana: ${_startDate.toString().substring(0,10)} - ${_endDate.toString().substring(0,10)}"
+      ).timeout(const Duration(seconds: 30)); // 30s timeout
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      if (error == null) {
+        AppNotifications.showSuccess(context, "Yuborildi!");
+      } else {
+        AppNotifications.showError(context, "Xatolik: $error");
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog on error
+        AppNotifications.showError(context, "Kutilmagan xatolik: $e");
       }
     }
   }
@@ -281,6 +484,17 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                     foregroundColor: Colors.white,
                   ),
                 ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _sendToTelegram,
+                  icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                  label: const Text("Telegram"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  ),
+                ),
               ],
             ),
           ],
@@ -304,11 +518,13 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                 controller: _tabController,
                 children: [
                   _buildGrid(
+                    context,
                     columns: _getInColumns(t), 
                     rows: _inRows, 
                     onLoaded: (e) => _inStateManager = e.stateManager
                   ),
                   _buildGrid(
+                    context,
                     columns: _getOutColumns(t), 
                     rows: _outRows, 
                     onLoaded: (e) => _outStateManager = e.stateManager
@@ -320,7 +536,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildGrid({required List<PlutoColumn> columns, required List<PlutoRow> rows, required Function(PlutoGridOnLoadedEvent) onLoaded}) {
+  Widget _buildGrid(BuildContext context, {required List<PlutoColumn> columns, required List<PlutoRow> rows, required Function(PlutoGridOnLoadedEvent) onLoaded}) {
     return GlassContainer(
       padding: EdgeInsets.zero,
       child: ClipRRect(
@@ -351,13 +567,18 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
   List<PlutoColumn> _getInColumns(AppTranslations t) {
     return [
-      PlutoColumn(title: t.text('col_date'), field: 'date', type: PlutoColumnType.text(), width: 120),
-      PlutoColumn(title: t.text('col_product'), field: 'product', type: PlutoColumnType.text(), width: 250),
-      PlutoColumn(title: t.text('col_qty'), field: 'quantity', type: PlutoColumnType.number(), width: 100),
-      PlutoColumn(title: t.text('col_unit'), field: 'unit', type: PlutoColumnType.text(), width: 80),
-      PlutoColumn(title: t.text('col_price'), field: 'price', type: PlutoColumnType.currency(symbol: ''), width: 120),
-      PlutoColumn(title: t.text('col_total_amount'), field: 'total', type: PlutoColumnType.currency(symbol: ''), width: 150),
-      PlutoColumn(title: t.text('col_from'), field: 'party', type: PlutoColumnType.text(), width: 150),
+      PlutoColumn(title: t.text('col_date'), field: 'date', type: PlutoColumnType.text(), width: 110),
+      PlutoColumn(title: t.text('col_id') ?? 'ID', field: 'product_id', type: PlutoColumnType.text(), width: 80),
+      PlutoColumn(title: t.text('col_product'), field: 'product', type: PlutoColumnType.text(), width: 200),
+      PlutoColumn(title: t.text('col_price'), field: 'price', type: PlutoColumnType.currency(symbol: ''), width: 100),
+      PlutoColumn(title: t.text('col_unit'), field: 'unit', type: PlutoColumnType.text(), width: 70),
+      PlutoColumn(title: t.text('col_qty'), field: 'quantity', type: PlutoColumnType.number(), width: 80),
+      PlutoColumn(title: t.text('col_tax_percent') ?? 'QQS %', field: 'tax_percent', type: PlutoColumnType.number(), width: 80),
+      PlutoColumn(title: t.text('col_tax_sum') ?? 'QQS Sum', field: 'tax_sum', type: PlutoColumnType.number(), width: 100),
+      PlutoColumn(title: t.text('col_surcharge_percent') ?? 'Ustama %', field: 'surcharge_percent', type: PlutoColumnType.number(), width: 80),
+      PlutoColumn(title: t.text('col_surcharge_sum') ?? 'Ustama Sum', field: 'surcharge_sum', type: PlutoColumnType.number(), width: 100),
+      PlutoColumn(title: t.text('col_from'), field: 'party', type: PlutoColumnType.text(), width: 120),
+      PlutoColumn(title: t.text('col_total_amount'), field: 'total', type: PlutoColumnType.currency(symbol: ''), width: 120),
     ];
   }
 

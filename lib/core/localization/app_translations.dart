@@ -83,7 +83,7 @@ class AppTranslations extends ChangeNotifier {
       'dash_total_value': 'Umumiy Qiymat',
       'dash_low_stock': 'Kam Qolgan Mahsulotlar',
       'dash_expiring': 'Tugagan mahsulotlar',
-      'dash_list_title': 'Tugagan Mahsulotlar',
+      'dash_list_title': 'Oxirgi Amaliyotlar',
       'dash_quick_actions': 'Tezkor Amallar',
 
       // Locations

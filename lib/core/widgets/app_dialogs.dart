@@ -65,4 +65,31 @@ class AppDialogs {
       },
     );
   }
+  static Future<bool?> showConfirmDialog({
+    required BuildContext context,
+    required String title,
+    required String content,
+    String? confirmText,
+    String? cancelText,
+  }) {
+    return showBlurDialog<bool>(
+      context: context,
+      title: title,
+      content: Text(content),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(cancelText ?? "Yo'q"),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.error,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(confirmText ?? "Ha, o'chirish"),
+        ),
+      ],
+    );
+  }
 }
