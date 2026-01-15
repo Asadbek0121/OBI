@@ -1,0 +1,36 @@
+name: Build Windows App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Windows Release
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Windows App
+        run: flutter build windows --release
+
+      - name: Compress Build Release
+        run: Compress-Archive -Path build\windows\runner\Release\* -DestinationPath clinical_warehouse_windows.zip
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: clinical_warehouse_windows.zip
