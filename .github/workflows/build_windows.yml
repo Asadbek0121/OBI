@@ -26,8 +26,21 @@ jobs:
       - name: Build Windows App
         run: flutter build windows --release
 
+      - name: Locate Build Output
+        id: build_output
+        shell: powershell
+        run: |
+          if (Test-Path "build\windows\x64\runner\Release") {
+            echo "RELEASE_PATH=build\windows\x64\runner\Release" >> $env:GITHUB_ENV
+          } elseif (Test-Path "build\windows\runner\Release") {
+             echo "RELEASE_PATH=build\windows\runner\Release" >> $env:GITHUB_ENV
+          } else {
+            Write-Error "Build output directory not found!"
+            exit 1
+          }
+
       - name: Compress Build Release
-        run: Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath clinical_warehouse_windows.zip
+        run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_windows.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v1
