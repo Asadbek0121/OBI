@@ -237,19 +237,8 @@ class DatabaseHelper {
   Future<Map<String, dynamic>> getDashboardStats() async {
     final db = await instance.database;
     
-    // 1. Total Inventory Value (Current Stock * Last Price)
-    final valueRes = await db.rawQuery('''
-      SELECT 
-        SUM((total_in - total_out) * last_price) as total_value
-      FROM (
-        SELECT 
-           p.id,
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) as total_in,
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id) as total_out,
-           (SELECT price_per_unit FROM stock_in WHERE product_id = p.id ORDER BY date_time DESC LIMIT 1) as last_price
-        FROM products p
-      )
-    ''');
+    // 1. Total Inventory Value (Now matched to Total Stock In Sum)
+    final valueRes = await db.rawQuery('SELECT SUM(total_amount) as total_value FROM stock_in');
     final totalValue = (valueRes.first['total_value'] as num?)?.toDouble() ?? 0.0;
 
     // 2. Low Stock Items Count ( > 0 but <= min_alert)

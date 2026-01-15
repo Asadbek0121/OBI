@@ -176,32 +176,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       scale: _logoScale.value,
                       child: Transform.rotate(
                         angle: _logoRotate.value,
-                        child: Container(
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(40),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withOpacity(0.4),
-                                blurRadius: 40,
-                                spreadRadius: -5,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.inventory_2_rounded,
-                            color: Colors.white,
-                            size: 80,
-                          ),
+                        child: Image.asset(
+                          'assets/logo.png',
+                          width: 300,
+                          height: 300,
                         ),
                       ),
                     );
                   },
                 ),
                 
-                const SizedBox(height: 40),
+                const SizedBox(height: 10),
                 
                 // Text Animation
                 AnimatedBuilder(
@@ -241,7 +226,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 // Loading Progress Bar
                 if (!_showLoginForm)
                   Container(
-                    margin: const EdgeInsets.only(top: 50),
+                    margin: const EdgeInsets.only(top: 20),
                     width: 200,
                     child: Column(
                       children: [
@@ -324,26 +309,22 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       ),
                     ),
                   ),
+                  
+                const SizedBox(height: 48),
+                Text(
+                  'v2.0.1 | OMBORXONA BOSHQARUV TIZIMI',
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withOpacity(0.4),
+                    fontSize: 12,
+                    letterSpacing: 2,
+                  ),
+                ),
               ],
             ),
           ),
           
           // Bottom Version Info
-          Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                'v2.0.1 | OMBORXONA BOSHQARUV TIZIMI',
-                style: TextStyle(
-                  color: AppColors.textSecondary.withOpacity(0.4),
-                  fontSize: 12,
-                  letterSpacing: 2,
-                ),
-              ),
-            ),
-          ),
+
         ],
       ),
     );

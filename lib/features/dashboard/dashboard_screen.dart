@@ -76,20 +76,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
                         child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.inventory_2_rounded, color: Colors.white, size: 24),
-                            ),
+                            Image.asset('assets/logo.png', width: 80, height: 80),
                             const SizedBox(width: 12),
                             Flexible(
                               child: Text(
                                 t.text('title_app'), 
                                 style: TextStyle(
-                                  fontSize: 18, 
+                                  fontSize: 12, 
                                   fontWeight: FontWeight.bold,
                                   height: 1.1,
                                    color: Theme.of(context).textTheme.headlineMedium?.color,
