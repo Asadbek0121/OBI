@@ -196,8 +196,11 @@ class AppTranslations extends ChangeNotifier {
       'status_low': 'Oz qoldi',
       'status_critical': 'Xavf',
 
-      // Grid Columns (Detailed)
       'col_date': 'SANA & VAQT',
+      'col_payment_status': 'TO\'LOV TURI', // NEW
+      'pay_cash': 'Naqd',
+      'pay_debt': 'Qarzga',
+      'pay_transfer': 'O\'tkazma',
       'col_id': 'ID',
       'col_product': 'MAHSULOT NOMI',
       'col_price': 'NARXI',

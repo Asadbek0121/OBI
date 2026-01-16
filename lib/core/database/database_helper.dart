@@ -137,7 +137,8 @@ class DatabaseHelper {
     // Missing columns check for existing DBs (STRICTER)
     final List<String> columnsToAdd = [
       'short_code', 'serial_number', 'color', 'category_id', 
-      'location_id', 'barcode', 'status', 'created_at', 'model'
+      'location_id', 'barcode', 'status', 'created_at', 'model', 
+      'photo_path' // NEWLY ADDED
     ];
 
     for (var col in columnsToAdd) {
@@ -145,7 +146,6 @@ class DatabaseHelper {
         if (col == 'short_code') {
           await db.execute('ALTER TABLE asset_locations ADD COLUMN $col TEXT');
         } else {
-          // Note: category_id and location_id are INTEGER but for ALTER we use TEXT for compatibility with existing check or just add them
           await db.execute('ALTER TABLE assets ADD COLUMN $col TEXT');
         }
       } catch (e) {
