@@ -735,14 +735,7 @@ class DatabaseHelper {
       LIMIT 5
     ''', [sanitized, sanitized, sanitized]);
     
-    for (var a in assets) {
-      results.add({
-        'type': 'asset', 
-        'title': a['name'], 
-        'subtitle': "Joyi: ${a['location_name'] ?? 'Noma\'lum'} • Barcode: ${a['barcode']}",
-        'barcode': a['barcode']
-      });
-    }
+    results.addAll(assets);
 
     return results;
   }
