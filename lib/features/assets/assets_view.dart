@@ -461,8 +461,6 @@ class _AssetsViewState extends State<AssetsView> {
             ElevatedButton.icon(
               onPressed: _showLocationManager,
               icon: const Icon(Icons.settings_suggest_rounded, size: 18),
-              onPressed: _showLocationManager,
-              icon: const Icon(Icons.settings_suggest_rounded, size: 18),
               label: Text(t.text('assets_manage_loc'), style: const TextStyle(fontSize: 11)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.05),
