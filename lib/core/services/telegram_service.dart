@@ -327,8 +327,13 @@ class TelegramService {
     // 2. Get sub-locations (Floors/Rooms)
     final subLocs = await db.query('asset_locations', where: 'parent_id = ?', whereArgs: [locId]);
     
-    // 3. Get assets in this location
-    final assets = await db.query('assets', where: 'location_id = ?', whereArgs: [locId]);
+    // 3. Get assets in this location with category info
+    final assets = await db.rawQuery('''
+      SELECT a.*, c.name as category_name
+      FROM assets a
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      WHERE a.location_id = ?
+    ''', [locId]);
 
     final buttons = <List<Map<String, dynamic>>>[];
     
@@ -346,9 +351,20 @@ class TelegramService {
     
     String text = "📍 *Manzil:* ${currentLoc['name']}\n";
     if (assets.isNotEmpty) {
-      text += "\n📦 *Bu yerdagi jihozlar:* (${assets.length} ta)\n";
+      text += "\n📦 *Bu yerdagi jihozlar:* (${assets.length} ta)\n"
+              "-------------------------\n";
+              
       for (var a in assets) {
-        text += "   ▫️ ${a['name']} (${a['status']})\n";
+        text += "🖥 *${a['name']}*\n"
+                "   ▫️ Tur: ${a['category_name'] ?? 'Noma\'lum'}\n"
+                "   ▫️ Model: ${a['model'] ?? '-'}\n"
+                "   ▫️ Seriya: `${a['serial_number'] ?? '-'}`\n"
+                "   ▫️ Rangi: ${a['color'] ?? '-'}\n"
+                "   ▫️ Holati: ${a['status']}\n";
+        if (a['barcode'] != null) {
+          text += "   ▫️ Barcode: `${a['barcode']}`\n";
+        }
+        text += "-------------------------\n";
       }
     } else if (subLocs.isEmpty) {
       text += "\n📭 Bu yerda hozircha jihozlar yo'q.";
@@ -389,11 +405,11 @@ class TelegramService {
                   "📊 *BUGUNGI HISOBOT ($dateStr)*\n"
                   "-------------------------\n\n"
                   "📥 *Kirim Operatsiyalari:*\n"
-                  "   ▫️ Jami: *${inCount} ta* harakat\n"
-                  "   ▫️ Qiymati: *${_formatMoney(inSum)}* so'm\n\n"
+                  "   - Jami: *${inCount} ta* harakat\n"
+                  "   - Qiymati: *${_formatMoney(inSum)}* so'm\n\n"
                   "📤 *Chiqim Operatsiyalari:*\n"
-                  "   ▫️ Jami: *${outCount} ta* operatsiya\n"
-                  "   ▫️ Holat: Faoliyat davom etmoqda\n\n"
+                  "   - Jami: *${outCount} ta* operatsiya\n"
+                  "   - Holat: Faoliyat davom etmoqda\n\n"
                   "-------------------------\n"
                   "📝 *Xulosa:* Bugun jami *${inCount + outCount} ta* ombor operatsiyasi amalga oshirildi. "
                   "Tizim barcha harakatlarni muvaffaqiyatli nazorat qilmoqda.\n\n"
@@ -414,11 +430,11 @@ class TelegramService {
       
       String msg = "💰 *OMBORXONA UMUMIY TAHLILI*\n"
                   "-------------------------\n\n"
-                  "� *Moliyaviy Holat:*\n"
-                  "   ▫️ Jami qiymat: *${_formatMoney(totalVal)}* so'm\n\n"
-                  "� *Zaxira Sog'lig'i:*\n"
-                  "   ▫️ Kam qolgan: *${lowCount} xil* (E'tibor berish lozim)\n"
-                  "   ▫️ Tugagan: *${finishedCount} xil* (Zudlik bilan to'ldirish)\n\n"
+                  "💵 *Moliyaviv Holat:*\n"
+                  "   - Jami qiymat: *${_formatMoney(totalVal)}* so'm\n\n"
+                  "📊 *Zaxira Sog'lig'i:*\n"
+                  "   - Kam qolgan: *${lowCount} xil*\n"
+                  "   - Tugagan: *${finishedCount} xil*\n\n"
                   "💡 *Tavsiya:* Hozirgi kunda omborning holati barqaror. ";
                   
       if (finishedCount > 0) {
