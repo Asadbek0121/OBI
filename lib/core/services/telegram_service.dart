@@ -157,9 +157,6 @@ class TelegramService {
 
       try {
         // 1. Get Low Stock Items
-        // We use dynamic because we don't import DatabaseHelper here to avoid circular depends if unnecessary, 
-        // but ideally we should import it or use a callback. 
-        // Assuming databaseHelperInstance has getLowStockProducts()
         final List<Map<String, dynamic>> lowStockItems = await databaseHelperInstance.getLowStockProducts();
 
         if (lowStockItems.isNotEmpty) {
@@ -178,7 +175,6 @@ class TelegramService {
            
            for (int i = 0; i < lowStockItems.length; i++) {
              final item = lowStockItems[i];
-             // Limit to top 20 to avoid message size limits
              if (i >= 20) {
                sb.writeln("... va yana ${lowStockItems.length - 20} ta mahsulot.");
                break;
@@ -206,7 +202,6 @@ class TelegramService {
            }
         } else {
           print("✅ Scheduler: No low stock items found today.");
-          // Mark as done anyway so we don't query DB on every restart today
           await prefs.setString(_keyLastAlertDate, todayStr);
         }
       } catch (e) {
@@ -218,25 +213,21 @@ class TelegramService {
   Future<void> sendDailyReport(dynamic databaseHelperInstance) async {
     print("📤 Telegram: Sending Daily Report...");
     try {
-      // 1. Get Users
       final users = await getUsers();
       if (users.isEmpty) {
         return; 
       }
 
-      // 2. Get Data
       final stats = await databaseHelperInstance.getDashboardStatusToday();
       final now = DateTime.now();
       final dateStr = "${now.day}.${now.month}.${now.year}";
 
-      // 3. Format Message
       final sb = StringBuffer();
       sb.writeln("📅 *KUNLIK HISOBOT*");
       sb.writeln("Sana: $dateStr");
       sb.writeln("-------------------------");
       sb.writeln("📉 *Kirim (Import):*");
       sb.writeln("   • Soni: ${stats['in_count']} ta");
-      // Format number for better readability if possible, using simple replacing logic for now
       final sumStr = stats['in_sum'].toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
       sb.writeln("   • Summa: $sumStr so'm"); 
       sb.writeln("");
@@ -247,7 +238,6 @@ class TelegramService {
 
       final message = sb.toString();
 
-      // 4. Send
       int successCount = 0;
       for (var user in users) {
           final err = await sendMessage(user['chatId'], message);
@@ -267,11 +257,8 @@ class TelegramService {
     final now = DateTime.now();
     final todayStr = "${now.year}-${now.month}-${now.day}"; 
     
-    // Check if already sent today
     if (prefs.getString(_keyLastReportDate) == todayStr) return;
 
-    // TARGET TIME: 18:00 (6 PM)
-    // Only send if it's 18:00 or later
     if (now.hour >= 18) {
        print("🕕 Scheduler: It's past 18:00. Sending Automatic Daily Report...");
        await sendDailyReport(databaseHelperInstance);
@@ -280,10 +267,8 @@ class TelegramService {
   }
 
   Future<void> checkWeeklyBackup(final databaseHelperInstance) async {
-    // 1. Check Schedule
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    // Simple week number: Days since epoch / 7
     final currentWeek = (now.millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7)).floor();
     
     final lastWeek = prefs.getInt(_keyLastBackupWeek) ?? 0;
@@ -291,16 +276,13 @@ class TelegramService {
     if (currentWeek > lastWeek) {
       print("📅 Scheduler: Weekly backup needed for Week $currentWeek");
       
-      // 2. Get Admin/Recipients
       final users = await getUsers();
       if (users.isEmpty) {
         print("⚠️ Scheduler: No users configured for backup.");
         return;
       }
-      // For now, send to the first user.
       final targetUser = users.first; 
       
-      // 3. Create Backup
       try {
         final path = await databaseHelperInstance.createBackup(null);
         
@@ -375,19 +357,16 @@ class TelegramService {
     final chatId = msg['chat']['id'].toString();
     final text = msg['text']?.toString() ?? '';
     
-    // Check if user is authorized (simple check against local list)
     final users = await getUsers();
     final isAuthorized = users.any((u) => u['chatId'] == chatId);
 
     if (!isAuthorized) {
-       // Auto-reply to unknown users
        sendMessage(chatId, "⛔️ Kechirasiz, siz tizimda ro'yxatdan o'tmagansiz.\nID: $chatId\nIltimos, adminga murojaat qiling.");
        return;
     }
 
     print("📩 Bot Message [$chatId]: $text");
 
-    // --- COMMAND HANDLER ---
     if (text == '/start') {
       await _sendMainMenu(chatId, "👋 Assalomu alaykum! Omborxona Botingizga xush kelibsiz.\nQuyidagi menyudan foydalaning:");
     } 
@@ -413,7 +392,6 @@ class TelegramService {
        await _sendMainMenu(chatId, "🔄 Menyu yangilandi:");
     }
     else {
-      // Treat as Search Query
       if (text.length > 2) {
         await _handleSearchProduct(chatId, text);
       } else {
@@ -423,8 +401,6 @@ class TelegramService {
   }
 
   // --- HANDLERS ---
-  
-  // --- COMMAND HANDLERS IMPLEMENTATION ---
   
   Future<void> _handleTodayStats(String chatId) async {
      try {
@@ -508,14 +484,12 @@ class TelegramService {
         final icon = item['type'] == 'in' ? "📥 KIRIM" : "📤 CHIQIM";
         final dtRaw = item['date_time'].toString();
         
-        // Aqlli vaqtni aniqlash
         String dateDisplay = dtRaw;
         String timeDisplay = "";
         
         final parsed = DateTime.tryParse(dtRaw);
         if (parsed != null) {
            dateDisplay = "${parsed.day.toString().padLeft(2,'0')}.${parsed.month.toString().padLeft(2,'0')}.${parsed.year}";
-           // Agar vaqt kiritilgan bo'lsa (faqat 00:00 bo'lmasa yoki stringda bo'lsa)
            if (dtRaw.length > 11) {
              timeDisplay = " 🕒 ${parsed.hour.toString().padLeft(2,'0')}:${parsed.minute.toString().padLeft(2,'0')}";
            }
@@ -525,7 +499,7 @@ class TelegramService {
                 "📦 *${item['product_name']}*\n"
                 "🔢 Miqdor: ${item['quantity']}\n"
                 "👤 Tomon: ${item['party'] ?? 'Noma\'lum'}\n"
-                "� Sana: $dateDisplay$timeDisplay\n"
+                "📅 Sana: $dateDisplay$timeDisplay\n"
                 "-------------------------\n";
       }
       
@@ -568,7 +542,6 @@ class TelegramService {
       final db = await DatabaseHelper.instance.database;
       final sanitized = '%$query%';
       
-      // 1. Search Products
       final productResults = await db.rawQuery('''
         SELECT p.name, p.unit, 
           ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
@@ -578,7 +551,6 @@ class TelegramService {
         LIMIT 5
       ''', [sanitized]);
 
-      // 2. Search Assets
       final assetResults = await db.rawQuery('''
         SELECT a.name, a.model, a.status, l.name as loc_name
         FROM assets a
@@ -627,12 +599,11 @@ class TelegramService {
     final token = await getBotToken();
     if (token == null) return;
     
-    // CUSTOM KEYBOARD JSON
     final keyboard = {
       "keyboard": [
         [{"text": "📊 Bugungi Holat"}, {"text": "💰 Umumiy Hisobot"}],
-        [{"text": "⚠️ Kam Qolganlar"}, {"text": "� Jihozlar"}],
-        [{"text": "�🔄 Oxirgi Harakatlar"}, {"text": "🔎 Mahsulot Qidirish"}],
+        [{"text": "⚠️ Kam Qolganlar"}, {"text": "🖥 Jihozlar"}],
+        [{"text": "🔄 Oxirgi Harakatlar"}, {"text": "🔎 Mahsulot Qidirish"}],
         [{"text": "🔄 Yangilash"}]
       ],
       "resize_keyboard": true,
