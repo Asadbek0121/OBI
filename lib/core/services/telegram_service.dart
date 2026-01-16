@@ -279,6 +279,52 @@ class TelegramService {
     }
   }
 
+  Future<void> checkWeeklyBackup(final databaseHelperInstance) async {
+    // 1. Check Schedule
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    // Simple week number: Days since epoch / 7
+    final currentWeek = (now.millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7)).floor();
+    
+    final lastWeek = prefs.getInt(_keyLastBackupWeek) ?? 0;
+    
+    if (currentWeek > lastWeek) {
+      print("📅 Scheduler: Weekly backup needed for Week $currentWeek");
+      
+      // 2. Get Admin/Recipients
+      final users = await getUsers();
+      if (users.isEmpty) {
+        print("⚠️ Scheduler: No users configured for backup.");
+        return;
+      }
+      // For now, send to the first user.
+      final targetUser = users.first; 
+      
+      // 3. Create Backup
+      try {
+        final path = await databaseHelperInstance.createBackup(null);
+        
+        if (path != null) {
+          final file = File(path);
+          final error = await sendDocument(
+            targetUser['chatId'], 
+            file, 
+            caption: "🛡️ Avtomatik Haftalik Zaxira (Backup)\nSana: ${now.toString()}\n#backup"
+          );
+          
+          if (error == null) {
+            print("✅ Scheduler: Backup sent to ${targetUser['name']}");
+            await prefs.setInt(_keyLastBackupWeek, currentWeek);
+          } else {
+             print("❌ Scheduler: Failed to send backup to Telegram. $error");
+          }
+        }
+      } catch (e) {
+        print("❌ Scheduler Error: $e");
+      }
+    }
+  }
+
   // --- BOT LISTENER (Interactive Mode) ---
   bool _isListening = false;
   int _lastUpdateId = 0;
