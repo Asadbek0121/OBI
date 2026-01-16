@@ -213,6 +213,51 @@ class TelegramService {
     }
   }
 
+  Future<void> sendDailyReport(dynamic databaseHelperInstance) async {
+    print("📤 Telegram: Sending Daily Report...");
+    try {
+      // 1. Get Users
+      final users = await getUsers();
+      if (users.isEmpty) {
+        return; 
+      }
+
+      // 2. Get Data
+      final stats = await databaseHelperInstance.getDashboardStatusToday();
+      final now = DateTime.now();
+      final dateStr = "${now.day}.${now.month}.${now.year}";
+
+      // 3. Format Message
+      final sb = StringBuffer();
+      sb.writeln("📅 *KUNLIK HISOBOT*");
+      sb.writeln("Sana: $dateStr");
+      sb.writeln("-------------------------");
+      sb.writeln("📉 *Kirim (Import):*");
+      sb.writeln("   • Soni: ${stats['in_count']} ta");
+      // Format number for better readability if possible, using simple replacing logic for now
+      final sumStr = stats['in_sum'].toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+      sb.writeln("   • Summa: $sumStr so'm"); 
+      sb.writeln("");
+      sb.writeln("📈 *Chiqim (Export):*");
+      sb.writeln("   • Soni: ${stats['out_count']} ta");
+      sb.writeln("-------------------------");
+      sb.writeln("#hisobot #daily");
+
+      final message = sb.toString();
+
+      // 4. Send
+      int successCount = 0;
+      for (var user in users) {
+          final err = await sendMessage(user['chatId'], message);
+          if (err == null) successCount++;
+      }
+      print("✅ Telegram: Daily report sent to $successCount users.");
+
+    } catch (e) {
+      print("❌ Telegram Daily Report Error: $e");
+    }
+  }
+
   Future<void> checkWeeklyBackup(dynamic databaseHelperInstance) async {
     // 1. Check Schedule
     final prefs = await SharedPreferences.getInstance();

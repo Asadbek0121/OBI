@@ -14,6 +14,7 @@ import '../../core/database/database_helper.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/telegram_service.dart';
 import '../../core/services/excel_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -438,6 +439,46 @@ class _SettingsViewState extends State<SettingsView> {
                           },
                         ),
                     ),
+                    const SizedBox(height: 20),
+                    const Text("Qo'shimcha", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              Navigator.pop(context); // Close dialog first
+                              AppNotifications.showInfo(context, "Hisobot yuborilmoqda...");
+                              await _telegramService.sendDailyReport(DatabaseHelper.instance);
+                              AppNotifications.showSuccess(context, "Bugungi hisobot barcha userlarga yuborildi!");
+                            }, 
+                            icon: const Icon(Icons.bar_chart),
+                            label: const Text("Bugungi Hisobot"),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                               final prefs = await SharedPreferences.getInstance();
+                               await prefs.remove('last_low_stock_alert_date_v1'); // Clear flag to force run
+                               
+                               Navigator.pop(context);
+                               AppNotifications.showInfo(context, "Tekshirilmoqda...");
+                               
+                               await _telegramService.checkDailyLowStockAlert(DatabaseHelper.instance); 
+                               
+                               AppNotifications.showSuccess(context, "Tekshiruv yakunlandi.");
+                            },
+                            icon: const Icon(Icons.warning_amber_rounded),
+                            label: const Text("Kam Qoldiq"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                   ],
                 ),
               ),
