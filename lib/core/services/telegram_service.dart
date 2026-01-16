@@ -47,25 +47,58 @@ class TelegramService {
 
   // --- API Actions ---
 
-  Future<String?> sendMessage(String chatId, String text) async {
+  Future<String?> sendMessage(String chatId, String text, {Map<String, dynamic>? replyMarkup}) async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
 
     try {
       final url = Uri.parse('$_baseUrl$token/sendMessage');
-      final response = await http.post(
-        url,
-        body: {'chat_id': chatId, 'text': text, 'parse_mode': 'Markdown'},
-      );
+      final body = {
+        'chat_id': chatId, 
+        'text': text, 
+        'parse_mode': 'Markdown',
+      };
+      if (replyMarkup != null) {
+        body['reply_markup'] = jsonEncode(replyMarkup);
+      }
+
+      final response = await http.post(url, body: body);
       
       if (response.statusCode == 200) {
-        return null; // Success
+        return null;
       } else {
         return "Xato: ${response.statusCode} - ${response.body}";
       }
     } catch (e) {
       print('Telegram Error: $e');
       return "Internet xatosi: $e";
+    }
+  }
+
+  Future<void> answerCallbackQuery(String callbackQueryId) async {
+    final token = await getBotToken();
+    if (token == null) return;
+    final url = Uri.parse('$_baseUrl$token/answerCallbackQuery');
+    await http.post(url, body: {'callback_query_id': callbackQueryId});
+  }
+
+  Future<void> editMessageText(String chatId, int messageId, String text, {Map<String, dynamic>? replyMarkup}) async {
+    final token = await getBotToken();
+    if (token == null) return;
+    try {
+      final url = Uri.parse('$_baseUrl$token/editMessageText');
+      final body = {
+        'chat_id': chatId,
+        'message_id': messageId.toString(),
+        'text': text,
+        'parse_mode': 'Markdown',
+      };
+      if (replyMarkup != null) {
+        body['reply_markup'] = jsonEncode(replyMarkup);
+      }
+      await http.post(url, body: body);
+    } catch (e) {
+      print('EditMsg Error: $e');
     }
   }
 
@@ -84,59 +117,39 @@ class TelegramService {
       }
 
       final response = await request.send();
-      
-      if (response.statusCode == 200) {
-        return null;
-      } else if (response.statusCode == 404) {
-        return "Bot topilmadi (404). Token noto'g'ri kiritilgan.";
-      } else {
-        final respStr = await response.stream.bytesToString();
-        print("Telegram SendDoc Failed: ${response.statusCode} - $respStr");
-        return "Xato: ${response.statusCode} - $respStr";
-      }
+      if (response.statusCode == 200) return null;
+      return "Error: ${response.statusCode}";
     } catch (e) {
-      print('Telegram SendDoc Error: $e');
-      return "Internet xatosi: $e";
+      return "Error: $e";
     }
   }
 
-  // Simple polling to find new users who started the bot
   Future<List<Map<String, dynamic>>> getUpdates() async {
     final token = await getBotToken();
-    // Basic validation
     if (token == null || !token.contains(':')) return [];
-
     try {
       final url = Uri.parse('$_baseUrl$token/getUpdates');
       final response = await http.get(url);
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final result = <Map<String, dynamic>>[];
-        
         if (data['ok'] == true) {
           final List updates = data['result'];
           for (var u in updates) {
             if (u['message'] != null) {
               final chat = u['message']['chat'];
-              final from = u['message']['from'];
-              // Only collect private chats
               if (chat['type'] == 'private') {
                 result.add({
                   'chatId': chat['id'].toString(),
-                  'firstName': from['first_name'] ?? 'User',
-                  'username': from['username'] ?? '',
+                  'firstName': u['message']['from']['first_name'] ?? 'User',
                 });
               }
             }
           }
         }
-        return result; // Allows UI to show "Found X users, pick one to add"
+        return result;
       }
-    } catch (e) {
-      print('Telegram Updates Error: $e');
-    }
-
+    } catch (e) {}
     return [];
   }
 
@@ -147,163 +160,62 @@ class TelegramService {
   Future<void> checkDailyLowStockAlert(dynamic databaseHelperInstance) async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
-    final todayStr = "${now.year}-${now.month}-${now.day}"; // YYYY-M-D
-    
-    final lastAlertDate = prefs.getString(_keyLastAlertDate);
-
-    // Run only if we haven't run today
-    if (lastAlertDate != todayStr) {
-      print("📅 Scheduler: Checking for Low Stock Alerts (Daily)...");
-
+    final todayStr = "${now.year}-${now.month}-${now.day}";
+    if (prefs.getString(_keyLastAlertDate) != todayStr) {
       try {
-        // 1. Get Low Stock Items
         final List<Map<String, dynamic>> lowStockItems = await databaseHelperInstance.getLowStockProducts();
-
         if (lowStockItems.isNotEmpty) {
-           // 2. Get Recipients
            final users = await getUsers();
-           if (users.isEmpty) {
-             print("⚠️ Scheduler: No telegram users found to receive alerts.");
-             return;
-           }
-
-           // 3. Construct Message
            final sb = StringBuffer();
-           sb.writeln("⚠️ *DIQQAT: MAHSULOTLAR TUGAMOQDA!* ⚠️");
-           sb.writeln("Sanasi: $todayStr");
-           sb.writeln("");
-           
-           for (int i = 0; i < lowStockItems.length; i++) {
-             final item = lowStockItems[i];
-             if (i >= 20) {
-               sb.writeln("... va yana ${lowStockItems.length - 20} ta mahsulot.");
-               break;
-             }
-             sb.writeln("${i + 1}. *${item['name']}* - ${item['stock']} ${item['unit']}");
+           sb.writeln("⚠️ *DIQQAT: MAHSULOTLAR TUGAMOQDA!* ⚠️\n");
+           for (int i = 0; i < lowStockItems.length && i < 20; i++) {
+             sb.writeln("${i + 1}. *${lowStockItems[i]['name']}* - ${lowStockItems[i]['stock']} ${lowStockItems[i]['unit']}");
            }
-           
-           sb.writeln("");
-           sb.writeln("#lowstock #omborxona");
-
            final message = sb.toString();
-
-           // 4. Send to ALL users (Since this is critical info)
-           int successCount = 0;
-           for (var user in users) {
-              final err = await sendMessage(user['chatId'], message);
-              if (err == null) successCount++;
-           }
-           
-           print("✅ Scheduler: Low stock alert sent to $successCount users.");
-           
-           // 5. Mark as done for today
-           if (successCount > 0) {
-             await prefs.setString(_keyLastAlertDate, todayStr);
-           }
-        } else {
-          print("✅ Scheduler: No low stock items found today.");
-          await prefs.setString(_keyLastAlertDate, todayStr);
+           for (var user in users) await sendMessage(user['chatId'], message);
+           await prefs.setString(_keyLastAlertDate, todayStr);
         }
-      } catch (e) {
-        print("❌ Scheduler Alert Error: $e");
-      }
+      } catch (e) {}
     }
   }
 
   Future<void> sendDailyReport(dynamic databaseHelperInstance) async {
-    print("📤 Telegram: Sending Daily Report...");
     try {
       final users = await getUsers();
-      if (users.isEmpty) {
-        return; 
-      }
-
+      if (users.isEmpty) return;
       final stats = await databaseHelperInstance.getDashboardStatusToday();
       final now = DateTime.now();
       final dateStr = "${now.day}.${now.month}.${now.year}";
-
-      final sb = StringBuffer();
-      sb.writeln("📅 *KUNLIK HISOBOT*");
-      sb.writeln("Sana: $dateStr");
-      sb.writeln("-------------------------");
-      sb.writeln("📉 *Kirim (Import):*");
-      sb.writeln("   • Soni: ${stats['in_count']} ta");
       final sumStr = stats['in_sum'].toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
-      sb.writeln("   • Summa: $sumStr so'm"); 
-      sb.writeln("");
-      sb.writeln("📈 *Chiqim (Export):*");
-      sb.writeln("   • Soni: ${stats['out_count']} ta");
-      sb.writeln("-------------------------");
-      sb.writeln("#hisobot #daily");
-
-      final message = sb.toString();
-
-      int successCount = 0;
-      for (var user in users) {
-          final err = await sendMessage(user['chatId'], message);
-          if (err == null) successCount++;
-      }
-      print("✅ Telegram: Daily report sent to $successCount users.");
-
-    } catch (e) {
-      print("❌ Telegram Daily Report Error: $e");
-    }
+      final msg = "📅 *KUNLIK HISOBOT*\nSana: $dateStr\n-------------------------\n📉 *Kirim:* ${stats['in_count']} ta (${sumStr} so'm)\n📈 *Chiqim:* ${stats['out_count']} ta\n-------------------------";
+      for (var user in users) await sendMessage(user['chatId'], msg);
+    } catch (e) {}
   }
-
-  static const String _keyLastReportDate = 'last_daily_report_date_v1';
 
   Future<void> checkDailyReportAuto(dynamic databaseHelperInstance) async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
     final todayStr = "${now.year}-${now.month}-${now.day}"; 
-    
-    if (prefs.getString(_keyLastReportDate) == todayStr) return;
-
+    if (prefs.getString('last_daily_report_date_v1') == todayStr) return;
     if (now.hour >= 18) {
-       print("🕕 Scheduler: It's past 18:00. Sending Automatic Daily Report...");
        await sendDailyReport(databaseHelperInstance);
-       await prefs.setString(_keyLastReportDate, todayStr);
+       await prefs.setString('last_daily_report_date_v1', todayStr);
     }
   }
 
   Future<void> checkWeeklyBackup(final databaseHelperInstance) async {
     final prefs = await SharedPreferences.getInstance();
-    final now = DateTime.now();
-    final currentWeek = (now.millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7)).floor();
-    
-    final lastWeek = prefs.getInt(_keyLastBackupWeek) ?? 0;
-    
-    if (currentWeek > lastWeek) {
-      print("📅 Scheduler: Weekly backup needed for Week $currentWeek");
-      
+    final currentWeek = (DateTime.now().millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7)).floor();
+    if (currentWeek > (prefs.getInt(_keyLastBackupWeek) ?? 0)) {
       final users = await getUsers();
-      if (users.isEmpty) {
-        print("⚠️ Scheduler: No users configured for backup.");
-        return;
-      }
-      final targetUser = users.first; 
-      
+      if (users.isEmpty) return;
       try {
         final path = await databaseHelperInstance.createBackup(null);
-        
         if (path != null) {
-          final file = File(path);
-          final error = await sendDocument(
-            targetUser['chatId'], 
-            file, 
-            caption: "🛡️ Avtomatik Haftalik Zaxira (Backup)\nSana: ${now.toString()}\n#backup"
-          );
-          
-          if (error == null) {
-            print("✅ Scheduler: Backup sent to ${targetUser['name']}");
-            await prefs.setInt(_keyLastBackupWeek, currentWeek);
-          } else {
-             print("❌ Scheduler: Failed to send backup to Telegram. $error");
-          }
+          final error = await sendDocument(users.first['chatId'], File(path), caption: "🛡️ Avtomatik Haftalik Zaxira");
+          if (error == null) await prefs.setInt(_keyLastBackupWeek, currentWeek);
         }
-      } catch (e) {
-        print("❌ Scheduler Error: $e");
-      }
+      } catch (e) {}
     }
   }
 
@@ -312,42 +224,31 @@ class TelegramService {
   int _lastUpdateId = 0;
 
   void startBotListener() async {
-    if (_isListening) return; // Already running
+    if (_isListening) return;
     _isListening = true;
-    print("🤖 Telegram Bot: Eshitish rejimi yoqildi (Polling)...");
-
+    print("🤖 Telegram Bot: Polling started...");
     while (_isListening) {
       try {
         await _checkUpdates();
       } catch (e) {
-        print("❌ Bot Listener Error: $e");
-        await Future.delayed(const Duration(seconds: 5)); // Wait before retry
+        await Future.delayed(const Duration(seconds: 5));
       }
-      await Future.delayed(const Duration(seconds: 2)); // Polling interval
+      await Future.delayed(const Duration(seconds: 2));
     }
-  }
-
-  void stopBotListener() {
-    _isListening = false;
-    print("🛑 Telegram Bot: To'xtatildi.");
   }
 
   Future<void> _checkUpdates() async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return;
-
     final url = Uri.parse('$_baseUrl$token/getUpdates?offset=${_lastUpdateId + 1}&timeout=10');
     final response = await http.get(url);
-
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['ok'] == true) {
-        final List updates = data['result'];
-        for (var u in updates) {
+        for (var u in data['result']) {
           _lastUpdateId = u['update_id'];
-          if (u['message'] != null) {
-            await _processMessage(u['message']);
-          }
+          if (u['message'] != null) await _processMessage(u['message']);
+          if (u['callback_query'] != null) await _processCallbackQuery(u['callback_query']);
         }
       }
     }
@@ -356,270 +257,171 @@ class TelegramService {
   Future<void> _processMessage(Map<String, dynamic> msg) async {
     final chatId = msg['chat']['id'].toString();
     final text = msg['text']?.toString() ?? '';
-    
     final users = await getUsers();
-    final isAuthorized = users.any((u) => u['chatId'] == chatId);
-
-    if (!isAuthorized) {
-       sendMessage(chatId, "⛔️ Kechirasiz, siz tizimda ro'yxatdan o'tmagansiz.\nID: $chatId\nIltimos, adminga murojaat qiling.");
+    if (!users.any((u) => u['chatId'] == chatId)) {
+       await sendMessage(chatId, "⛔️ Ro'yxatdan o'tmagansiz. ID: $chatId");
        return;
     }
 
-    print("📩 Bot Message [$chatId]: $text");
-
-    if (text == '/start') {
-      await _sendMainMenu(chatId, "👋 Assalomu alaykum! Omborxona Botingizga xush kelibsiz.\nQuyidagi menyudan foydalaning:");
-    } 
-    else if (text.contains("Bugungi Holat")) {
+    if (text == '/start' || text.contains("Yangilash")) {
+      await _sendMainMenu(chatId, "👋 Assalomu alaykum! Omborxona xizmatiga xush kelibsiz.");
+    } else if (text.contains("Bugungi Holat")) {
       await _handleTodayStats(chatId);
-    }
-    else if (text.contains("Umumiy Hisobot")) {
-       await _handleTotalStats(chatId);
-    }
-    else if (text.contains("Kam Qolganlar")) {
+    } else if (text.contains("Umumiy Hisobot")) {
+      await _handleTotalStats(chatId);
+    } else if (text.contains("Kam Qolganlar")) {
       await _handleLowStock(chatId);
-    }
-    else if (text.contains("Jihozlar")) {
-      await _handleAssetsStat(chatId);
-    }
-    else if (text.contains("Oxirgi Harakatlar")) {
+    } else if (text.contains("Jihozlar")) {
+      await _handleAssetsStatMenu(chatId);
+    } else if (text.contains("Oxirgi Harakatlar")) {
       await _handleRecentActivity(chatId);
-    }
-    else if (text.contains("Mahsulot Qidirish")) {
-      await sendMessage(chatId, "🔍 *Qidirish uchun:*\n\nShunchaki mahsulot nomini yozib yuboring.\nMasalan: `Paracetamol` yoki `Stol` \n\n(Kamida 3 ta harf)");
-    }
-    else if (text.contains("Yangilash") || text == '/start') {
-       await _sendMainMenu(chatId, "🔄 Menyu yangilandi:");
-    }
-    else {
-      if (text.length > 2) {
-        await _handleSearchProduct(chatId, text);
-      } else {
-        await sendMessage(chatId, "⚠️ Iltimos, menyudan tanlang yoki qidirish uchun kamida 3 ta harf yozing.");
-      }
+    } else if (text.contains("Mahsulot Qidirish")) {
+      await sendMessage(chatId, "🔍 Qidirish uchun nomini yozing:");
+    } else if (text.length > 2) {
+      await _handleSearchProduct(chatId, text);
     }
   }
 
-  // --- HANDLERS ---
-  
+  Future<void> _processCallbackQuery(Map<String, dynamic> query) async {
+    final chatId = query['message']['chat']['id'].toString();
+    final messageId = query['message']['message_id'];
+    final data = query['data']?.toString() ?? '';
+    
+    await answerCallbackQuery(query['id']);
+
+    if (data.startsWith('asset_loc:')) {
+      final locId = int.tryParse(data.split(':')[1]);
+      if (locId != null) await _handleShowLocation(chatId, messageId, locId);
+    } else if (data == 'asset_root') {
+      await _handleAssetsStatMenu(chatId, messageId: messageId);
+    }
+  }
+
+  // --- Handlers ---
+
+  Future<void> _handleAssetsStatMenu(String chatId, {int? messageId}) async {
+    final db = await DatabaseHelper.instance.database;
+    final buildings = await db.query('asset_locations', where: 'parent_id IS NULL');
+    
+    final buttons = <List<Map<String, dynamic>>>[];
+    for (var b in buildings) {
+      buttons.add([{'text': "🏢 ${b['name']}", 'callback_data': "asset_loc:${b['id']}"}]);
+    }
+
+    final markup = {'inline_keyboard': buttons};
+    final text = "🖥 *Jihozlar bo'limi*\n\nIltimos, kerakli binoni tanlang:";
+
+    if (messageId != null) {
+      await editMessageText(chatId, messageId, text, replyMarkup: markup);
+    } else {
+      await sendMessage(chatId, text, replyMarkup: markup);
+    }
+  }
+
+  Future<void> _handleShowLocation(String chatId, int messageId, int locId) async {
+    final db = await DatabaseHelper.instance.database;
+    
+    // 1. Get current location info
+    final currentLoc = (await db.query('asset_locations', where: 'id = ?', whereArgs: [locId])).first;
+    
+    // 2. Get sub-locations (Floors/Rooms)
+    final subLocs = await db.query('asset_locations', where: 'parent_id = ?', whereArgs: [locId]);
+    
+    // 3. Get assets in this location
+    final assets = await db.query('assets', where: 'location_id = ?', whereArgs: [locId]);
+
+    final buttons = <List<Map<String, dynamic>>>[];
+    
+    // Add sub-locations as buttons
+    for (var sl in subLocs) {
+      String prefix = sl['type'] == 'floor' ? '📶' : '🚪';
+      buttons.add([{'text': "$prefix ${sl['name']}", 'callback_data': "asset_loc:${sl['id']}"}]);
+    }
+
+    // Back button
+    final parentId = currentLoc['parent_id'];
+    buttons.add([{'text': "⬅️ Orqaga", 'callback_data': parentId == null ? 'asset_root' : "asset_loc:$parentId"}]);
+
+    final markup = {'inline_keyboard': buttons};
+    
+    String text = "📍 *Manzil:* ${currentLoc['name']}\n";
+    if (assets.isNotEmpty) {
+      text += "\n📦 *Bu yerdagi jihozlar:* (${assets.length} ta)\n";
+      for (var a in assets) {
+        text += "   ▫️ ${a['name']} (${a['status']})\n";
+      }
+    } else if (subLocs.isEmpty) {
+      text += "\n📭 Bu yerda hozircha jihozlar yo'q.";
+    } else {
+      text += "\n👇 Kerakli bo'limni tanlang:";
+    }
+
+    await editMessageText(chatId, messageId, text, replyMarkup: markup);
+  }
+
   Future<void> _handleTodayStats(String chatId) async {
-     try {
-       final stats = await DatabaseHelper.instance.getDashboardStatusToday();
-       final formatter = NumberFormat("#,###");
-       
-       final msg = "📊 *BUGUNGI OPERATSIYALAR*\n"
-                   "📅 Sana: ${DateTime.now().day.toString().padLeft(2,'0')}.${DateTime.now().month.toString().padLeft(2,'0')}.${DateTime.now().year}\n"
-                   "-------------------------\n\n"
-                   "📥 *KIRIM HARAKATI:*\n"
-                   "   ▫️ Soni: *${stats['in_count']} ta* operatsiya\n"
-                   "   ▫️ Pul qiymati: *${formatter.format(stats['in_sum'])}* so'm\n\n"
-                   "📤 *CHIQIM HARAKATI:*\n"
-                   "   ▫️ Soni: *${stats['out_count']} ta* operatsiya\n"
-                   "   ▫️ Xodimlar: Bugun faol harakatda\n"
-                   "-------------------------\n"
-                   "❇️ *Xulosa:* Bugun omboringizda jami ${stats['in_count'] + stats['out_count']} ta harakat amalga oshirildi.\n"
-                   "#bugun #hisobot";
-       
-       await sendMessage(chatId, msg); 
-     } catch (e) {
-       await sendMessage(chatId, "⚠️ Xatolik yuz berdi: $e");
-     }
+    final stats = await DatabaseHelper.instance.getDashboardStatusToday();
+    final formatter = NumberFormat("#,###");
+    final msg = "📊 *BUGUNGI HISOBOT*\n-------------------------\n📥 *Kirim:* ${stats['in_count']} ta (${formatter.format(stats['in_sum'])} so'm)\n📤 *Chiqim:* ${stats['out_count']} ta\n-------------------------";
+    await sendMessage(chatId, msg);
   }
 
   Future<void> _handleTotalStats(String chatId) async {
-    try {
-      final stats = await DatabaseHelper.instance.getDashboardStats();
-      final formatter = NumberFormat("#,###");
-      
-      final totalVal = stats['total_value'] as double;
-      
-      final msg = "💰 *OMBORNING UMUMIY HOLATI*\n"
-                  "-------------------------\n\n"
-                  "💵 *Moliyaviy Qiymat:*\n"
-                  "   👉 *${formatter.format(totalVal)}* so'm\n\n"
-                  "📉 *Zaxira Holati:*\n"
-                  "   ▫️ Kam qolgan: *${stats['low_stock']}* xil mahsulot\n"
-                  "   ▫️ Tugagan: *${stats['finished']}* xil mahsulot\n\n"
-                  "🏢 *Boshqaruv:* Hamma ma'lumotlar real vaqt rejimida yangilangan.\n"
-                  "-------------------------\n"
-                  "#umumiy #hisobot";
-      
-      await sendMessage(chatId, msg);
-    } catch (e) {
-       await sendMessage(chatId, "⚠️ Xatolik: $e");
-    }
+    final stats = await DatabaseHelper.instance.getDashboardStats();
+    final formatter = NumberFormat("#,###");
+    final msg = "💰 *OMBOR HOLATI*\n-------------------------\n💵 Qiymat: *${formatter.format(stats['total_value'])}* so'm\n📉 Kam qolgan: ${stats['low_stock']} ta\n🚫 Tugagan: ${stats['finished']} ta\n-------------------------";
+    await sendMessage(chatId, msg);
   }
 
   Future<void> _handleLowStock(String chatId) async {
-     try {
-       final items = await DatabaseHelper.instance.getLowStockProducts();
-       if (items.isEmpty) {
-         await sendMessage(chatId, "✅ Ajoyib! Hozircha kam qolgan tovarlar yo'q.");
-         return;
-       }
-       
-       String list = "⚠️ *Kam Qolgan Tovarlar (Top 10)*\n\n";
-       for (var i = 0; i < items.length && i < 10; i++) {
-          final item = items[i];
-          list += "${i+1}. ${item['name']} — *${item['stock']} ${item['unit']}*\n";
-       }
-       
-       await sendMessage(chatId, list);
-     } catch (e) {
-       await sendMessage(chatId, "⚠️ Xatolik: $e");
-     }
+    final items = await DatabaseHelper.instance.getLowStockProducts();
+    if (items.isEmpty) { await sendMessage(chatId, "✅ Hamma narsa yetarli."); return; }
+    String list = "⚠️ *Kam qolganlar:*\n\n";
+    for (var i = 0; i < items.length && i < 10; i++) list += "${i+1}. ${items[i]['name']} — *${items[i]['stock']}*\n";
+    await sendMessage(chatId, list);
   }
 
   Future<void> _handleRecentActivity(String chatId) async {
-    try {
-      final activity = await DatabaseHelper.instance.getRecentActivity(); // Gets 5 items
-      if (activity.isEmpty) {
-        await sendMessage(chatId, "📭 Hozircha hech qanday harakat yo'q.");
-        return;
-      }
-      
-      String list = "🔄 *Oxirgi Harakatlar (Top 5)*\n"
-                  "-------------------------\n\n";
-      for (var item in activity) {
-        final icon = item['type'] == 'in' ? "📥 KIRIM" : "📤 CHIQIM";
-        final dtRaw = item['date_time'].toString();
-        
-        String dateDisplay = dtRaw;
-        String timeDisplay = "";
-        
-        final parsed = DateTime.tryParse(dtRaw);
-        if (parsed != null) {
-           dateDisplay = "${parsed.day.toString().padLeft(2,'0')}.${parsed.month.toString().padLeft(2,'0')}.${parsed.year}";
-           if (dtRaw.length > 11) {
-             timeDisplay = " 🕒 ${parsed.hour.toString().padLeft(2,'0')}:${parsed.minute.toString().padLeft(2,'0')}";
-           }
-        }
-
-        list += "*$icon*\n"
-                "📦 *${item['product_name']}*\n"
-                "🔢 Miqdor: ${item['quantity']}\n"
-                "👤 Tomon: ${item['party'] ?? 'Noma\'lum'}\n"
-                "📅 Sana: $dateDisplay$timeDisplay\n"
-                "-------------------------\n";
-      }
-      
-      await sendMessage(chatId, list);
-    } catch (e) {
-      await sendMessage(chatId, "⚠️ Xatolik: $e");
+    final activity = await DatabaseHelper.instance.getRecentActivity();
+    if (activity.isEmpty) { await sendMessage(chatId, "📭 Harakat yo'q."); return; }
+    String list = "🔄 *Oxirgi harakatlar:*\n\n";
+    for (var item in activity) {
+      final icon = item['type'] == 'in' ? "📥" : "📤";
+      list += "$icon *${item['product_name']}* (${item['quantity']})\n   🕒 ${item['date_time']}\n";
     }
-  }
-
-  Future<void> _handleAssetsStat(String chatId) async {
-    try {
-      final db = await DatabaseHelper.instance.database;
-      
-      final totalRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM assets');
-      final statusRes = await db.rawQuery('SELECT status, COUNT(*) as cnt FROM assets GROUP BY status');
-      
-      final total = totalRes.first['cnt'] ?? 0;
-      
-      String msg = "🖥 *JIHOZLAR HISOBOTI*\n"
-                  "-------------------------\n"
-                  "✅ Jami jihozlar: *$total ta*\n\n"
-                  "📊 *Holati bo'yicha:* \n";
-                  
-      for (var row in statusRes) {
-        final status = row['status'] ?? 'Noma\'lum';
-        msg += "   ▫️ $status: *${row['cnt']} ta*\n";
-      }
-      
-      msg += "-------------------------\n"
-             "#jihozlar #summary";
-             
-      await sendMessage(chatId, msg);
-    } catch (e) {
-      await sendMessage(chatId, "⚠️ Jihozlarni yuklashda xatolik: $e");
-    }
+    await sendMessage(chatId, list);
   }
 
   Future<void> _handleSearchProduct(String chatId, String query) async {
-    try {
-      final db = await DatabaseHelper.instance.database;
-      final sanitized = '%$query%';
-      
-      final productResults = await db.rawQuery('''
-        SELECT p.name, p.unit, 
-          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
-        FROM products p
-        WHERE p.name LIKE ?
-        LIMIT 5
-      ''', [sanitized]);
-
-      final assetResults = await db.rawQuery('''
-        SELECT a.name, a.model, a.status, l.name as loc_name
-        FROM assets a
-        LEFT JOIN asset_locations l ON a.location_id = l.id
-        WHERE a.name LIKE ? OR a.model LIKE ?
-        LIMIT 5
-      ''', [sanitized, sanitized]);
-      
-      if (productResults.isEmpty && assetResults.isEmpty) {
-        await sendMessage(chatId, "📌 *'$query'* bo'yicha hech narsa topilmadi.");
-        return;
-      }
-      
-      String list = "🔎 *QIDIRUV NATIJALARI*\n"
-                  "-------------------------\n\n";
-
-      if (productResults.isNotEmpty) {
-        list += "📦 *MAHSULOTLAR:*\n";
-        for (var item in productResults) {
-           final stock = item['stock'] as num;
-           final statusIcon = stock <= 0 ? "❌" : (stock < 10 ? "⚠️" : "✅");
-           list += "$statusIcon *${item['name']}*\n"
-                   "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n";
-        }
-        list += "\n";
-      }
-
-      if (assetResults.isNotEmpty) {
-        list += "🖥 *JIHOZLAR:*\n";
-        for (var item in assetResults) {
-           list += "🔹 *${item['name']}* (${item['model'] ?? 'model yo\'q'})\n"
-                   "   📍 Joyi: ${item['loc_name'] ?? 'noma\'lum'}\n"
-                   "   🛠 Holati: ${item['status']}\n";
-        }
-      }
-      
-      list += "-------------------------\n";
-      await sendMessage(chatId, list);
-
-    } catch (e) {
-       await sendMessage(chatId, "⚠️ Qidirishda xatolik: $e");
+    final db = await DatabaseHelper.instance.database;
+    final sanitized = '%$query%';
+    final productResults = await db.rawQuery('SELECT name, unit, ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock FROM products p WHERE name LIKE ? LIMIT 5', [sanitized]);
+    final assetResults = await db.rawQuery('SELECT a.name, a.model, l.name as loc_name FROM assets a LEFT JOIN asset_locations l ON a.location_id = l.id WHERE a.name LIKE ? LIMIT 5', [sanitized]);
+    
+    if (productResults.isEmpty && assetResults.isEmpty) { await sendMessage(chatId, "📌 Topilmadi."); return; }
+    String list = "🔎 *NATIJALAR:*\n\n";
+    if (productResults.isNotEmpty) {
+      list += "📦 *MAHSULOTLAR:*\n";
+      for (var item in productResults) list += "▫️ ${item['name']} (*${item['stock']} ${item['unit']}*)\n";
+      list += "\n";
     }
+    if (assetResults.isNotEmpty) {
+      list += "🖥 *JIHOZLAR:*\n";
+      for (var item in assetResults) list += "▫️ ${item['name']} 📍 ${item['loc_name']}\n";
+    }
+    await sendMessage(chatId, list);
   }
 
   Future<void> _sendMainMenu(String chatId, String text) async {
-    final token = await getBotToken();
-    if (token == null) return;
-    
-    final keyboard = {
+    final markup = {
       "keyboard": [
         [{"text": "📊 Bugungi Holat"}, {"text": "💰 Umumiy Hisobot"}],
         [{"text": "⚠️ Kam Qolganlar"}, {"text": "🖥 Jihozlar"}],
         [{"text": "🔄 Oxirgi Harakatlar"}, {"text": "🔎 Mahsulot Qidirish"}],
         [{"text": "🔄 Yangilash"}]
       ],
-      "resize_keyboard": true,
-      "one_time_keyboard": false
+      "resize_keyboard": true
     };
-
-    final url = Uri.parse('$_baseUrl$token/sendMessage');
-    await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'chat_id': chatId,
-        'text': text,
-        'parse_mode': 'Markdown',
-        'reply_markup': keyboard
-      }),
-    );
+    await sendMessage(chatId, text, replyMarkup: markup);
   }
 }
