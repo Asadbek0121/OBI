@@ -85,6 +85,9 @@ void main() async {
           await tgService.checkDailyReportAuto(DatabaseHelper.instance);
        });
 
+       // 🎧 START INTERACTIVE BOT LISTENER
+       tgService.startBotListener();
+
     } catch (e) {
        print("❌ System: Telegram Scheduler Error: $e");
     }
