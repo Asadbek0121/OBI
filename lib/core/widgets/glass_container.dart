@@ -10,6 +10,7 @@ class GlassContainer extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final Color? color;
   final double? width;
+  final double? height;
   final VoidCallback? onTap;
 
   const GlassContainer({
@@ -21,6 +22,7 @@ class GlassContainer extends StatelessWidget {
     this.padding = const EdgeInsets.all(16.0),
     this.color,
     this.width,
+    this.height,
     this.onTap,
   });
 
@@ -33,6 +35,7 @@ class GlassContainer extends StatelessWidget {
 
     Widget content = Container(
       width: width,
+      height: height,
       padding: padding,
       decoration: BoxDecoration(
         color: surfaceColor.withValues(alpha: opacity),

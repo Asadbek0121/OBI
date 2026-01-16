@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'package:spreadsheet_decoder/spreadsheet_decoder.dart';
+import 'package:excel/excel.dart' as xl;
 import 'package:flutter/foundation.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ExcelService {
   static Future<Map<String, int>> importData(String path) async {
@@ -338,7 +341,6 @@ class ExcelService {
 
     // 3. Create New
     final newId = excelId.isNotEmpty ? excelId : DateTime.now().millisecondsSinceEpoch.toString();
-    
     await DatabaseHelper.instance.insertProduct({
         'id': newId,
         'name': name,
@@ -346,6 +348,146 @@ class ExcelService {
         'created_at': DateTime.now().toIso8601String(),
     });
     return newId;
+  }
+
+  // --- EXPORT LOGIC ---
+
+  static Future<void> exportAssetsHierarchy({int? buildingId, int? floorId, int? roomId}) async {
+    try {
+      final db = DatabaseHelper.instance;
+      List<Map<String, dynamic>> allAssets = await db.getAllAssetsDetailed();
+      List<Map<String, dynamic>> filteredAssets = [];
+
+      if (roomId != null) {
+        filteredAssets = allAssets.where((a) => a['location_id'] == roomId).toList();
+      } else if (floorId != null) {
+        filteredAssets = allAssets.where((a) => a['location_id'] == floorId || a['parent_id'] == floorId).toList();
+      } else if (buildingId != null) {
+        filteredAssets = allAssets.where((a) => 
+          a['location_id'] == buildingId || 
+          a['parent_id'] == buildingId || 
+          a['grandparent_id'] == buildingId
+        ).toList();
+      } else {
+        filteredAssets = allAssets;
+      }
+
+      if (filteredAssets.isEmpty) {
+        debugPrint("No assets to export.");
+        return;
+      }
+
+      final excel = xl.Excel.createExcel();
+      excel.rename('Sheet1', 'Jihozlar');
+
+      // Grouping Logic for Sheets
+      // If Building -> Group by Room (or Floor if we add Floor type)
+      // If Room -> Just one sheet
+      Map<String, List<Map<String, dynamic>>> sheetsData = {};
+
+      if (roomId != null) {
+        final roomName = filteredAssets.first['location_name'] ?? 'Xona';
+        sheetsData[roomName] = filteredAssets;
+      } else {
+        // Group by Location Name
+        for (var a in filteredAssets) {
+          final locName = a['location_name'] ?? 'Noma\'lum';
+          if (!sheetsData.containsKey(locName)) sheetsData[locName] = [];
+          sheetsData[locName]!.add(a);
+        }
+      }
+
+      // Styles
+      xl.CellStyle headerStyle = xl.CellStyle(
+        bold: true,
+        italic: false,
+        fontColorHex: xl.ExcelColor.fromHexString("#FFFFFF"),
+        backgroundColorHex: xl.ExcelColor.fromHexString("#046307"), // Emerald Green
+        fontFamily: xl.getFontFamily(xl.FontFamily.Calibri),
+        horizontalAlign: xl.HorizontalAlign.Center,
+        verticalAlign: xl.VerticalAlign.Center,
+      );
+
+      xl.CellStyle cellStyle = xl.CellStyle(
+        fontFamily: xl.getFontFamily(xl.FontFamily.Calibri),
+        horizontalAlign: xl.HorizontalAlign.Left,
+      );
+
+      // Create Sheets
+      for (var sheetName in sheetsData.keys) {
+        // Create or get sheet (Excel package creates default, we might have renamed the first one)
+        xl.Sheet sheet;
+        if (excel.sheets.keys.contains('Jihozlar') && excel.sheets.length == 1 && sheetsData.keys.first == sheetName) {
+           sheet = excel['Jihozlar'];
+           excel.rename('Jihozlar', _sanitizeSheetName(sheetName));
+        } else {
+           sheet = excel[_sanitizeSheetName(sheetName)];
+        }
+
+        // Add Headers
+        final headers = [
+          "ID", "Bino/Qavat", "Xona", "Kategoriya", "Buyum Nomi", 
+          "Model", "Seriya Raqami", "Rangi", "Holati", "Barcode", "Sana"
+        ];
+        
+        for(int i=0; i<headers.length; i++) {
+          var cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+          cell.value = xl.TextCellValue(headers[i]);
+          cell.cellStyle = headerStyle;
+        }
+
+        // Add Data
+        final items = sheetsData[sheetName]!;
+        for (int row = 0; row < items.length; row++) {
+          final item = items[row];
+          final rowData = [
+            item['id'],
+            item['parent_location_name'] ?? '-',
+            item['location_name'] ?? '-',
+            item['category_name'] ?? '-',
+            item['name'] ?? '-',
+            item['model'] ?? '-',
+            item['serial_number'] ?? '-',
+            item['color'] ?? '-',
+            item['status'] ?? '-',
+            item['barcode'] ?? '-',
+            item['created_at']?.toString().substring(0, 10) ?? '-',
+          ];
+
+          for (int col = 0; col < rowData.length; col++) {
+            var cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row + 1));
+            cell.value = xl.TextCellValue(rowData[col]?.toString() ?? '-');
+            cell.cellStyle = cellStyle;
+          }
+        }
+        
+        // Auto-width hack (Rough estimation)
+        for(int i=0; i<headers.length; i++) {
+           sheet.setColumnWidth(i, 20.0);
+        }
+      }
+
+      // Save to File
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final directory = await getApplicationDocumentsDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = "Jihozlar_Eksport_$timestamp.xlsx";
+        final file = File("${directory.path}/$fileName");
+        await file.writeAsBytes(fileBytes);
+        
+        // Share/Open
+        await Share.shareXFiles([XFile(file.path)], text: 'Jihozlar Exporti');
+      }
+
+    } catch (e) {
+      debugPrint("❌ Excel Export Error: $e");
+    }
+  }
+
+  static String _sanitizeSheetName(String name) {
+    // Excel sheets cannot have certain characters or be longer than 31 chars
+    return name.replaceAll(RegExp(r'[*?:/\\\[\]]'), '').substring(0, name.length > 31 ? 31 : name.length);
   }
 }
 

@@ -72,6 +72,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
           'surcharge_percent': PlutoCell(value: item['surcharge_percent'] ?? 0),
           'surcharge_sum': PlutoCell(value: item['surcharge_sum'] ?? 0),
           'party': PlutoCell(value: item['supplier_name']),
+          'payment_status': PlutoCell(value: item['payment_status'] ?? '-'),
           'total': PlutoCell(value: item['total_amount']),
         }
       )).toList();
@@ -191,7 +192,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
       // 1. KIRIM (IN)
       excel_pkg.Sheet sheetIn = excel['Kirim'];
-      addHeader(sheetIn, ['Sana', 'ID', 'Mahsulot', 'Narxi', 'Birlik', 'Miqdori', 'QQS %', 'QQS Summa', 'Ustama %', 'Ustama Summa', 'Kimdan', 'Jami Summa']);
+      addHeader(sheetIn, ['Sana', 'ID', 'Mahsulot', 'Narxi', 'Birlik', 'Miqdori', 'QQS %', 'QQS Summa', 'Ustama %', 'Ustama Summa', 'Kimdan', 'To\'lov Holati', 'Jami Summa']);
 
       double grandTotal = 0.0;
       for (var row in _inRows) {
@@ -210,6 +211,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
           excel_pkg.DoubleCellValue(double.tryParse(row.cells['surcharge_percent']?.value.toString() ?? '0') ?? 0),
           excel_pkg.DoubleCellValue(double.tryParse(row.cells['surcharge_sum']?.value.toString() ?? '0') ?? 0),
           excel_pkg.TextCellValue(row.cells['party']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['payment_status']?.value.toString() ?? ''),
           excel_pkg.DoubleCellValue(total),
         ]);
       }
@@ -227,12 +229,13 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
         excel_pkg.TextCellValue(''),
         excel_pkg.TextCellValue(''),
         excel_pkg.TextCellValue(''),
+        excel_pkg.TextCellValue(''),
         excel_pkg.DoubleCellValue(grandTotal),
       ]);
       
       // Style only the last cell (Total)
       var totalRowIndex = sheetIn.maxRows - 1;
-      var totalCell = sheetIn.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: totalRowIndex));
+      var totalCell = sheetIn.cell(excel_pkg.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: totalRowIndex));
       totalCell.cellStyle = totalStyle;
 
       // 2. CHIQIM (OUT)
@@ -578,6 +581,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       PlutoColumn(title: t.text('col_surcharge_percent') ?? 'Ustama %', field: 'surcharge_percent', type: PlutoColumnType.number(), width: 80),
       PlutoColumn(title: t.text('col_surcharge_sum') ?? 'Ustama Sum', field: 'surcharge_sum', type: PlutoColumnType.number(), width: 100),
       PlutoColumn(title: t.text('col_from'), field: 'party', type: PlutoColumnType.text(), width: 120),
+      PlutoColumn(title: t.text('col_payment_status'), field: 'payment_status', type: PlutoColumnType.text(), width: 120),
       PlutoColumn(title: t.text('col_total_amount'), field: 'total', type: PlutoColumnType.currency(symbol: ''), width: 120),
     ];
   }

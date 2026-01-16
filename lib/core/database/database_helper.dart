@@ -81,7 +81,7 @@ class DatabaseHelper {
     // 3. Open Standard Database
     final db = await openDatabase(
       path,
-      version: 2,
+      version: 6,
       // password: encryptionKey, // Disabled
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
@@ -98,19 +98,89 @@ class DatabaseHelper {
     await db.execute('PRAGMA journal_mode = WAL;');
     await db.execute('PRAGMA synchronous = NORMAL;');
 
-    // 2. Missing tables check (For existing databases)
+    // 2. Assets Module Tables (RESTACKED)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asset_locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL, -- 'building', 'floor', 'room', 'spot'
+        FOREIGN KEY (parent_id) REFERENCES asset_locations (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asset_categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL
+      )
+    ''');
+
     await db.execute('''
       CREATE TABLE IF NOT EXISTS assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         model TEXT,
+        serial_number TEXT,
         color TEXT,
-        location TEXT,
+        category_id INTEGER,
+        location_id INTEGER,
+        status TEXT, -- 'Yangi', 'Ishlatilgan', 'Tamirtalab', 'Eskirgan'
+        photo_path TEXT,
         barcode TEXT UNIQUE,
-        created_at TEXT
+        created_at TEXT,
+        FOREIGN KEY (category_id) REFERENCES asset_categories (id),
+        FOREIGN KEY (location_id) REFERENCES asset_locations (id)
       )
     ''');
 
+    // Missing columns check for existing DBs (STRICTER)
+    final List<String> columnsToAdd = [
+      'short_code', 'serial_number', 'color', 'category_id', 
+      'location_id', 'barcode', 'status', 'created_at', 'model'
+    ];
+
+    for (var col in columnsToAdd) {
+      try {
+        if (col == 'short_code') {
+          await db.execute('ALTER TABLE asset_locations ADD COLUMN $col TEXT');
+        } else {
+          // Note: category_id and location_id are INTEGER but for ALTER we use TEXT for compatibility with existing check or just add them
+          await db.execute('ALTER TABLE assets ADD COLUMN $col TEXT');
+        }
+      } catch (e) {
+        final err = e.toString().toLowerCase();
+        if (!err.contains('duplicate') && !err.contains('already exists')) {
+          debugPrint("⚠️ Schema migration warning ($col): $e");
+        }
+      }
+    }
+
+    // 2.2 Inbound table extra columns
+    try {
+      await db.execute('ALTER TABLE stock_in ADD COLUMN payment_status TEXT');
+    } catch (e) {
+      final err = e.toString().toLowerCase();
+      if (!err.contains('duplicate') && !err.contains('already exists')) {
+        debugPrint("⚠️ StockIn migration warning: $e");
+      }
+    }
+
+    // 2.3 Create Asset Movements table if missing
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asset_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_id INTEGER NOT NULL,
+        from_location_id INTEGER,
+        to_location_id INTEGER NOT NULL,
+        moved_at TEXT NOT NULL,
+        notes TEXT,
+        FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
+        FOREIGN KEY (from_location_id) REFERENCES asset_locations (id),
+        FOREIGN KEY (to_location_id) REFERENCES asset_locations (id)
+      )
+    ''');
+    
     // 3. Ensure Indexes for better performance
     await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_in_product_id ON stock_in(product_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_out_product_id ON stock_out(product_id)');
@@ -170,12 +240,13 @@ class DatabaseHelper {
         tax_sum REAL DEFAULT 0,
         surcharge_percent REAL DEFAULT 0,
         surcharge_sum REAL DEFAULT 0,
+        payment_status TEXT, -- 'Naqd', 'Qarzga', 'O\'tkazma'
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
 
     await db.execute('''
-      CREATE TABLE stock_out (
+      CREATE TABLE IF NOT EXISTS stock_out (
         id TEXT PRIMARY KEY,
         product_id TEXT,
         date_time TEXT,
@@ -186,22 +257,63 @@ class DatabaseHelper {
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
-    
-    // 5. FIXED ASSETS (New Module)
+
+    // 5. ASSETS (Hierarchical)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asset_locations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        short_code TEXT, -- Added for Smart SKU (e.g., 'TTL', 'ACC')
+        type TEXT NOT NULL,
+        FOREIGN KEY (parent_id) REFERENCES asset_locations (id) ON DELETE CASCADE
+      )
+    ''');
+    await db.execute('CREATE TABLE IF NOT EXISTS asset_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL)');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         model TEXT,
+        serial_number TEXT,
         color TEXT,
-        location TEXT,
+        category_id INTEGER,
+        location_id INTEGER,
+        status TEXT,
+        photo_path TEXT,
         barcode TEXT UNIQUE,
-        created_at TEXT
+        created_at TEXT,
+        FOREIGN KEY (category_id) REFERENCES asset_categories (id),
+        FOREIGN KEY (location_id) REFERENCES asset_locations (id)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS asset_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_id INTEGER NOT NULL,
+        from_location_id INTEGER,
+        to_location_id INTEGER NOT NULL,
+        moved_at TEXT NOT NULL,
+        notes TEXT,
+        FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
+        FOREIGN KEY (from_location_id) REFERENCES asset_locations (id),
+        FOREIGN KEY (to_location_id) REFERENCES asset_locations (id)
       )
     ''');
 
     // 4. SEED DATA INSERTION
     debugPrint("🌱 Seeding Data...");
+    
+    // Seed Asset Categories
+    final assetCats = ['Mebel', 'Kompyuter texnikasi', 'Maishiy texnika', 'Asbob-uskunalar', 'Boshqa'];
+    for (var c in assetCats) {
+      await db.insert('asset_categories', {'name': c});
+    }
+
+    // Seed a Default Building
+    await db.insert('asset_locations', {'name': 'Bosh OFIS', 'type': 'building'});
+
     
     // Units
     final units = ['QADOQ', 'KG', 'L', 'DONA', 'GR', 'QUTI', 'PACHKA'];
@@ -534,13 +646,12 @@ class DatabaseHelper {
     final results = <Map<String, dynamic>>[];
 
     // 1. Products & Stock
-    // We join with stock calc to show "Aspirin - 50 ta"
     final products = await db.rawQuery('''
       SELECT 
         'product' as type,
         p.id, 
         p.name, 
-        p.unit,
+        p.unitRaw,
         ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
          (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
       FROM products p
@@ -549,7 +660,7 @@ class DatabaseHelper {
     ''', [sanitized]);
     results.addAll(products);
 
-    // 2. Recent Transactions (History) - Search by Product Name or Party
+    // 2. Recent Transactions (History)
     final transactions = await db.rawQuery('''
        SELECT * FROM (
         SELECT 
@@ -590,19 +701,20 @@ class DatabaseHelper {
       results.add({'type': 'person', 'title': r['name'], 'subtitle': 'Qabul qiluvchi'});
     }
     
-    // 4. Fixed Assets (Items)
-    // Checks Name, Location, or Barcode
-    final assets = await db.query(
-      'assets', 
-      where: 'name LIKE ? OR barcode LIKE ? OR location LIKE ?', 
-      whereArgs: [sanitized, sanitized, sanitized], 
-      limit: 5
-    );
+    // 4. Fixed Assets (Items) - Updated for new schema
+    final assets = await db.rawQuery('''
+      SELECT a.*, l.name as location_name 
+      FROM assets a
+      LEFT JOIN asset_locations l ON a.location_id = l.id
+      WHERE a.name LIKE ? OR a.barcode LIKE ? OR l.name LIKE ?
+      LIMIT 5
+    ''', [sanitized, sanitized, sanitized]);
+    
     for (var a in assets) {
       results.add({
         'type': 'asset', 
         'title': a['name'], 
-        'subtitle': "Joyi: ${a['location']} • Model: ${a['model']}",
+        'subtitle': "Joyi: ${a['location_name'] ?? 'Noma\'lum'} • Barcode: ${a['barcode']}",
         'barcode': a['barcode']
       });
     }
@@ -610,15 +722,87 @@ class DatabaseHelper {
     return results;
   }
 
-  // --- Assets CRUD ---
-  Future<void> insertAsset(Map<String, dynamic> asset) async {
+  // --- Hierarchical Assets Management ---
+
+  // Locations
+  Future<List<Map<String, dynamic>>> getLocations({int? parentId}) async {
     final db = await instance.database;
-    await db.insert('assets', asset);
+    if (parentId == null) {
+      return await db.query('asset_locations', where: 'parent_id IS NULL');
+    }
+    return await db.query('asset_locations', where: 'parent_id = ?', whereArgs: [parentId]);
   }
 
-  Future<List<Map<String, dynamic>>> getAllAssets() async {
+  Future<int> insertLocation(Map<String, dynamic> data) async {
     final db = await instance.database;
-    return await db.query('assets', orderBy: 'id DESC');
+    return await db.insert('asset_locations', data);
+  }
+
+  Future<void> deleteLocation(int id) async {
+    final db = await instance.database;
+    await db.delete('asset_locations', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Map<String, dynamic>?> getLocationById(int id) async {
+    final db = await instance.database;
+    final res = await db.query('asset_locations', where: 'id = ?', whereArgs: [id]);
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  // Categories
+  Future<List<Map<String, dynamic>>> getAssetCategories() async {
+    final db = await instance.database;
+    return await db.query('asset_categories', orderBy: 'name');
+  }
+
+  Future<int> insertAssetCategory(String name) async {
+    final db = await instance.database;
+    return await db.insert('asset_categories', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  Future<int> getOrCreateAssetCategory(String name) async {
+    final db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'asset_categories',
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+    if (maps.isNotEmpty) {
+      return maps.first['id'] as int;
+    } else {
+      return await db.insert('asset_categories', {'name': name});
+    }
+  }
+
+  Future<void> deleteAssetCategory(int id) async {
+    final db = await instance.database;
+    await db.delete('asset_categories', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Assets (Updated)
+  Future<List<Map<String, dynamic>>> getAllAssetsDetailed() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        a.*, 
+        c.name as category_name, 
+        l.name as location_name,
+        l.parent_id as parent_id,
+        p.name as parent_location_name,
+        p.parent_id as grandparent_id,
+        g.name as grandparent_location_name
+      FROM assets a
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      LEFT JOIN asset_locations l ON a.location_id = l.id
+      LEFT JOIN asset_locations p ON l.parent_id = p.id
+      LEFT JOIN asset_locations g ON p.parent_id = g.id
+      ORDER BY a.id DESC
+    ''');
+  }
+
+  Future<void> insertAsset(Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.insert('assets', data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteAsset(int id) async {
@@ -626,11 +810,119 @@ class DatabaseHelper {
     await db.delete('assets', where: 'id = ?', whereArgs: [id]);
   }
 
+  Future<void> updateAsset(int id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.update('assets', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<Map<String, dynamic>?> getAssetByBarcode(String barcode) async {
+    final db = await instance.database;
+    final res = await db.rawQuery('''
+      SELECT a.*, l.name as location_name, c.name as category_name
+      FROM assets a
+      LEFT JOIN asset_locations l ON a.location_id = l.id
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      WHERE a.barcode = ?
+      LIMIT 1
+    ''', [barcode]);
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  // --- Smart SKU Generation (Updated for 3 levels) ---
+  Future<String> generateSmartSKU({required int buildingId, int? floorId, required int roomId}) async {
+    final db = await instance.database;
+    
+    // 1. Get Building Info
+    final buildRes = await db.query('asset_locations', where: 'id = ?', whereArgs: [buildingId]);
+    String bCode = "GEN";
+    if (buildRes.isNotEmpty) {
+      final customCode = buildRes.first['short_code'];
+      final name = buildRes.first['name'].toString().toUpperCase();
+      bCode = (customCode != null && customCode.toString().isNotEmpty) 
+              ? customCode.toString() 
+              : name.substring(0, name.length >= 3 ? 3 : name.length);
+    }
+
+    // 2. Get Floor Info (Extract number)
+    String fNum = "01";
+    if (floorId != null) {
+      final floorRes = await db.query('asset_locations', where: 'id = ?', whereArgs: [floorId]);
+      if (floorRes.isNotEmpty) {
+        final floorName = floorRes.first['name'].toString();
+        // Try to extract digits: "2-qavat" -> "02"
+        final reg = RegExp(r'(\d+)');
+        final match = reg.firstMatch(floorName);
+        if (match != null) {
+          fNum = match.group(1)!.padLeft(2, '0');
+        } else {
+           final customCode = floorRes.first['short_code'];
+           if (customCode != null && customCode.toString().isNotEmpty) fNum = customCode.toString().padLeft(2, '0');
+        }
+      }
+    }
+
+    // 3. Get Room Info
+    final roomRes = await db.query('asset_locations', where: 'id = ?', whereArgs: [roomId]);
+    String rCode = "RM";
+    if (roomRes.isNotEmpty) {
+      final customCode = roomRes.first['short_code'];
+      rCode = (customCode != null && customCode.toString().isNotEmpty) 
+              ? customCode.toString().toUpperCase() 
+              : "RM";
+    }
+
+    // 4. Get Next ID
+    final countRes = await db.rawQuery('SELECT COUNT(*) as total FROM assets');
+    int nextId = (countRes.first['total'] as int) + 1;
+    String idPadding = nextId.toString().padLeft(4, '0');
+
+    // Format: [BUILD]-[FLOOR]-[ROOM]-[ID]
+    return "$bCode-$fNum-$rCode-$idPadding";
+  }
+
+  Future<void> transferAsset(int assetId, int toLocationId, {String? notes}) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      // 1. Get current location
+      final asset = await txn.query('assets', columns: ['location_id'], where: 'id = ?', whereArgs: [assetId]);
+      final fromLocationId = asset.isNotEmpty ? asset.first['location_id'] as int? : null;
+
+      // 2. Add History Record
+      await txn.insert('asset_movements', {
+        'asset_id': assetId,
+        'from_location_id': fromLocationId,
+        'to_location_id': toLocationId,
+        'moved_at': DateTime.now().toIso8601String(),
+        'notes': notes,
+      });
+
+      // 3. Update Asset Location
+      await txn.update('assets', {'location_id': toLocationId}, where: 'id = ?', whereArgs: [assetId]);
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getAssetHistory(int assetId) async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        m.*, 
+        fl.name as from_location_name, 
+        tl.name as to_location_name,
+        fpl.name as from_parent_name,
+        tpl.name as to_parent_name
+      FROM asset_movements m
+      LEFT JOIN asset_locations fl ON m.from_location_id = fl.id
+      LEFT JOIN asset_locations tl ON m.to_location_id = tl.id
+      LEFT JOIN asset_locations fpl ON fl.parent_id = fpl.id
+      LEFT JOIN asset_locations tpl ON tl.parent_id = tpl.id
+      WHERE m.asset_id = ?
+      ORDER BY m.moved_at DESC
+    ''', [assetId]);
+  }
+
   Future<void> clearAllData() async {
     final db = await instance.database;
     await db.delete('stock_in');
     await db.delete('stock_out');
-    // We do NOT delete products, units, or suppliers/receivers to keep master data.
-    // Only transaction history is cleared.
   }
 }

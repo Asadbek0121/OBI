@@ -28,7 +28,7 @@ void main() async {
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.normal, // Show native title bar with controls (fixes missing buttons)
+    titleBarStyle: TitleBarStyle.hidden, // Use hidden to allow custom window control behavior
   );
   
   await windowManager.waitUntilReadyToShow(windowOptions, () async {

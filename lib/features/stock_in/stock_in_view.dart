@@ -152,6 +152,16 @@ class _StockInViewState extends State<StockInView> {
         width: 150,
       ),
       PlutoColumn(
+        title: t.text('col_payment_status'),
+        field: 'payment_status',
+        type: PlutoColumnType.select([
+          t.text('pay_cash'),
+          t.text('pay_debt'),
+          t.text('pay_transfer'),
+        ]), 
+        width: 150,
+      ),
+      PlutoColumn(
         title: t.text('col_total_amount'),
         field: 'total_amount',
         type: PlutoColumnType.text(),
@@ -176,6 +186,7 @@ class _StockInViewState extends State<StockInView> {
           'surcharge_percent': PlutoCell(value: ''),
           'surcharge_sum': PlutoCell(value: ''),
           'supplier': PlutoCell(value: suppliers.isNotEmpty ? suppliers.first : ''),
+          'payment_status': PlutoCell(value: Provider.of<AppTranslations>(context, listen: false).text('pay_cash')),
           'total_amount': PlutoCell(value: ''),
         },
       );
@@ -224,6 +235,7 @@ class _StockInViewState extends State<StockInView> {
           'tax_sum': taxSum,
           'surcharge_percent': surPct,
           'surcharge_sum': surSum,
+          'payment_status': row.cells['payment_status']?.value.toString() ?? '',
         });
         savedCount++;
       }
