@@ -394,9 +394,6 @@ class TelegramService {
     else if (text.contains("Bugungi Holat")) {
       await _handleTodayStats(chatId);
     }
-    else if (text.contains("Umumiy Hsobot")) { // Hsobot typo fix if needed, but lets match exact
-       await _handleTotalStats(chatId);
-    }
     else if (text.contains("Umumiy Hisobot")) {
        await _handleTotalStats(chatId);
     }
@@ -537,18 +534,14 @@ class TelegramService {
 
   Future<void> _handleSearchProduct(String chatId, String query) async {
     try {
-      // Reuse the global search logic but filter for products only or just use it as is
-      // Or create a direct product search query for cleaner results
       final db = await DatabaseHelper.instance.database;
       final sanitized = '%$query%';
       
       final results = await db.rawQuery('''
         SELECT p.name, p.unit, 
-          COALESCE(c.name, 'Guruhsiz') as cat_name,
           ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
            (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
         FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
         WHERE p.name LIKE ?
         LIMIT 10
       ''', [sanitized]);
@@ -565,7 +558,6 @@ class TelegramService {
          final statusIcon = stock <= 0 ? "❌" : (stock < 10 ? "⚠️" : "✅");
          
          list += "$statusIcon *${item['name']}*\n"
-                 "   � Guruh: ${item['cat_name']}\n"
                  "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n"
                  "-------------------------\n";
       }
