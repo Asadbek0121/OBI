@@ -479,8 +479,6 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                   ],
                 ),
-                  ],
-                ),
               ),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text("Yopish")),
