@@ -845,7 +845,23 @@ class _AssetCard extends StatelessWidget {
                     "${asset['category_name'] ?? 'Kategoriyasiz'} • ${asset['model'] ?? '-'}", 
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 12),
+                  if (asset['photo_path'] != null)
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          image: DecorationImage(
+                            image: FileImage(File(asset['photo_path'])), 
+                            fit: BoxFit.cover
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    const Spacer(),
                   const Divider(height: 24, color: AppColors.glassBorder),
                   Row(
                     children: [
@@ -904,11 +920,8 @@ class _AssetCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(14),
-        image: asset['photo_path'] != null 
-          ? DecorationImage(image: FileImage(File(asset['photo_path'])), fit: BoxFit.cover) 
-          : null,
       ),
-      child: asset['photo_path'] == null ? Icon(icon, color: AppColors.primary, size: 24) : null,
+      child: Icon(icon, color: AppColors.primary, size: 24),
     );
   }
 
