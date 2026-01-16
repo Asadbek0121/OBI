@@ -659,59 +659,87 @@ class DatabaseHelper {
      };
   }
 
-  // --- AI PREDICTOR ENGINE ---
+  // --- AI PREDICTOR ENGINE (Smart Weighted Average) ---
   Future<List<Map<String, dynamic>>> getAiPredictions() async {
     final db = await instance.database;
     final stats = <Map<String, dynamic>>[];
 
     try {
-      // 1. Get Outflow for last 30 days
-      // We calculate "Average Daily Consumption"
-      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      // 1. Calculate Date Ranges
+      final now = DateTime.now();
+      final date30d = now.subtract(const Duration(days: 30)).toIso8601String();
+      final date7d = now.subtract(const Duration(days: 7)).toIso8601String();
       
-      final usageStats = await db.rawQuery('''
+      // 2. Get Usage Data for both periods
+      // We pull all stock_out data for last 30 days to process in memory (cleaner than complex SQL for SQLite)
+      final rawData = await db.rawQuery('''
         SELECT 
-          p.id, p.name, p.unit,
-          IFNULL(SUM(so.quantity), 0) as total_out_30d
+          p.id, p.name, p.unit, so.quantity, so.date_time
         FROM products p
         JOIN stock_out so ON p.id = so.product_id
         WHERE so.date_time >= ?
-        GROUP BY p.id
-        HAVING total_out_30d > 0
-      ''', [thirtyDaysAgo]);
+      ''', [date30d]);
 
-      for (var item in usageStats) {
-         final totalOut = item['total_out_30d'] as num;
-         final dailyBurnRate = totalOut / 30.0; // Average per day
+      // Group by Product
+      final productUsage = <String, Map<String, dynamic>>{};
+      
+      for (var row in rawData) {
+        final pid = row['id'].toString();
+        final qty = row['quantity'] as num;
+        final date = row['date_time'] as String;
+        
+        if (!productUsage.containsKey(pid)) {
+           productUsage[pid] = {
+             'name': row['name'],
+             'unit': row['unit'],
+             'total30': 0.0,
+             'total7': 0.0,
+           };
+        }
+        
+        productUsage[pid]!['total30'] += qty;
+        if (date.compareTo(date7d) >= 0) {
+           productUsage[pid]!['total7'] += qty;
+        }
+      }
 
-         // 2. Get Current Stock
-         // We reuse the logic: In - Out
+      // 3. Analyze Each Product
+      for (var pid in productUsage.keys) {
+         final data = productUsage[pid]!;
+         final rate30 = data['total30'] / 30.0;
+         final rate7 = data['total7'] / 7.0;
+         
+         // WEIGHTED FORMULA: 60% Recent Trend, 40% History
+         // This makes it "smarter" - reacting faster to recent spikes
+         double predictedDailyRate = (rate7 * 0.6) + (rate30 * 0.4);
+         
+         if (predictedDailyRate <= 0.1) continue; // Ignore very slow items
+
+         // Get Current Stock
          final stockRes = await db.rawQuery('''
            SELECT 
             ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = ?) - 
              (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = ?)) as stock
-         ''', [item['id'], item['id']]);
+         ''', [pid, pid]);
          
          final currentStock = (stockRes.first['stock'] as num?) ?? 0;
+         if (currentStock <= 0) continue;
 
-         // 3. Calculate "Days Left"
-         if (currentStock <= 0) continue; // Already empty, normal low stock logic handles this
-         
-         final daysLeft = currentStock / dailyBurnRate;
-         
-         // 4. Threshold: If less than 10 days coverage -> PREDICT CRITICAL
+         final daysLeft = currentStock / predictedDailyRate;
+
+         // Threshold: < 10 Days
          if (daysLeft < 10) {
             stats.add({
-              'name': item['name'],
+              'name': data['name'],
               'days_left': daysLeft.floor(),
-              'daily_use': dailyBurnRate.toStringAsFixed(1),
+              'daily_use': predictedDailyRate.toStringAsFixed(1),
               'current_stock': currentStock,
-              'unit': item['unit']
+              'unit': data['unit'],
+              'trend': rate7 > rate30 ? 'up' : 'stable' // Visualization bonus
             });
          }
       }
       
-      // Sort by urgency (fewer days left = higher priority)
       stats.sort((a, b) => (a['days_left'] as int).compareTo(b['days_left'] as int));
 
     } catch (e) {
