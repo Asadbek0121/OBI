@@ -1756,18 +1756,34 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
               ),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => PrintService.printAssetPassport(_asset), 
-                icon: const Icon(Icons.print_rounded),
-                label: const Text("PASPORTNI CHOP ETISH"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(20),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => PrintService.printAssetPassport(_asset), 
+                    icon: const Icon(Icons.description_rounded),
+                    label: const Text("PASPORT"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blueGrey,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => PrintService.printAssetBarcode(_asset), 
+                    icon: const Icon(Icons.qr_code_2_rounded),
+                    label: const Text("ETIKETKA"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                    ),
+                  ),
+                ),
+              ],
             )
           ],
         ),

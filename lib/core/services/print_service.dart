@@ -61,6 +61,89 @@ class PrintService {
     );
   }
 
+  static Future<void> printAssetBarcode(Map<String, dynamic> asset) async {
+    final pdf = pw.Document();
+
+    // 50mm x 30mm Label Size (Common for stickers)
+    final format = PdfPageFormat(50 * PdfPageFormat.mm, 30 * PdfPageFormat.mm);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: format,
+        margin: const pw.EdgeInsets.all(2),
+        build: (pw.Context context) {
+          return pw.Center(
+            child: pw.Column(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Text(
+                  asset['name'].toString().length > 20 
+                    ? asset['name'].toString().substring(0, 20) 
+                    : asset['name'],
+                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+                  maxLines: 1,
+                ),
+                pw.SizedBox(height: 2),
+                pw.BarcodeWidget(
+                  barcode: pw.Barcode.code128(),
+                  data: asset['barcode'] ?? 'N/A',
+                  width: 130,
+                  height: 40,
+                  drawText: true,
+                  textStyle: const pw.TextStyle(fontSize: 6),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Sticker_${asset['barcode']}.pdf',
+    );
+  }
+
+  static Future<void> printOrderQR(String qrData, String label) async {
+    final pdf = pw.Document();
+
+    // 80mm Roll Width
+    final format = PdfPageFormat.roll80;
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: format,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text("YUK QABUL QILISH", style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 10),
+              pw.BarcodeWidget(
+                barcode: pw.Barcode.qrCode(),
+                data: qrData,
+                width: 150,
+                height: 150,
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text(label, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 5),
+              pw.Text("Kamerada skanerlang", style: const pw.TextStyle(fontSize: 10)),
+              pw.Divider(),
+              pw.Text("Clinical Warehouse System", style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey)),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'OrderQR_$label.pdf',
+    );
+  }
+
   static pw.Widget _item(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),

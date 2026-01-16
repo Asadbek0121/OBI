@@ -134,6 +134,43 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS branch_orders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT,
+        branch_name TEXT,
+        status TEXT, -- 'pending', 'approved', 'rejected', 'delivered'
+        photo_file_id TEXT, -- Added for image-based orders
+        admin_comment TEXT, -- Added for feedback
+        created_at TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS branch_order_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER,
+        product_id TEXT,
+        product_name TEXT,
+        quantity REAL,
+        unit TEXT,
+        FOREIGN KEY (order_id) REFERENCES branch_orders (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 2.2 Branch Orders migration
+    try {
+      await db.execute('ALTER TABLE branch_orders ADD COLUMN photo_file_id TEXT');
+    } catch (e) {
+      // Ignore if column already exists
+    }
+
+    try {
+      await db.execute('ALTER TABLE branch_orders ADD COLUMN admin_comment TEXT');
+    } catch (e) {
+      // Ignore if column already exists
+    }
+
     // Missing columns check for existing DBs (STRICTER)
     final List<String> columnsToAdd = [
       'short_code', 'serial_number', 'color', 'category_id', 
@@ -641,6 +678,23 @@ class DatabaseHelper {
 
   // --- DASHBOARD ENHANCEMENTS ---
 
+  Future<List<Map<String, dynamic>>> getBranchAnalytics() async {
+    final db = await instance.database;
+    // Get aggregated stats by branch name
+    return await db.rawQuery('''
+      SELECT 
+        branch_name, 
+        COUNT(*) as total_orders,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+        COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_count,
+        MAX(created_at) as last_order_date
+      FROM branch_orders
+      GROUP BY branch_name
+      ORDER BY total_orders DESC
+    ''');
+  }
+
   Future<Map<String, dynamic>> getDashboardStatusToday() async {
      final db = await instance.database;
      final now = DateTime.now();
@@ -1042,9 +1096,28 @@ class DatabaseHelper {
     ''', [assetId]);
   }
 
+  Future<int> getPendingBranchOrdersCount() async {
+    final db = await instance.database;
+    final res = await db.rawQuery('SELECT COUNT(*) as count FROM branch_orders WHERE status = "pending"');
+    return (res.first['count'] as int?) ?? 0;
+  }
+
+  Future<List<Map<String, dynamic>>> getTelegramOrders() async {
+    final db = await instance.database;
+    return await db.query('branch_orders', orderBy: 'id DESC');
+  }
+
+  Future<List<Map<String, dynamic>>> getBranchOrderItems(int orderId) async {
+    final db = await instance.database;
+    return await db.query('branch_order_items', where: 'order_id = ?', whereArgs: [orderId]);
+  }
+
   Future<void> clearAllData() async {
     final db = await instance.database;
     await db.delete('stock_in');
     await db.delete('stock_out');
+    await db.delete('assets');
+    await db.delete('branch_orders');
+    await db.delete('branch_order_items');
   }
 }

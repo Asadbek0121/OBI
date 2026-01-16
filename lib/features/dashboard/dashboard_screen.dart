@@ -20,6 +20,9 @@ import '../splash/splash_screen.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/widgets/global_search_modal.dart';
 import 'package:flutter/services.dart';
+import '../telegram/telegram_orders_view.dart';
+import 'dart:async';
+import 'dart:io';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -35,12 +38,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _activities = [];
 
   Map<String, dynamic> _todayStats = {}; 
-  List<Map<String, dynamic>> _aiPredictions = []; // New AI State
+  List<Map<String, dynamic>> _aiPredictions = []; 
+  List<Map<String, dynamic>> _branchAnalytics = []; // New Analytics State
+  int _pendingTelegramOrders = 0;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
+    _startBackgroundRefresh();
+  }
+
+  void _startBackgroundRefresh() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+       final count = await DatabaseHelper.instance.getPendingBranchOrdersCount();
+       if (mounted && count != _pendingTelegramOrders) {
+         if (count > _pendingTelegramOrders) {
+           _playVoiceAlert("Yangi buyurtma keldi");
+           AppNotifications.showInfo(context, "Yangi Telegram buyurtmasi qabul qilindi!");
+         }
+         setState(() => _pendingTelegramOrders = count);
+       }
+    });
+    // Initial check
+    DatabaseHelper.instance.getPendingBranchOrdersCount().then((count) {
+       if (mounted) setState(() => _pendingTelegramOrders = count);
+    });
+  }
+
+  void _playVoiceAlert(String text) {
+    if (Platform.isMacOS) {
+      Process.run('say', [text]);
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -48,7 +84,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final stats = await DatabaseHelper.instance.getDashboardStats();
       final activities = await DatabaseHelper.instance.getRecentActivity();
       final today = await DatabaseHelper.instance.getDashboardStatusToday();
-      final predictions = await DatabaseHelper.instance.getAiPredictions(); // Fetch AI
+      final predictions = await DatabaseHelper.instance.getAiPredictions(); 
+      final analytics = await DatabaseHelper.instance.getBranchAnalytics(); // Fetch Branch Stats
 
       if (mounted) {
         setState(() {
@@ -56,6 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _activities = activities;
           _todayStats = today;
           _aiPredictions = predictions;
+          _branchAnalytics = analytics;
           _isLoadingDashboard = false;
         });
       }
@@ -164,6 +202,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             label: t.text('menu_settings'), 
                             isActive: _selectedIndex == 7,
                             onTap: () => setState(() => _selectedIndex = 7),
+                          ),
+                          
+                          _SidebarItem(
+                            icon: Icons.smart_toy, 
+                            label: "Telegram Bot", 
+                            isActive: _selectedIndex == 8,
+                            badgeCount: _pendingTelegramOrders,
+                            onTap: () => setState(() => _selectedIndex = 8),
                           ),
                           
                           _SidebarItem(
@@ -297,6 +343,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const ReportsView();
       case 7:
         return const SettingsView();
+      case 8:
+        return const TelegramManagementView();
       default:
         return _buildDashboardView();
     }
@@ -505,6 +553,78 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (_isLoadingDashboard)
              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
           else ...[
+          // 🏢 BRANCH ANALYTICS SECTION (New)
+          if (_branchAnalytics.isNotEmpty) ...[
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                 const Icon(Icons.business_rounded, color: Colors.blueAccent, size: 20),
+                 const SizedBox(width: 8),
+                 Text(
+                   "FILIALLAR ANALITIKASI", 
+                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
+                 ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 150,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _branchAnalytics.length,
+                separatorBuilder: (c, i) => const SizedBox(width: 16),
+                itemBuilder: (context, index) {
+                  final branch = _branchAnalytics[index];
+                  return SizedBox(
+                    width: 260,
+                    child: GlassContainer(
+                      padding: const EdgeInsets.all(16),
+                      borderRadius: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.blue.withOpacity(0.1),
+                                child: Text(branch['branch_name'][0].toUpperCase(), style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  branch['branch_name'], 
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                  maxLines: 1, 
+                                  overflow: TextOverflow.ellipsis
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _BranchSmallStat(label: "Jami", value: "${branch['total_orders']}"),
+                              _BranchSmallStat(label: "Kutilmoqda", value: "${branch['pending_count']}", color: Colors.orange),
+                              _BranchSmallStat(label: "Yetkazildi", value: "${branch['delivered_count']}", color: Colors.green),
+                            ],
+                          ),
+                          Text(
+                            "Oxirgi: ${branch['last_order_date'].toString().substring(0, 10)}",
+                            style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 32),
           // KPIs Grid
           LayoutBuilder(
             builder: (context, constraints) {
@@ -792,12 +912,14 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isActive;
+  final int badgeCount;
   final VoidCallback onTap;
 
   const _SidebarItem({
     required this.icon, 
     required this.label, 
     this.isActive = false,
+    this.badgeCount = 0,
     required this.onTap,
   });
 
@@ -826,6 +948,20 @@ class _SidebarItem extends StatelessWidget {
               color: isActive ? AppColors.primary : AppColors.textSecondary,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             )),
+            if (badgeCount > 0) ...[
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  badgeCount > 9 ? "9+" : badgeCount.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -864,6 +1000,24 @@ class _TodayStatItem extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BranchSmallStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _BranchSmallStat({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+      ],
     );
   }
 }
