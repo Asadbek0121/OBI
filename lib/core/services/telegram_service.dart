@@ -488,7 +488,10 @@ class TelegramService {
       String list = "🔄 *Oxirgi Harakatlar*\n\n";
       for (var item in activity) {
         final icon = item['type'] == 'in' ? "⬇️" : "⬆️";
-        final time = item['date_time'].toString().substring(11, 16); // HH:mm
+        final dateTimeStr = item['date_time'].toString();
+        // Xavfsiz kesib olish: Agar vaqt yozilmagan bo'lsa, bo'sh qoldiramiz
+        final time = dateTimeStr.length >= 16 ? dateTimeStr.substring(11, 16) : "--:--"; 
+        
         list += "$icon *${item['product_name']}*\n"
                 "   └ ${item['quantity']} dona | 🕒 $time\n";
       }
