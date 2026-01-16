@@ -175,6 +175,10 @@ class _AssetsViewState extends State<AssetsView> {
             children: [
               _buildHeader(t),
               const SizedBox(height: 24),
+              if (!_shouldShowLocationCards()) ...[
+                 _buildCategoryBar(t),
+                 const SizedBox(height: 16),
+              ],
               Expanded(
                 child: _isLoading 
                   ? const Center(child: CircularProgressIndicator())
@@ -556,13 +560,13 @@ class _AssetsViewState extends State<AssetsView> {
     );
   }
 
-  Widget _buildCategoryBar() {
+  Widget _buildCategoryBar(AppTranslations t) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           _CategoryChip(
-            label: t.text('filter_all'),
+            label: t.text('filter_all_places'), // Use existing key 'filter_all_places' or add 'filter_all'
             isSelected: _selectedCategoryId == null,
             onTap: () => setState(() { _selectedCategoryId = null; _applyFilters(); }),
           ),
