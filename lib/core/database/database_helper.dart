@@ -723,19 +723,23 @@ class DatabaseHelper {
     debugPrint("🔍 Global Search Query: $query");
     
     // 4. ASSETS (JIHOZLAR)
+    debugPrint("🔍 Global Search Query: $query");
+    
+    // 4. ASSETS (JIHOZLAR)
     try {
-      // Simplified query to test basic matching first
       final assets = await db.rawQuery('''
         SELECT 
           'asset' as type,
-          id,
-          name as title,
-          'Jihoz' as subtitle, 
-          photo_path
-        FROM assets 
-        WHERE name LIKE ? OR model LIKE ?
+          a.id,
+          a.name as title,
+          (COALESCE(c.name, 'Guruhsiz') || ' • ' || COALESCE(l.name, 'Joylashuvsiz')) as subtitle,
+          a.photo_path
+        FROM assets a
+        LEFT JOIN asset_categories c ON a.category_id = c.id
+        LEFT JOIN asset_locations l ON a.location_id = l.id
+        WHERE LOWER(a.name) LIKE ? OR LOWER(a.model) LIKE ? OR a.serial_number LIKE ?
         LIMIT 5
-      ''', [sanitized, sanitized]);
+      ''', [sanitized.toLowerCase(), sanitized.toLowerCase(), sanitized]);
       
       debugPrint("✅ Assets Found: ${assets.length}");
       results.addAll(assets);
