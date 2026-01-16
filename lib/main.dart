@@ -73,8 +73,18 @@ void main() async {
     try {
        print("🤖 System: Checking Telegram Backup Schedule...");
        final tgService = TelegramService();
+       
+       // Initial Check
        await tgService.checkWeeklyBackup(DatabaseHelper.instance);
        await tgService.checkDailyLowStockAlert(DatabaseHelper.instance);
+       await tgService.checkDailyReportAuto(DatabaseHelper.instance);
+
+       // Periodic Check (Every 30 minutes)
+       // This ensures if app is left open, it still sends the report at 18:00
+       Stream.periodic(const Duration(minutes: 30)).listen((_) async {
+          await tgService.checkDailyReportAuto(DatabaseHelper.instance);
+       });
+
     } catch (e) {
        print("❌ System: Telegram Scheduler Error: $e");
     }

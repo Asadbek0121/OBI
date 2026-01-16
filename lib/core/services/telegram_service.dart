@@ -258,6 +258,25 @@ class TelegramService {
     }
   }
 
+  static const String _keyLastReportDate = 'last_daily_report_date_v1';
+
+  Future<void> checkDailyReportAuto(dynamic databaseHelperInstance) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month}-${now.day}"; 
+    
+    // Check if already sent today
+    if (prefs.getString(_keyLastReportDate) == todayStr) return;
+
+    // TARGET TIME: 18:00 (6 PM)
+    // Only send if it's 18:00 or later
+    if (now.hour >= 18) {
+       print("🕕 Scheduler: It's past 18:00. Sending Automatic Daily Report...");
+       await sendDailyReport(databaseHelperInstance);
+       await prefs.setString(_keyLastReportDate, todayStr);
+    }
+  }
+
   Future<void> checkWeeklyBackup(dynamic databaseHelperInstance) async {
     // 1. Check Schedule
     final prefs = await SharedPreferences.getInstance();
