@@ -372,11 +372,11 @@ class _AssetsViewState extends State<AssetsView> {
                       setState(() { 
                         _sidebarParentId = p?['parent_id'];
                         if (_sidebarParentId == null) {
-                          _sidebarTitle = "Binolar";
+                          _sidebarTitle = t.text('assets_building');
                           _selectedBuildingId = null;
                         } else {
-                          if (p?['type'] == 'floor') _sidebarTitle = "Qavatlar";
-                          else if (p?['type'] == 'building') _sidebarTitle = "Binolar";
+                          if (p?['type'] == 'floor') _sidebarTitle = t.text('assets_floor');
+                          else if (p?['type'] == 'building') _sidebarTitle = t.text('assets_building');
                         }
                       });
                       _loadMetadata();
@@ -437,17 +437,18 @@ class _AssetsViewState extends State<AssetsView> {
             }),
 
             const Divider(height: 24, color: Colors.white10),
-            const Text("Holati", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(t.text('col_status'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            ...['Yangi', 'Ishlatilgan', 'Tamirtalab', 'Eskirgan'].map((s) => 
+            ...['status_new', 'status_used', 'status_repair', 'status_old'].map((key) => 
               _FilterItem(
-                label: s,
+                label: t.text(key),
                 icon: Icons.circle,
                 iconSize: 8,
-                iconColor: _getStatusColor(s),
-                isSelected: _selectedStatus == s,
+                iconColor: _getStatusColor(t.text(key)),
+                isSelected: _selectedStatus == t.text(key),
                 onTap: () => setState(() { 
-                  _selectedStatus = (_selectedStatus == s) ? null : s; 
+                  final val = t.text(key);
+                  _selectedStatus = (_selectedStatus == val) ? null : val; 
                   _applyFilters(); 
                 }),
               ),
@@ -456,7 +457,9 @@ class _AssetsViewState extends State<AssetsView> {
             ElevatedButton.icon(
               onPressed: _showLocationManager,
               icon: const Icon(Icons.settings_suggest_rounded, size: 18),
-              label: const Text("Bino va xonalarni boshqarish", style: TextStyle(fontSize: 11)),
+              onPressed: _showLocationManager,
+              icon: const Icon(Icons.settings_suggest_rounded, size: 18),
+              label: Text(t.text('assets_manage_loc'), style: const TextStyle(fontSize: 11)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.05),
                 foregroundColor: Colors.white70,
@@ -559,7 +562,7 @@ class _AssetsViewState extends State<AssetsView> {
       child: Row(
         children: [
           _CategoryChip(
-            label: "Barchasi",
+            label: t.text('filter_all'),
             isSelected: _selectedCategoryId == null,
             onTap: () => setState(() { _selectedCategoryId = null; _applyFilters(); }),
           ),
