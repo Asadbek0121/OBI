@@ -407,7 +407,10 @@ class TelegramService {
       await _handleRecentActivity(chatId);
     }
     else if (text.contains("Mahsulot Qidirish")) {
-      await sendMessage(chatId, "🔍 *Qidirish uchun:*\n\nShunchaki mahsulot nomini yozib yuboring.\nMasalan: `Paracetamol` yoki `Stol`");
+      await sendMessage(chatId, "🔍 *Qidirish uchun:*\n\nShunchaki mahsulot nomini yozib yuboring.\nMasalan: `Paracetamol` yoki `Stol` \n\n(Kamida 3 ta harf)");
+    }
+    else if (text.contains("Yangilash") || text == '/start') {
+       await _sendMainMenu(chatId, "🔄 Menyu yangilandi:");
     }
     else {
       // Treat as Search Query
@@ -428,12 +431,18 @@ class TelegramService {
        final stats = await DatabaseHelper.instance.getDashboardStatusToday();
        final formatter = NumberFormat("#,###");
        
-       final msg = "📊 *Bugungi Holat (${DateTime.now().toString().substring(0,10)})*\n\n"
-                   "⬇️ *Kirim:* ${stats['in_count']} ta operatsiya\n"
-                   "💰 *Jami:* ${formatter.format(stats['in_sum'])} so'm\n\n"
-                   "⬆️ *Chiqim:* ${stats['out_count']} ta operatsiya";
+       final msg = "📊 *BUGUNGI HISOBOT*\n"
+                   "📅 Sana: ${DateTime.now().toString().substring(0,10)}\n"
+                   "-------------------------\n\n"
+                   "📥 *KIRIM (In):*\n"
+                   "   ▫️ Operatsiyalar: ${stats['in_count']} ta\n"
+                   "   ▫️ Jami summa: ${formatter.format(stats['in_sum'])} so'm\n\n"
+                   "📤 *CHIQIM (Out):*\n"
+                   "   ▫️ Operatsiyalar: ${stats['out_count']} ta\n"
+                   "-------------------------\n"
+                   "#bugun #hisobot";
        
-       await sendMessage(chatId, msg);
+       await sendMessage(chatId, msg); 
      } catch (e) {
        await sendMessage(chatId, "⚠️ Xatolik yuz berdi: $e");
      }
@@ -442,14 +451,19 @@ class TelegramService {
   Future<void> _handleTotalStats(String chatId) async {
     try {
       final stats = await DatabaseHelper.instance.getDashboardStats();
-       final formatter = NumberFormat("#,###"); // Requires intl package
+      final formatter = NumberFormat("#,###");
       
       final totalVal = stats['total_value'] as double;
       
-      final msg = "💰 *Umumiy Ombor Hisoboti*\n\n"
-                  "💵 *Qiymat:* ${formatter.format(totalVal)} so'm\n"
-                  "📉 *Kam Qolgan:* ${stats['low_stock']} xil tovar\n"
-                  "🚫 *Tugagan:* ${stats['finished']} xil tovar";
+      final msg = "💰 *OMBOR UMUMIY HOLATI*\n"
+                  "-------------------------\n\n"
+                  "💵 *Umumiy qiymat:*\n"
+                  "   👉 ${formatter.format(totalVal)} so'm\n\n"
+                  "📉 *Kritik holatlar:*\n"
+                  "   ▫️ Kam qolgan: ${stats['low_stock']} xil\n"
+                  "   ▫️ Tugagan: ${stats['finished']} xil\n\n"
+                  "-------------------------\n"
+                  "#umumiy #hisobot";
       
       await sendMessage(chatId, msg);
     } catch (e) {
@@ -485,15 +499,25 @@ class TelegramService {
         return;
       }
       
-      String list = "🔄 *Oxirgi Harakatlar*\n\n";
+      String list = "🔄 *Oxirgi Harakatlar (Top 5)*\n\n";
       for (var item in activity) {
-        final icon = item['type'] == 'in' ? "⬇️" : "⬆️";
-        final dateTimeStr = item['date_time'].toString();
-        // Xavfsiz kesib olish: Agar vaqt yozilmagan bo'lsa, bo'sh qoldiramiz
-        final time = dateTimeStr.length >= 16 ? dateTimeStr.substring(11, 16) : "--:--"; 
-        
-        list += "$icon *${item['product_name']}*\n"
-                "   └ ${item['quantity']} dona | 🕒 $time\n";
+        final icon = item['type'] == 'in' ? "📥 Kirim" : "📤 Chiqim";
+        final dt = item['date_time'].toString();
+        // Format: 2026-01-16 21:05 -> 16 Jan 21:05
+        String timeDisplay = "--:--";
+        if (dt.length >= 16) {
+           final parts = dt.split(' ');
+           final dateParts = parts[0].split('-'); // y-m-d
+           final timeStr = parts[1].substring(0, 5); // HH:mm
+           timeDisplay = "${dateParts[2]}/${dateParts[1]} $timeStr";
+        }
+
+        list += "*$icon*\n"
+                "📦 *${item['product_name']}*\n"
+                "🔢 Miqdor: ${item['quantity']}\n"
+                "👤 Tomon: ${item['party'] ?? 'Noma\'lum'}\n"
+                "🕒 Vaqt: $timeDisplay\n"
+                "-------------------------\n";
       }
       
       await sendMessage(chatId, list);
@@ -510,23 +534,31 @@ class TelegramService {
       final sanitized = '%$query%';
       
       final results = await db.rawQuery('''
-        SELECT name, unit, 
+        SELECT p.name, p.unit, 
+          COALESCE(c.name, 'Guruhsiz') as cat_name,
           ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
            (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
         FROM products p
-        WHERE name LIKE ?
-        LIMIT 5
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.name LIKE ?
+        LIMIT 10
       ''', [sanitized]);
       
       if (results.isEmpty) {
-        await sendMessage(chatId, "🤷‍♂️ '$query' bo'yicha hech narsa topilmadi.");
+        await sendMessage(chatId, "📌 *'$query'* bo'yicha hech narsa topilmadi.\n\nIltimos, so'zni to'g'ri yozganingizni tekshiring.");
         return;
       }
       
-      String list = "🔎 *Qidiruv Natijasi:*\n\n";
+      String list = "🔎 *QIDIRUV NATIJALARI*\n"
+                  "-------------------------\n\n";
       for (var item in results) {
-         list += "🔹 ${item['name']}\n"
-                 "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n\n";
+         final stock = item['stock'] as num;
+         final statusIcon = stock <= 0 ? "❌" : (stock < 10 ? "⚠️" : "✅");
+         
+         list += "$statusIcon *${item['name']}*\n"
+                 "   � Guruh: ${item['cat_name']}\n"
+                 "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n"
+                 "-------------------------\n";
       }
       
       await sendMessage(chatId, list);
@@ -545,7 +577,7 @@ class TelegramService {
       "keyboard": [
         [{"text": "📊 Bugungi Holat"}, {"text": "💰 Umumiy Hisobot"}],
         [{"text": "⚠️ Kam Qolganlar"}, {"text": "🔄 Oxirgi Harakatlar"}],
-        [{"text": "🔎 Mahsulot Qidirish"}]
+        [{"text": "🔎 Mahsulot Qidirish"}, {"text": "🔄 Yangilash"}]
       ],
       "resize_keyboard": true,
       "one_time_keyboard": false
