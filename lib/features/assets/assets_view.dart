@@ -590,7 +590,8 @@ class _AssetsViewState extends State<AssetsView> {
       itemCount: _filteredAssets.length,
       itemBuilder: (context, index) {
         final asset = _filteredAssets[index];
-        return _AssetCard(
+        return _AnimatedAssetCard(
+          index: index,
           asset: asset, 
           onTap: () => _showAssetPassport(asset),
           onDelete: () => _confirmDelete(asset),
@@ -802,135 +803,220 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-class _AssetCard extends StatelessWidget {
+class _AnimatedAssetCard extends StatefulWidget {
+  final int index;
   final Map<String, dynamic> asset;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
-  const _AssetCard({required this.asset, required this.onTap, required this.onDelete});
+  const _AnimatedAssetCard({required this.index, required this.asset, required this.onTap, required this.onDelete});
+
+  @override
+  State<_AnimatedAssetCard> createState() => _AnimatedAssetCardState();
+}
+
+class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
+  bool _isHovered = false;
+  bool _isVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: 50 * (widget.index % 10)), () {
+      if (mounted) setState(() => _isVisible = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _getStatusColor(asset['status']);
-    
-    return GlassContainer(
-      padding: EdgeInsets.zero,
-      borderRadius: 24,
-      child: Stack(
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildIconBox(),
-                      _buildStatusBadge(statusColor),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    asset['name'], 
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: -0.5),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "${asset['category_name'] ?? 'Kategoriyasiz'} • ${asset['model'] ?? '-'}", 
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  if (asset['photo_path'] != null)
+    final statusColor = _getStatusColor(widget.asset['status']);
+    final hasImage = widget.asset['photo_path'] != null;
+
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 500),
+      opacity: _isVisible ? 1.0 : 0.0,
+      curve: Curves.easeOut,
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 500),
+        padding: _isVisible ? EdgeInsets.zero : const EdgeInsets.only(top: 50),
+        curve: Curves.easeOut,
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _isHovered = true),
+          onExit: (_) => setState(() => _isHovered = false),
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                color: Colors.white.withOpacity(0.03), // Subtle glass 
+                border: Border.all(color: Colors.white.withOpacity(_isHovered ? 0.2 : 0.05), width: 1.5),
+                boxShadow: _isHovered ? [
+                  BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))
+                ] : [],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // TOP HALF: COVER IMAGE OR GRADIENT
                     Expanded(
+                      flex: 6,
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
-                          image: DecorationImage(
-                            image: FileImage(File(asset['photo_path'])), 
-                            fit: BoxFit.cover
-                          ),
+                          color: hasImage ? Colors.black : AppColors.primary.withOpacity(0.05),
+                          image: hasImage 
+                            ? DecorationImage(image: FileImage(File(widget.asset['photo_path'])), fit: BoxFit.cover) 
+                            : null,
+                          gradient: hasImage ? null : LinearGradient(
+                              colors: [AppColors.primary.withOpacity(0.05), AppColors.primary.withOpacity(0.15)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                        ),
+                        child: Stack(
+                          children: [
+                            if (!hasImage)
+                              Center(child: _buildBigIcon()),
+                            
+                            // Delete Button (Top Right)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Material(
+                                color: Colors.black26, 
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: widget.onDelete,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(6),
+                                    child: Icon(Icons.delete_outline_rounded, color: Colors.white, size: 18),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Tag (Top Left)
+                            Positioned(
+                              top: 10,
+                              left: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black38,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white12)
+                                ),
+                                child: Text(
+                                  widget.asset['category_name'] ?? 'Jihoz',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    )
-                  else
-                    const Spacer(),
-                  const Divider(height: 24, color: AppColors.glassBorder),
-                  Row(
-                    children: [
-                      const Icon(Icons.room_rounded, size: 14, color: Colors.blue),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          "${asset['grandparent_location_name'] != null ? asset['grandparent_location_name'] + ' > ' : ''}${asset['parent_location_name'] ?? ''} > ${asset['location_name'] ?? 'Noma\'lum'}", 
-                          style: TextStyle(fontSize: 10, color: Colors.grey[400]),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    ),
+
+                    // BOTTOM HALF: INFO
+                    Expanded(
+                      flex: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        color: Colors.white.withOpacity(0.02), // Slight contrast
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.asset['name'],
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.asset['model'] ?? 'Rusum yo\'q',
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                                  maxLines: 1,
+                                ),
+                              ],
+                            ),
+                            
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Location
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.room_rounded, size: 14, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          widget.asset['location_name'] ?? 'Noma\'lum',
+                                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                
+                                // Status Dot
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: statusColor.withOpacity(0.3))
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: statusColor)),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        widget.asset['status'] ?? 'Yangi',
+                                        style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            )
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.qr_code_2_rounded, size: 14, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      Text(asset['barcode'] ?? '', style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
-              splashRadius: 20,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildIconBox() {
+  Widget _buildBigIcon() {
     IconData icon;
-    final n = asset['name'].toString().toLowerCase();
+    final n = widget.asset['name'].toString().toLowerCase();
     if (n.contains('komp') || n.contains('laptop')) icon = Icons.laptop_mac_rounded;
     else if (n.contains('stol') || n.contains('mebel')) icon = Icons.table_restaurant_rounded;
     else if (n.contains('printer')) icon = Icons.print_rounded;
     else if (n.contains('monitor')) icon = Icons.desktop_windows_rounded;
     else icon = Icons.inventory_2_rounded;
 
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(icon, color: AppColors.primary, size: 24),
-    );
-  }
-
-  Widget _buildStatusBadge(Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: color.withOpacity(0.3))),
-      child: Text(asset['status'] ?? 'Yangi', style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
-    );
+    return Icon(icon, size: 56, color: AppColors.primary.withOpacity(0.3));
   }
 
   Color _getStatusColor(String? status) {
