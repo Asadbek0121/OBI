@@ -154,6 +154,7 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
                          Text("YORDAM", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
                          const SizedBox(height: 8),
                          _ShortcutHelpRow(icon: Icons.inventory_2, text: "Mahsulot nomini yozing (masalan, 'Aspirin')"),
+                         _ShortcutHelpRow(icon: Icons.chair, text: "Jihoz nomini yozing (masalan, 'Stol', 'Kompyuter')"), // NEW
                          _ShortcutHelpRow(icon: Icons.person, text: "Xodim ismini yozing (masalan, 'Valijon')"),
                          _ShortcutHelpRow(icon: Icons.history, text: "Tarixni ko'rish uchun sana yoki nom yozing"),
                        ],
@@ -221,6 +222,12 @@ class _SearchResultItem extends StatelessWidget {
       title = item['title'];
       subtitle = "${item['subtitle']} • ${item['quantity']} chiqim";
       trailing = item['date_time'].toString().substring(0, 10);
+    } else if (type == 'asset') { // NEW: ASSET
+      icon = Icons.chair_rounded;
+      color = Colors.teal;
+      title = item['title'];
+      subtitle = item['subtitle'] ?? ''; // Location
+      trailing = "JIHOZ";
     } else { // person
       icon = Icons.person_outline;
       color = Colors.purple;

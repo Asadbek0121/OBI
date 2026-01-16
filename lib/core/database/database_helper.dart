@@ -636,8 +636,26 @@ class DatabaseHelper {
       return targetPath;
     } catch (e) {
       debugPrint("Backup Failed: $e");
-      return null;
-    }
+  }
+
+  // --- DASHBOARD ENHANCEMENTS ---
+
+  Future<Map<String, dynamic>> getDashboardStatusToday() async {
+     final db = await instance.database;
+     final now = DateTime.now();
+     final todayStr = now.toString().substring(0, 10); // yyyy-MM-dd
+
+     // Total IN Today
+     final resIn = await db.rawQuery("SELECT COUNT(*) as cnt, SUM(total_amount) as sm FROM stock_in WHERE date_time LIKE '$todayStr%'");
+     
+     // Total OUT Today
+     final resOut = await db.rawQuery("SELECT COUNT(*) as cnt FROM stock_out WHERE date_time LIKE '$todayStr%'");
+
+     return {
+       'in_count': resIn.first['cnt'] ?? 0,
+       'in_sum': resIn.first['sm'] ?? 0.0,
+       'out_count': resOut.first['cnt'] ?? 0,
+     };
   }
 
   Future<List<Map<String, dynamic>>> searchGlobal(String query) async {
@@ -700,13 +718,19 @@ class DatabaseHelper {
     for (var r in receivers) {
       results.add({'type': 'person', 'title': r['name'], 'subtitle': 'Qabul qiluvchi'});
     }
-    
-    // 4. Fixed Assets (Items) - Updated for new schema
+
+    // 4. ASSETS (JIHOZLAR) - NEW
     final assets = await db.rawQuery('''
-      SELECT a.*, l.name as location_name 
+      SELECT 
+        'asset' as type,
+        a.id,
+        a.name as title,
+        (c.name || ' • ' || l.name) as subtitle,
+        a.photo_path
       FROM assets a
+      LEFT JOIN asset_categories c ON a.category_id = c.id
       LEFT JOIN asset_locations l ON a.location_id = l.id
-      WHERE a.name LIKE ? OR a.barcode LIKE ? OR l.name LIKE ?
+      WHERE a.name LIKE ? OR a.model LIKE ? OR a.serial_number LIKE ?
       LIMIT 5
     ''', [sanitized, sanitized, sanitized]);
     

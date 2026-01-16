@@ -34,6 +34,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic> _stats = {'total_value': 0.0, 'low_stock': 0, 'finished': 0};
   List<Map<String, dynamic>> _activities = [];
 
+  Map<String, dynamic> _todayStats = {}; // New State
+
   @override
   void initState() {
     super.initState();
@@ -44,10 +46,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final stats = await DatabaseHelper.instance.getDashboardStats();
       final activities = await DatabaseHelper.instance.getRecentActivity();
+      final today = await DatabaseHelper.instance.getDashboardStatusToday(); // New Call
+
       if (mounted) {
         setState(() {
           _stats = stats;
           _activities = activities;
+          _todayStats = today;
           _isLoadingDashboard = false;
         });
       }
@@ -349,6 +354,67 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 32),
+
+          // TODAY'S LIVE MONITOR
+          if (!_isLoadingDashboard && _todayStats.isNotEmpty)
+             Container(
+               margin: const EdgeInsets.only(bottom: 32),
+               padding: const EdgeInsets.all(24),
+               decoration: BoxDecoration(
+                 color: AppColors.primary.withOpacity(0.05),
+                 borderRadius: BorderRadius.circular(24),
+                 border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+               ),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.bolt, color: Colors.amber, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          "BUGUNGI HOLAT (${DateTime.now().toString().substring(0, 10)})", 
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _TodayStatItem(
+                            label: "Kirim",
+                            value: "${_todayStats['in_count']} ta",
+                            subvalue: "${(_todayStats['in_sum'] as num).toDouble().toStringAsFixed(0)}",
+                            icon: Icons.arrow_downward_rounded,
+                            color: Colors.green,
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.3)),
+                        Expanded(
+                          child: _TodayStatItem(
+                            label: "Chiqim",
+                            value: "${_todayStats['out_count']} ta",
+                            subvalue: "Tarqatildi",
+                            icon: Icons.arrow_upward_rounded,
+                            color: Colors.orange,
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.3)),
+                         Expanded(
+                          child: _TodayStatItem(
+                            label: "Faollik",
+                            value: "${_todayStats['in_count'] + _todayStats['out_count']}",
+                            subvalue: "Jami operatsiyalar",
+                            icon: Icons.timeline,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                 ],
+               ),
+             ),
 
           if (_isLoadingDashboard)
              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
@@ -676,6 +742,41 @@ class _SidebarItem extends StatelessWidget {
             )),
           ],
         ),
+      ),
+    );
+  }
+}
+class _TodayStatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final String subvalue;
+  final IconData icon;
+  final Color color;
+
+  const _TodayStatItem({required this.label, required this.value, required this.subvalue, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(subvalue, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+            ],
+          ),
+        ],
       ),
     );
   }
