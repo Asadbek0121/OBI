@@ -400,6 +400,9 @@ class TelegramService {
     else if (text.contains("Kam Qolganlar")) {
       await _handleLowStock(chatId);
     }
+    else if (text.contains("Jihozlar")) {
+      await _handleAssetsStat(chatId);
+    }
     else if (text.contains("Oxirgi Harakatlar")) {
       await _handleRecentActivity(chatId);
     }
@@ -532,36 +535,87 @@ class TelegramService {
     }
   }
 
+  Future<void> _handleAssetsStat(String chatId) async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      
+      final totalRes = await db.rawQuery('SELECT COUNT(*) as cnt FROM assets');
+      final statusRes = await db.rawQuery('SELECT status, COUNT(*) as cnt FROM assets GROUP BY status');
+      
+      final total = totalRes.first['cnt'] ?? 0;
+      
+      String msg = "🖥 *JIHOZLAR HISOBOTI*\n"
+                  "-------------------------\n"
+                  "✅ Jami jihozlar: *$total ta*\n\n"
+                  "📊 *Holati bo'yicha:* \n";
+                  
+      for (var row in statusRes) {
+        final status = row['status'] ?? 'Noma\'lum';
+        msg += "   ▫️ $status: *${row['cnt']} ta*\n";
+      }
+      
+      msg += "-------------------------\n"
+             "#jihozlar #summary";
+             
+      await sendMessage(chatId, msg);
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Jihozlarni yuklashda xatolik: $e");
+    }
+  }
+
   Future<void> _handleSearchProduct(String chatId, String query) async {
     try {
       final db = await DatabaseHelper.instance.database;
       final sanitized = '%$query%';
       
-      final results = await db.rawQuery('''
+      // 1. Search Products
+      final productResults = await db.rawQuery('''
         SELECT p.name, p.unit, 
           ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
            (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
         FROM products p
         WHERE p.name LIKE ?
-        LIMIT 10
+        LIMIT 5
       ''', [sanitized]);
+
+      // 2. Search Assets
+      final assetResults = await db.rawQuery('''
+        SELECT a.name, a.model, a.status, l.name as loc_name
+        FROM assets a
+        LEFT JOIN asset_locations l ON a.location_id = l.id
+        WHERE a.name LIKE ? OR a.model LIKE ?
+        LIMIT 5
+      ''', [sanitized, sanitized]);
       
-      if (results.isEmpty) {
-        await sendMessage(chatId, "📌 *'$query'* bo'yicha hech narsa topilmadi.\n\nIltimos, so'zni to'g'ri yozganingizni tekshiring.");
+      if (productResults.isEmpty && assetResults.isEmpty) {
+        await sendMessage(chatId, "📌 *'$query'* bo'yicha hech narsa topilmadi.");
         return;
       }
       
       String list = "🔎 *QIDIRUV NATIJALARI*\n"
                   "-------------------------\n\n";
-      for (var item in results) {
-         final stock = item['stock'] as num;
-         final statusIcon = stock <= 0 ? "❌" : (stock < 10 ? "⚠️" : "✅");
-         
-         list += "$statusIcon *${item['name']}*\n"
-                 "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n"
-                 "-------------------------\n";
+
+      if (productResults.isNotEmpty) {
+        list += "📦 *MAHSULOTLAR:*\n";
+        for (var item in productResults) {
+           final stock = item['stock'] as num;
+           final statusIcon = stock <= 0 ? "❌" : (stock < 10 ? "⚠️" : "✅");
+           list += "$statusIcon *${item['name']}*\n"
+                   "   📦 Qoldiq: *${item['stock']} ${item['unit']}*\n";
+        }
+        list += "\n";
+      }
+
+      if (assetResults.isNotEmpty) {
+        list += "🖥 *JIHOZLAR:*\n";
+        for (var item in assetResults) {
+           list += "🔹 *${item['name']}* (${item['model'] ?? 'model yo\'q'})\n"
+                   "   📍 Joyi: ${item['loc_name'] ?? 'noma\'lum'}\n"
+                   "   🛠 Holati: ${item['status']}\n";
+        }
       }
       
+      list += "-------------------------\n";
       await sendMessage(chatId, list);
 
     } catch (e) {
@@ -577,8 +631,9 @@ class TelegramService {
     final keyboard = {
       "keyboard": [
         [{"text": "📊 Bugungi Holat"}, {"text": "💰 Umumiy Hisobot"}],
-        [{"text": "⚠️ Kam Qolganlar"}, {"text": "🔄 Oxirgi Harakatlar"}],
-        [{"text": "🔎 Mahsulot Qidirish"}, {"text": "🔄 Yangilash"}]
+        [{"text": "⚠️ Kam Qolganlar"}, {"text": "� Jihozlar"}],
+        [{"text": "�🔄 Oxirgi Harakatlar"}, {"text": "🔎 Mahsulot Qidirish"}],
+        [{"text": "🔄 Yangilash"}]
       ],
       "resize_keyboard": true,
       "one_time_keyboard": false
