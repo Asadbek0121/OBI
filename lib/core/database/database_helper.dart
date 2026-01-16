@@ -665,19 +665,23 @@ class DatabaseHelper {
     final results = <Map<String, dynamic>>[];
 
     // 1. Products & Stock
-    final products = await db.rawQuery('''
-      SELECT 
-        'product' as type,
-        p.id, 
-        p.name, 
-        p.unitRaw,
-        ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
-         (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
-      FROM products p
-      WHERE p.name LIKE ?
-      LIMIT 5
-    ''', [sanitized]);
-    results.addAll(products);
+    try {
+      final products = await db.rawQuery('''
+        SELECT 
+          'product' as type,
+          p.id, 
+          p.name, 
+          p.unit,
+          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
+           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
+        FROM products p
+        WHERE p.name LIKE ?
+        LIMIT 5
+      ''', [sanitized]);
+      results.addAll(products);
+    } catch (e) {
+      debugPrint("❌ Product Search Error: $e");
+    }
 
     // 2. Recent Transactions (History)
     final transactions = await db.rawQuery('''
