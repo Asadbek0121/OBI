@@ -65,7 +65,7 @@ class DatabaseHelper {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
-
+    
     // Check if it's an absolute path (User selected) or relative (Default)
     String path = filePath;
     if (!isAbsolute(path)) {
@@ -79,17 +79,26 @@ class DatabaseHelper {
     // String? encryptionKey = await _secureStorage.read(key: _keyStorageName);
     
     // 3. Open Standard Database
-    return await openDatabase(
+    final db = await openDatabase(
       path,
       version: 2,
       // password: encryptionKey, // Disabled
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+
+    // After opening, ensure optimizations and missing tables
+    await _ensureOptimized(db);
+
+    return db;
   }
 
-  Future<void> createAssetsTableIfNeeded() async {
-    final db = await instance.database;
+  Future<void> _ensureOptimized(Database db) async {
+    // 1. Ensure WAL mode
+    await db.execute('PRAGMA journal_mode = WAL;');
+    await db.execute('PRAGMA synchronous = NORMAL;');
+
+    // 2. Missing tables check (For existing databases)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS assets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,6 +110,18 @@ class DatabaseHelper {
         created_at TEXT
       )
     ''');
+
+    // 3. Ensure Indexes for better performance
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_in_product_id ON stock_in(product_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_out_product_id ON stock_out(product_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_in_date ON stock_in(date_time)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_out_date ON stock_out(date_time)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
+  }
+
+  Future<void> createAssetsTableIfNeeded() async {
+    final db = await instance.database;
+    await _ensureOptimized(db);
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -154,7 +175,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATED TABLE stock_out (
+      CREATE TABLE stock_out (
         id TEXT PRIMARY KEY,
         product_id TEXT,
         date_time TEXT,
@@ -290,72 +311,65 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getInventorySummary() async {
     final db = await instance.database;
     
-    // Complex query to aggregate Stock In and Stock Out
-    // We group by product_id
     final res = await db.rawQuery('''
       SELECT 
         p.id, 
         p.name, 
         p.unit,
-        (SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) as total_in,
-        (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id) as total_out
+        p.min_stock_alert,
+        IFNULL(si.total_in, 0) as total_in,
+        IFNULL(so.total_out, 0) as total_out
       FROM products p
+      LEFT JOIN (
+        SELECT product_id, SUM(quantity) as total_in 
+        FROM stock_in GROUP BY product_id
+      ) si ON p.id = si.product_id
+      LEFT JOIN (
+        SELECT product_id, SUM(quantity) as total_out 
+        FROM stock_out GROUP BY product_id
+      ) so ON p.id = so.product_id
     ''');
     
-    // Calculate compiled list
     return res.map((row) {
-      final totalIn = (row['total_in'] as num).toDouble();
-      final totalOut = (row['total_out'] as num).toDouble();
+      final tIn = (row['total_in'] as num).toDouble();
+      final tOut = (row['total_out'] as num).toDouble();
       return {
         'id': row['id'],
         'name': row['name'],
         'unit': row['unit'],
-        'stock': totalIn - totalOut,
+        'stock': tIn - tOut,
+        'min_stock_alert': row['min_stock_alert'],
       };
     }).toList();
   }
 
-  // --- Dashboard Analytics ---
   Future<Map<String, dynamic>> getDashboardStats() async {
     final db = await instance.database;
     
-    // 1. Total Inventory Value (Now matched to Total Stock In Sum)
-    final valueRes = await db.rawQuery('SELECT SUM(total_amount) as total_value FROM stock_in');
-    final totalValue = (valueRes.first['total_value'] as num?)?.toDouble() ?? 0.0;
+    // 1. Total Inventory Value (Optimized index query)
+    final valueRes = await db.rawQuery('SELECT IFNULL(SUM(total_amount), 0) as total_value FROM stock_in');
+    final totalValue = (valueRes.first['total_value'] as num).toDouble();
 
-    // 2. Low Stock Items Count ( > 0 but <= min_alert)
-    final lowStockRes = await db.rawQuery('''
-      SELECT COUNT(*) as count
-      FROM (
-        SELECT 
-          p.id,
-          p.min_stock_alert,
-          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as current_stock
-        FROM products p
-      )
-      WHERE current_stock <= min_stock_alert AND current_stock > 0
-    ''');
-    final lowStockCount = (lowStockRes.first['count'] as num?)?.toInt() ?? 0;
+    // 2 & 3. Low stock and Finished items (Calculated in one pass for performance)
+    final summary = await getInventorySummary();
+    int lowStock = 0;
+    int finished = 0;
 
-    // 3. Finished Items Count ( <= 0 )
-    final finishedRes = await db.rawQuery('''
-      SELECT COUNT(*) as count
-      FROM (
-        SELECT 
-          p.id,
-          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as current_stock
-        FROM products p
-      )
-      WHERE current_stock <= 0
-    ''');
-    final finishedCount = (finishedRes.first['count'] as num?)?.toInt() ?? 0;
+    for (var item in summary) {
+      double stock = (item['stock'] as num).toDouble();
+      int alert = (item['min_stock_alert'] as num?)?.toInt() ?? 10;
+      
+      if (stock <= 0) {
+        finished++;
+      } else if (stock <= alert) {
+        lowStock++;
+      }
+    }
 
     return {
       'total_value': totalValue,
-      'low_stock': lowStockCount,
-      'finished': finishedCount,
+      'low_stock': lowStock,
+      'finished': finished,
     };
   }
 

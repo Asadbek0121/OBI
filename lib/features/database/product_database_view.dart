@@ -91,12 +91,6 @@ class _ProductGridState extends State<_ProductGrid> {
     _loadData();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadData();
-  }
-
   Future<void> _loadData() async {
     validUnits = await DatabaseHelper.instance.getUnits();
     final products = await DatabaseHelper.instance.getAllProducts();
@@ -316,12 +310,6 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
   @override
   void initState() {
     super.initState();
-    _loadData();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
     _loadData();
   }
 

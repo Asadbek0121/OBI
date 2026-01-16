@@ -23,8 +23,8 @@ class _InventoryViewState extends State<InventoryView> {
   bool isLoading = true;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
     _loadInventory();
   }
 
