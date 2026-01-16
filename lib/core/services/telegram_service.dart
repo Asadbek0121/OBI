@@ -359,37 +359,157 @@ class TelegramService {
     await editMessageText(chatId, messageId, text, replyMarkup: markup);
   }
 
+  // --- UI HELPERS ---
+
+  String _getTimeBasedGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 5) return "Xayrli kech 🌙";
+    if (hour < 11) return "Xayrli tong ☀️";
+    if (hour < 17) return "Xayrli kun 🌤";
+    return "Xayrli kech 🌙";
+  }
+
+  String _formatMoney(num amount) {
+    return NumberFormat("#,###").format(amount);
+  }
+
+  // --- Handlers ---
+
   Future<void> _handleTodayStats(String chatId) async {
-    final stats = await DatabaseHelper.instance.getDashboardStatusToday();
-    final formatter = NumberFormat("#,###");
-    final msg = "📊 *BUGUNGI HISOBOT*\n-------------------------\n📥 *Kirim:* ${stats['in_count']} ta (${formatter.format(stats['in_sum'])} so'm)\n📤 *Chiqim:* ${stats['out_count']} ta\n-------------------------";
-    await sendMessage(chatId, msg);
+    try {
+      final stats = await DatabaseHelper.instance.getDashboardStatusToday();
+      final greeting = _getTimeBasedGreeting();
+      final dateStr = DateFormat('dd.MM.yyyy').format(DateTime.now());
+      
+      final inCount = stats['in_count'] as int;
+      final outCount = stats['out_count'] as int;
+      final inSum = stats['in_sum'] as num;
+
+      String msg = "$greeting, Hurmatli Admin!\n\n"
+                  "📊 *BUGUNGI HISOBOT ($dateStr)*\n"
+                  "-------------------------\n\n"
+                  "📥 *Kirim Operatsiyalari:*\n"
+                  "   ▫️ Jami: *${inCount} ta* harakat\n"
+                  "   ▫️ Qiymati: *${_formatMoney(inSum)}* so'm\n\n"
+                  "📤 *Chiqim Operatsiyalari:*\n"
+                  "   ▫️ Jami: *${outCount} ta* operatsiya\n"
+                  "   ▫️ Holat: Faoliyat davom etmoqda\n\n"
+                  "-------------------------\n"
+                  "📝 *Xulosa:* Bugun jami *${inCount + outCount} ta* ombor operatsiyasi amalga oshirildi. "
+                  "Tizim barcha harakatlarni muvaffaqiyatli nazorat qilmoqda.\n\n"
+                  "#hisobot #bugun";
+      
+      await sendMessage(chatId, msg); 
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Ma'lumotlarni hisoblashda xatolik: $e");
+    }
   }
 
   Future<void> _handleTotalStats(String chatId) async {
-    final stats = await DatabaseHelper.instance.getDashboardStats();
-    final formatter = NumberFormat("#,###");
-    final msg = "💰 *OMBOR HOLATI*\n-------------------------\n💵 Qiymat: *${formatter.format(stats['total_value'])}* so'm\n📉 Kam qolgan: ${stats['low_stock']} ta\n🚫 Tugagan: ${stats['finished']} ta\n-------------------------";
-    await sendMessage(chatId, msg);
+    try {
+      final stats = await DatabaseHelper.instance.getDashboardStats();
+      final totalVal = stats['total_value'] as double;
+      final lowCount = stats['low_stock'] as int;
+      final finishedCount = stats['finished'] as int;
+      
+      String msg = "💰 *OMBORXONA UMUMIY TAHLILI*\n"
+                  "-------------------------\n\n"
+                  "� *Moliyaviy Holat:*\n"
+                  "   ▫️ Jami qiymat: *${_formatMoney(totalVal)}* so'm\n\n"
+                  "� *Zaxira Sog'lig'i:*\n"
+                  "   ▫️ Kam qolgan: *${lowCount} xil* (E'tibor berish lozim)\n"
+                  "   ▫️ Tugagan: *${finishedCount} xil* (Zudlik bilan to'ldirish)\n\n"
+                  "💡 *Tavsiya:* Hozirgi kunda omborning holati barqaror. ";
+                  
+      if (finishedCount > 0) {
+        msg += "Biroq, tugagan mahsulotlar uchun yangi buyurtma berishni tavsiya qilamiz.";
+      }
+      
+      msg += "\n\n-------------------------\n"
+             "#hisobot #analitika";
+      
+      await sendMessage(chatId, msg);
+    } catch (e) {
+       await sendMessage(chatId, "⚠️ Hisobotda xatolik: $e");
+    }
   }
 
   Future<void> _handleLowStock(String chatId) async {
-    final items = await DatabaseHelper.instance.getLowStockProducts();
-    if (items.isEmpty) { await sendMessage(chatId, "✅ Hamma narsa yetarli."); return; }
-    String list = "⚠️ *Kam qolganlar:*\n\n";
-    for (var i = 0; i < items.length && i < 10; i++) list += "${i+1}. ${items[i]['name']} — *${items[i]['stock']}*\n";
-    await sendMessage(chatId, list);
+    try {
+      final allLow = await DatabaseHelper.instance.getLowStockProducts();
+      final finished = await DatabaseHelper.instance.getFinishedProducts();
+      
+      if (allLow.isEmpty && finished.isEmpty) {
+        await sendMessage(chatId, "✅ *Xushxabar!* Hozirda omborda barcha mahsulotlar yetarli miqdorda mavjud.");
+        return;
+      }
+      
+      String list = "🚨 *ZAXIRA OGOHLANTIRISHLARI*\n"
+                  "-------------------------\n\n";
+      
+      if (finished.isNotEmpty) {
+        list += "❌ *ZUDLIK BILAN (TUGAGAN):*\n";
+        for (var i = 0; i < finished.length && i < 10; i++) {
+          list += "   • ${finished[i]['name']} (0 ${finished[i]['unit'] ?? ''})\n";
+        }
+        list += "\n";
+      }
+      
+      if (allLow.isNotEmpty) {
+        list += "⚠️ *KAM QOLGANLAR (YANGILASH KERAK):*\n";
+        for (var i = 0; i < allLow.length && i < 10; i++) {
+          bool exists = finished.any((f) => f['id'] == allLow[i]['id']);
+          if (!exists) {
+            list += "   • ${allLow[i]['name']} (*${allLow[i]['stock']} ${allLow[i]['unit'] ?? ''}*)\n";
+          }
+        }
+      }
+      
+      list += "\n-------------------------\n"
+              "Iltimos, zaxiralarni nazorat qilib boring.\n"
+              "#ogohlantirish #zaxira";
+      
+      await sendMessage(chatId, list);
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Ma'lumot yuklashda xatolik: $e");
+    }
   }
 
   Future<void> _handleRecentActivity(String chatId) async {
-    final activity = await DatabaseHelper.instance.getRecentActivity();
-    if (activity.isEmpty) { await sendMessage(chatId, "📭 Harakat yo'q."); return; }
-    String list = "🔄 *Oxirgi harakatlar:*\n\n";
-    for (var item in activity) {
-      final icon = item['type'] == 'in' ? "📥" : "📤";
-      list += "$icon *${item['product_name']}* (${item['quantity']})\n   🕒 ${item['date_time']}\n";
+    try {
+      final activity = await DatabaseHelper.instance.getRecentActivity(limit: 5);
+      if (activity.isEmpty) {
+        await sendMessage(chatId, "📭 Hozircha harakatlar tarixi bo'sh.");
+        return;
+      }
+      
+      String list = "🔄 *OXIRGI 5 TA HARAKAT*\n"
+                  "-------------------------\n\n";
+                  
+      for (var item in activity) {
+        final isKirim = item['type'] == 'in';
+        final typeIcon = isKirim ? "📥 KIRIM" : "📤 CHIQIM";
+        final partyInfo = isKirim ? "Yetkazuvchi: ${item['party']}" : "Qabul qiluvchi: ${item['party']}";
+        final dtRaw = item['date_time'].toString();
+        
+        String dateDisplay = dtRaw;
+        final parsed = DateTime.tryParse(dtRaw);
+        if (parsed != null) {
+          dateDisplay = DateFormat('dd.MM.yyyy HH:mm').format(parsed);
+        }
+
+        list += "*$typeIcon*\n"
+                "📦 *${item['product_name']}*\n"
+                "🔢 Miqdori: *${item['quantity']}*\n"
+                "🤝 $partyInfo\n"
+                "📅 Vaqti: $dateDisplay\n"
+                "-------------------------\n";
+      }
+      
+      await sendMessage(chatId, list);
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Tarixni yuklashda xatolik: $e");
     }
-    await sendMessage(chatId, list);
   }
 
   Future<void> _handleSearchProduct(String chatId, String query) async {
