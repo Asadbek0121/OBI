@@ -431,15 +431,17 @@ class TelegramService {
        final stats = await DatabaseHelper.instance.getDashboardStatusToday();
        final formatter = NumberFormat("#,###");
        
-       final msg = "📊 *BUGUNGI HISOBOT*\n"
-                   "📅 Sana: ${DateTime.now().toString().substring(0,10)}\n"
+       final msg = "📊 *BUGUNGI OPERATSIYALAR*\n"
+                   "📅 Sana: ${DateTime.now().day.toString().padLeft(2,'0')}.${DateTime.now().month.toString().padLeft(2,'0')}.${DateTime.now().year}\n"
                    "-------------------------\n\n"
-                   "📥 *KIRIM (In):*\n"
-                   "   ▫️ Operatsiyalar: ${stats['in_count']} ta\n"
-                   "   ▫️ Jami summa: ${formatter.format(stats['in_sum'])} so'm\n\n"
-                   "📤 *CHIQIM (Out):*\n"
-                   "   ▫️ Operatsiyalar: ${stats['out_count']} ta\n"
+                   "📥 *KIRIM HARAKATI:*\n"
+                   "   ▫️ Soni: *${stats['in_count']} ta* operatsiya\n"
+                   "   ▫️ Pul qiymati: *${formatter.format(stats['in_sum'])}* so'm\n\n"
+                   "📤 *CHIQIM HARAKATI:*\n"
+                   "   ▫️ Soni: *${stats['out_count']} ta* operatsiya\n"
+                   "   ▫️ Xodimlar: Bugun faol harakatda\n"
                    "-------------------------\n"
+                   "❇️ *Xulosa:* Bugun omboringizda jami ${stats['in_count'] + stats['out_count']} ta harakat amalga oshirildi.\n"
                    "#bugun #hisobot";
        
        await sendMessage(chatId, msg); 
@@ -455,13 +457,14 @@ class TelegramService {
       
       final totalVal = stats['total_value'] as double;
       
-      final msg = "💰 *OMBOR UMUMIY HOLATI*\n"
+      final msg = "💰 *OMBORNING UMUMIY HOLATI*\n"
                   "-------------------------\n\n"
-                  "💵 *Umumiy qiymat:*\n"
-                  "   👉 ${formatter.format(totalVal)} so'm\n\n"
-                  "📉 *Kritik holatlar:*\n"
-                  "   ▫️ Kam qolgan: ${stats['low_stock']} xil\n"
-                  "   ▫️ Tugagan: ${stats['finished']} xil\n\n"
+                  "💵 *Moliyaviy Qiymat:*\n"
+                  "   👉 *${formatter.format(totalVal)}* so'm\n\n"
+                  "📉 *Zaxira Holati:*\n"
+                  "   ▫️ Kam qolgan: *${stats['low_stock']}* xil mahsulot\n"
+                  "   ▫️ Tugagan: *${stats['finished']}* xil mahsulot\n\n"
+                  "🏢 *Boshqaruv:* Hamma ma'lumotlar real vaqt rejimida yangilangan.\n"
                   "-------------------------\n"
                   "#umumiy #hisobot";
       
@@ -499,24 +502,30 @@ class TelegramService {
         return;
       }
       
-      String list = "🔄 *Oxirgi Harakatlar (Top 5)*\n\n";
+      String list = "🔄 *Oxirgi Harakatlar (Top 5)*\n"
+                  "-------------------------\n\n";
       for (var item in activity) {
-        final icon = item['type'] == 'in' ? "📥 Kirim" : "📤 Chiqim";
-        final dt = item['date_time'].toString();
-        // Format: 2026-01-16 21:05 -> 16 Jan 21:05
-        String timeDisplay = "--:--";
-        if (dt.length >= 16) {
-           final parts = dt.split(' ');
-           final dateParts = parts[0].split('-'); // y-m-d
-           final timeStr = parts[1].substring(0, 5); // HH:mm
-           timeDisplay = "${dateParts[2]}/${dateParts[1]} $timeStr";
+        final icon = item['type'] == 'in' ? "📥 KIRIM" : "📤 CHIQIM";
+        final dtRaw = item['date_time'].toString();
+        
+        // Aqlli vaqtni aniqlash
+        String dateDisplay = dtRaw;
+        String timeDisplay = "";
+        
+        final parsed = DateTime.tryParse(dtRaw);
+        if (parsed != null) {
+           dateDisplay = "${parsed.day.toString().padLeft(2,'0')}.${parsed.month.toString().padLeft(2,'0')}.${parsed.year}";
+           // Agar vaqt kiritilgan bo'lsa (faqat 00:00 bo'lmasa yoki stringda bo'lsa)
+           if (dtRaw.length > 11) {
+             timeDisplay = " 🕒 ${parsed.hour.toString().padLeft(2,'0')}:${parsed.minute.toString().padLeft(2,'0')}";
+           }
         }
 
         list += "*$icon*\n"
                 "📦 *${item['product_name']}*\n"
                 "🔢 Miqdor: ${item['quantity']}\n"
                 "👤 Tomon: ${item['party'] ?? 'Noma\'lum'}\n"
-                "🕒 Vaqt: $timeDisplay\n"
+                "� Sana: $dateDisplay$timeDisplay\n"
                 "-------------------------\n";
       }
       
