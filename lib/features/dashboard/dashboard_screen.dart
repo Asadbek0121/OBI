@@ -34,7 +34,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic> _stats = {'total_value': 0.0, 'low_stock': 0, 'finished': 0};
   List<Map<String, dynamic>> _activities = [];
 
-  Map<String, dynamic> _todayStats = {}; // New State
+  Map<String, dynamic> _todayStats = {}; 
+  List<Map<String, dynamic>> _aiPredictions = []; // New AI State
 
   @override
   void initState() {
@@ -46,13 +47,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final stats = await DatabaseHelper.instance.getDashboardStats();
       final activities = await DatabaseHelper.instance.getRecentActivity();
-      final today = await DatabaseHelper.instance.getDashboardStatusToday(); // New Call
+      final today = await DatabaseHelper.instance.getDashboardStatusToday();
+      final predictions = await DatabaseHelper.instance.getAiPredictions(); // Fetch AI
 
       if (mounted) {
         setState(() {
           _stats = stats;
           _activities = activities;
           _todayStats = today;
+          _aiPredictions = predictions;
           _isLoadingDashboard = false;
         });
       }
@@ -353,7 +356,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+           const SizedBox(height: 32),
+          
+          // 🤖 AI PREDICTION CARD (Only shows if there are risks)
+          if (!_isLoadingDashboard && _aiPredictions.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF6A11CB), Color(0xFF2575FC)]), // Purple-Blue AI Theme
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF2575FC).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))
+                ]
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "AI BASHORATCHI", 
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                        child: Text("${_aiPredictions.length} ta xavf", style: const TextStyle(color: Colors.white, fontSize: 12)),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                     "Ushbu mahsulotlar tez orada tugashi kutilmoqda:", 
+                     style: TextStyle(color: Colors.white70, fontSize: 13)
+                  ),
+                  const SizedBox(height: 12),
+                  // Horizontal List of Critical Items
+                  SizedBox(
+                    height: 90,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _aiPredictions.length,
+                      separatorBuilder: (c,i) => const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                         final item = _aiPredictions[index];
+                         return Container(
+                           width: 160,
+                           padding: const EdgeInsets.all(12),
+                           decoration: BoxDecoration(
+                             color: Colors.white.withOpacity(0.15),
+                             borderRadius: BorderRadius.circular(12),
+                             border: Border.all(color: Colors.white.withOpacity(0.2))
+                           ),
+                           child: Column(
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             mainAxisAlignment: MainAxisAlignment.center,
+                             children: [
+                               Text(item['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                               const SizedBox(height: 4),
+                               Row(
+                                 children: [
+                                   const Icon(Icons.timelapse, color: Colors.orangeAccent, size: 14),
+                                   const SizedBox(width: 4),
+                                   Text("${item['days_left']} kun qoldi", style: const TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 12)),
+                                 ],
+                               ),
+                               Text("Zaxira: ${item['current_stock']} ${item['unit']}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                             ],
+                           ),
+                         );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // TODAY'S LIVE MONITOR
           if (!_isLoadingDashboard && _todayStats.isNotEmpty)

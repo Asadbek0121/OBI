@@ -659,6 +659,68 @@ class DatabaseHelper {
      };
   }
 
+  // --- AI PREDICTOR ENGINE ---
+  Future<List<Map<String, dynamic>>> getAiPredictions() async {
+    final db = await instance.database;
+    final stats = <Map<String, dynamic>>[];
+
+    try {
+      // 1. Get Outflow for last 30 days
+      // We calculate "Average Daily Consumption"
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      
+      final usageStats = await db.rawQuery('''
+        SELECT 
+          p.id, p.name, p.unit,
+          IFNULL(SUM(so.quantity), 0) as total_out_30d
+        FROM products p
+        JOIN stock_out so ON p.id = so.product_id
+        WHERE so.date_time >= ?
+        GROUP BY p.id
+        HAVING total_out_30d > 0
+      ''', [thirtyDaysAgo]);
+
+      for (var item in usageStats) {
+         final totalOut = item['total_out_30d'] as num;
+         final dailyBurnRate = totalOut / 30.0; // Average per day
+
+         // 2. Get Current Stock
+         // We reuse the logic: In - Out
+         final stockRes = await db.rawQuery('''
+           SELECT 
+            ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = ?) - 
+             (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = ?)) as stock
+         ''', [item['id'], item['id']]);
+         
+         final currentStock = (stockRes.first['stock'] as num?) ?? 0;
+
+         // 3. Calculate "Days Left"
+         if (currentStock <= 0) continue; // Already empty, normal low stock logic handles this
+         
+         final daysLeft = currentStock / dailyBurnRate;
+         
+         // 4. Threshold: If less than 10 days coverage -> PREDICT CRITICAL
+         if (daysLeft < 10) {
+            stats.add({
+              'name': item['name'],
+              'days_left': daysLeft.floor(),
+              'daily_use': dailyBurnRate.toStringAsFixed(1),
+              'current_stock': currentStock,
+              'unit': item['unit']
+            });
+         }
+      }
+      
+      // Sort by urgency (fewer days left = higher priority)
+      stats.sort((a, b) => (a['days_left'] as int).compareTo(b['days_left'] as int));
+
+    } catch (e) {
+      debugPrint("🤖 AI Prediction Error: $e");
+    }
+
+    return stats;
+  }
+
   Future<List<Map<String, dynamic>>> searchGlobal(String query) async {
     final db = await instance.database;
     final sanitized = '%$query%';
