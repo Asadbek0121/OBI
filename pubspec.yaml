@@ -64,6 +64,8 @@ dependencies:
   share_plus: ^10.1.0
   http: ^1.6.0
   barcode_widget: ^2.0.4
+  zxing2: ^0.2.4
+  image: ^4.3.0
 
 dev_dependencies:
   flutter_test:

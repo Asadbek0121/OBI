@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/database/database_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:image/image.dart' as img;
+import 'package:zxing2/qrcode.dart';
+import 'package:zxing2/zxing2.dart';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
@@ -257,10 +261,17 @@ class TelegramService {
   Future<void> _processMessage(Map<String, dynamic> msg) async {
     final chatId = msg['chat']['id'].toString();
     final text = msg['text']?.toString() ?? '';
+    final photos = msg['photo'] as List?;
+    
     final users = await getUsers();
     if (!users.any((u) => u['chatId'] == chatId)) {
        await sendMessage(chatId, "⛔️ Ro'yxatdan o'tmagansiz. ID: $chatId");
        return;
+    }
+
+    if (photos != null && photos.isNotEmpty) {
+      await _handlePhotoBarcode(chatId, photos);
+      return;
     }
 
     if (text == '/start' || text.contains("Yangilash")) {
@@ -276,7 +287,7 @@ class TelegramService {
     } else if (text.contains("Oxirgi Harakatlar")) {
       await _handleRecentActivity(chatId);
     } else if (text.contains("Mahsulot Qidirish")) {
-      await sendMessage(chatId, "🔍 Qidirish uchun nomini yozing:");
+      await sendMessage(chatId, "🔍 Qidirish uchun nomini yozing yoki jihoz shtrix-kodi rasmini yuboring:");
     } else if (text.length > 2) {
       await _handleSearchProduct(chatId, text);
     }
@@ -430,7 +441,7 @@ class TelegramService {
       
       String msg = "💰 *OMBORXONA UMUMIY TAHLILI*\n"
                   "-------------------------\n\n"
-                  "💵 *Moliyaviv Holat:*\n"
+                  "💵 *Moliyaviy Holat:*\n"
                   "   - Jami qiymat: *${_formatMoney(totalVal)}* so'm\n\n"
                   "📊 *Zaxira Sog'lig'i:*\n"
                   "   - Kam qolgan: *${lowCount} xil*\n"
@@ -546,6 +557,79 @@ class TelegramService {
       for (var item in assetResults) list += "▫️ ${item['name']} 📍 ${item['loc_name']}\n";
     }
     await sendMessage(chatId, list);
+  }
+
+  Future<void> _handlePhotoBarcode(String chatId, List maps) async {
+    final token = await getBotToken();
+    if (token == null) return;
+
+    await sendMessage(chatId, "🔍 *Rasm qabul qilindi.* Shtrix-kod skanerlanmoqda, iltimos kuting...");
+
+    try {
+      // 1. Get the largest photo
+      final fileId = maps.last['file_id'];
+      
+      // 2. Get file path
+      final getFileUrl = Uri.parse('$_baseUrl$token/getFile?file_id=$fileId');
+      final fileRes = await http.get(getFileUrl);
+      final fileData = jsonDecode(fileRes.body);
+      
+      if (fileData['ok'] != true) throw "Telegramdan faylni olib bo'lmadi";
+      
+      final filePath = fileData['result']['file_path'];
+      final downloadUrl = 'https://api.telegram.org/file/bot$token/$filePath';
+      
+      // 3. Download image bytes
+      final imgRes = await http.get(Uri.parse(downloadUrl));
+      final bytes = imgRes.bodyBytes;
+      
+      // 4. Decode using image package
+      final image = img.decodeImage(bytes);
+      if (image == null) throw "Rasmni qayta ishlab bo'lmadi";
+      
+      // 5. ZXing Decoding
+      final luminanceSource = RGBLuminanceSource(image.width, image.height, image.getBytes(order: img.ChannelOrder.rgba).buffer.asInt32List());
+      final binarizer = HybridBinarizer(luminanceSource);
+      final binaryBitmap = BinaryBitmap(binarizer);
+      
+      final reader = MultiFormatReader();
+      final result = reader.decode(binaryBitmap);
+      
+      final barcode = result.text;
+      await sendMessage(chatId, "✅ *Skanerlandi:* `$barcode` \nMa'lumotlar qidirilmoqda...");
+      
+      // 6. Search in DB
+      final db = await DatabaseHelper.instance.database;
+      final assets = await db.rawQuery('''
+        SELECT a.*, c.name as category_name, l.name as loc_name
+        FROM assets a
+        LEFT JOIN asset_categories c ON a.category_id = c.id
+        LEFT JOIN asset_locations l ON a.location_id = l.id
+        WHERE a.barcode = ?
+      ''', [barcode]);
+      
+      if (assets.isEmpty) {
+        await sendMessage(chatId, "❌ Kechirasiz, bazada `$barcode` shtrix-kodli jihoz topilmadi.");
+      } else {
+        final a = assets.first;
+        String msg = "🖥 *JIHOZ TOPILDI!*\n"
+                    "-------------------------\n"
+                    "📦 *${a['name']}*\n"
+                    "   ▫️ Tur: ${a['category_name'] ?? 'Noma\'lum'}\n"
+                    "   ▫️ Model: ${a['model'] ?? '-'}\n"
+                    "   ▫️ Seriya: `${a['serial_number'] ?? '-'}`\n"
+                    "   ▫️ Rangi: ${a['color'] ?? '-'}\n"
+                    "   📍 Joyi: *${a['loc_name'] ?? 'Noma\'lum'}*\n"
+                    "   🛠 Holati: ${a['status']}\n"
+                    "   🔢 Barcode: `${a['barcode']}`\n"
+                    "-------------------------";
+        await sendMessage(chatId, msg);
+      }
+      
+    } catch (e) {
+      print("Barcode Error: $e");
+      await sendMessage(chatId, "❌ *Xatolik:* Rasmdan shtrix-kodni o'qib bo'lmadi. \n\nIltimos, rasmni yaqinroqdan va aniqroq olib qayta yuboring yoki shtrix-kod raqamini qo'lda yozing.");
+    }
   }
 
   Future<void> _sendMainMenu(String chatId, String text) async {
