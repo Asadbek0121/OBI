@@ -726,7 +726,7 @@ class DatabaseHelper {
         'asset' as type,
         a.id,
         a.name as title,
-        (c.name || ' • ' || l.name) as subtitle,
+        (COALESCE(c.name, 'Guruhsiz') || ' • ' || COALESCE(l.name, 'Joylashuvsiz')) as subtitle,
         a.photo_path
       FROM assets a
       LEFT JOIN asset_categories c ON a.category_id = c.id
