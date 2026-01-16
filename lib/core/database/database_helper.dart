@@ -635,7 +635,8 @@ class DatabaseHelper {
       await sourceFile.copy(targetPath);
       return targetPath;
     } catch (e) {
-      debugPrint("Backup Failed: $e");
+      return null;
+    }
   }
 
   // --- DASHBOARD ENHANCEMENTS ---
