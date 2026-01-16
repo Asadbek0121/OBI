@@ -201,6 +201,26 @@ class _InventoryViewState extends State<InventoryView> {
                 },
                 mode: PlutoGridMode.readOnly, // Make Entire Grid Read Only
                 configuration: PlutoGridConfiguration(
+                  localeText: PlutoGridLocaleText(
+                    unfreezeColumn: t.text('grid_unfreeze'),
+                    freezeColumnToStart: t.text('grid_freeze_start'),
+                    freezeColumnToEnd: t.text('grid_freeze_end'),
+                    autoFitColumn: t.text('grid_auto_fit'),
+                    hideColumn: t.text('grid_hide_column'),
+                    setColumns: t.text('grid_set_columns'),
+                    setFilter: t.text('grid_set_filter'),
+                    resetFilter: t.text('grid_reset_filter'),
+                    
+                    // Filter hints
+                    filterContains: t.text('filter_contains'),
+                    filterEquals: t.text('filter_equals'),
+                    filterStartsWith: t.text('filter_starts_with'),
+                    filterEndsWith: t.text('filter_ends_with'),
+                    filterGreaterThan: t.text('filter_greater'),
+                    filterGreaterThanOrEqualTo: t.text('filter_greater_equal'),
+                    filterLessThan: t.text('filter_less'),
+                    filterLessThanOrEqualTo: t.text('filter_less_equal'),
+                  ),
                   columnSize: const PlutoGridColumnSizeConfig(
                     autoSizeMode: PlutoAutoSizeMode.scale,
                   ),

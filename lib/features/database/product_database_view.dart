@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
@@ -109,6 +110,7 @@ class _ProductGridState extends State<_ProductGrid> {
                'id': PlutoCell(value: p['id']),
                'name': PlutoCell(value: p['name']),
                'unit': PlutoCell(value: p['unit'] ?? (validUnits.isNotEmpty ? validUnits.first : '')),
+               'action': PlutoCell(value: ''), // Fix: Initialize action cell
             }
           ));
         }
@@ -124,6 +126,7 @@ class _ProductGridState extends State<_ProductGrid> {
       'id': PlutoCell(value: ''),
       'name': PlutoCell(value: ''),
       'unit': PlutoCell(value: validUnits.isNotEmpty ? validUnits.first : 'DONA'),
+      'action': PlutoCell(value: ''), // Fix: Initialize action cell
     });
   }
 
@@ -177,6 +180,24 @@ class _ProductGridState extends State<_ProductGrid> {
         type: PlutoColumnType.select(validUnits),
         width: 150,
       ),
+      PlutoColumn(
+        title: "",
+        field: "action",
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        enableFilterMenuItem: false,
+        enableSorting: false,
+        enableSetColumnsMenuItem: false,
+        width: 80,
+        renderer: (rendererContext) {
+          return IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+               _confirmDelete(rendererContext.row);
+            },
+          );
+        },
+      ),
     ];
 
     return Column(
@@ -205,7 +226,7 @@ class _ProductGridState extends State<_ProductGrid> {
                 rows: rows,
                 onLoaded: (e) {
                   stateManager = e.stateManager;
-                  stateManager.setShowColumnFilter(false);
+                  stateManager.setShowColumnFilter(true);
                 },
                 onChanged: (event) {
                   if (event.rowIdx == stateManager.rows.length - 1) {
@@ -224,6 +245,14 @@ class _ProductGridState extends State<_ProductGrid> {
                     setColumns: Provider.of<AppTranslations>(context, listen: false).text('grid_set_columns'),
                     setFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_set_filter'),
                     resetFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_reset_filter'),
+                    filterContains: Provider.of<AppTranslations>(context, listen: false).text('filter_contains'),
+                    filterEquals: Provider.of<AppTranslations>(context, listen: false).text('filter_equals'),
+                    filterStartsWith: Provider.of<AppTranslations>(context, listen: false).text('filter_starts_with'),
+                    filterEndsWith: Provider.of<AppTranslations>(context, listen: false).text('filter_ends_with'),
+                    filterGreaterThan: Provider.of<AppTranslations>(context, listen: false).text('filter_greater'),
+                    filterGreaterThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_greater_equal'),
+                    filterLessThan: Provider.of<AppTranslations>(context, listen: false).text('filter_less'),
+                    filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
                     style: GridTheme.getStyle(context),
                 ),
@@ -233,6 +262,41 @@ class _ProductGridState extends State<_ProductGrid> {
         ),
       ],
     );
+  }
+
+  Future<void> _confirmDelete(PlutoRow row) async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final id = row.cells['id']?.value.toString() ?? '';
+    final name = row.cells['name']?.value.toString() ?? '';
+    
+    if (id.isEmpty) {
+        stateManager.removeRows([row]);
+        return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${t.text('btn_delete')}?'),
+        content: Text('$name\n\n${t.text('msg_confirm_delete')}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.text('btn_cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(t.text('btn_delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DatabaseHelper.instance.deleteProduct(id);
+      stateManager.removeRows([row]);
+      if (mounted) {
+         AppNotifications.showSuccess(context, t.text('msg_deleted'));
+      }
+    }
   }
 }
 
@@ -273,10 +337,16 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
       setState(() {
         rows.clear();
         for (var name in data) {
-          rows.add(PlutoRow(cells: {'name': PlutoCell(value: name)}));
+          rows.add(PlutoRow(cells: {
+             'name': PlutoCell(value: name),
+             'action': PlutoCell(value: ''), // Initialize action cell
+          }));
         }
         // Always add one empty row at the end for new entry
-        rows.add(PlutoRow(cells: {'name': PlutoCell(value: '')}));
+        rows.add(PlutoRow(cells: {
+             'name': PlutoCell(value: ''),
+             'action': PlutoCell(value: ''), // Initialize action cell
+        }));
         isLoading = false;
       });
     }
@@ -316,6 +386,26 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
         type: PlutoColumnType.text(),
         width: 400,
       ),
+      PlutoColumn(
+        title: "",
+        field: "action",
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        enableFilterMenuItem: false,
+        enableSorting: false,
+        enableSetColumnsMenuItem: false,
+        width: 80,
+        renderer: (rendererContext) {
+           // Don't show delete on the empty 'add new' row
+           if (rendererContext.rowIdx == stateManager.rows.length - 1) return const SizedBox.shrink();
+           return IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+               _confirmDelete(rendererContext.row);
+            },
+          );
+        },
+      ),
     ];
 
     return Column(
@@ -344,12 +434,12 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
                 rows: rows,
                 onLoaded: (e) {
                   stateManager = e.stateManager;
-                  stateManager.setShowColumnFilter(false);
+                  stateManager.setShowColumnFilter(true);
                 },
                 onChanged: (event) {
                   if (event.rowIdx == stateManager.rows.length - 1) {
                     if (event.value.toString().isNotEmpty) {
-                      stateManager.appendRows([PlutoRow(cells: {'name': PlutoCell(value: '')})]);
+                      stateManager.appendRows([PlutoRow(cells: {'name': PlutoCell(value: ''), 'action': PlutoCell(value: '')})]);
                     }
                   }
                 },
@@ -363,6 +453,14 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
                     setColumns: Provider.of<AppTranslations>(context, listen: false).text('grid_set_columns'),
                     setFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_set_filter'),
                     resetFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_reset_filter'),
+                    filterContains: Provider.of<AppTranslations>(context, listen: false).text('filter_contains'),
+                    filterEquals: Provider.of<AppTranslations>(context, listen: false).text('filter_equals'),
+                    filterStartsWith: Provider.of<AppTranslations>(context, listen: false).text('filter_starts_with'),
+                    filterEndsWith: Provider.of<AppTranslations>(context, listen: false).text('filter_ends_with'),
+                    filterGreaterThan: Provider.of<AppTranslations>(context, listen: false).text('filter_greater'),
+                    filterGreaterThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_greater_equal'),
+                    filterLessThan: Provider.of<AppTranslations>(context, listen: false).text('filter_less'),
+                    filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
                     style: GridTheme.getStyle(context),
                 ),
@@ -373,4 +471,44 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
       ],
     );
   }
+
+  Future<void> _confirmDelete(PlutoRow row) async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final name = row.cells['name']?.value.toString() ?? '';
+    
+    if (name.isEmpty) {
+        stateManager.removeRows([row]);
+        return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${t.text('btn_delete')}?'),
+        content: Text('$name\n\n${t.text('msg_confirm_delete')}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(t.text('btn_cancel'))),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(t.text('btn_delete')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (widget.type == 'supplier') {
+          await DatabaseHelper.instance.deleteSupplier(name);
+      } else {
+          await DatabaseHelper.instance.deleteReceiver(name);
+      }
+      stateManager.removeRows([row]);
+      if (mounted) {
+         AppNotifications.showSuccess(context, t.text('msg_deleted'));
+      }
+    }
+  }
 }
+
+

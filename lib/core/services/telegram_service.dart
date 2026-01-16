@@ -82,10 +82,15 @@ class TelegramService {
       }
 
       final response = await request.send();
+      
       if (response.statusCode == 200) {
         return null;
+      } else if (response.statusCode == 404) {
+        return "Bot topilmadi (404). Token noto'g'ri kiritilgan.";
       } else {
-        return "Xato: ${response.statusCode}";
+        final respStr = await response.stream.bytesToString();
+        print("Telegram SendDoc Failed: ${response.statusCode} - $respStr");
+        return "Xato: ${response.statusCode} - $respStr";
       }
     } catch (e) {
       print('Telegram SendDoc Error: $e');
@@ -96,7 +101,8 @@ class TelegramService {
   // Simple polling to find new users who started the bot
   Future<List<Map<String, dynamic>>> getUpdates() async {
     final token = await getBotToken();
-    if (token == null) return [];
+    // Basic validation
+    if (token == null || !token.contains(':')) return [];
 
     try {
       final url = Uri.parse('$_baseUrl$token/getUpdates');
@@ -134,6 +140,78 @@ class TelegramService {
 
   // --- Scheduler ---
   static const String _keyLastBackupWeek = 'last_backup_week_v1';
+  static const String _keyLastAlertDate = 'last_low_stock_alert_date_v1';
+
+  Future<void> checkDailyLowStockAlert(dynamic databaseHelperInstance) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month}-${now.day}"; // YYYY-M-D
+    
+    final lastAlertDate = prefs.getString(_keyLastAlertDate);
+
+    // Run only if we haven't run today
+    if (lastAlertDate != todayStr) {
+      print("📅 Scheduler: Checking for Low Stock Alerts (Daily)...");
+
+      try {
+        // 1. Get Low Stock Items
+        // We use dynamic because we don't import DatabaseHelper here to avoid circular depends if unnecessary, 
+        // but ideally we should import it or use a callback. 
+        // Assuming databaseHelperInstance has getLowStockProducts()
+        final List<Map<String, dynamic>> lowStockItems = await databaseHelperInstance.getLowStockProducts();
+
+        if (lowStockItems.isNotEmpty) {
+           // 2. Get Recipients
+           final users = await getUsers();
+           if (users.isEmpty) {
+             print("⚠️ Scheduler: No telegram users found to receive alerts.");
+             return;
+           }
+
+           // 3. Construct Message
+           final sb = StringBuffer();
+           sb.writeln("⚠️ *DIQQAT: MAHSULOTLAR TUGAMOQDA!* ⚠️");
+           sb.writeln("Sanasi: $todayStr");
+           sb.writeln("");
+           
+           for (int i = 0; i < lowStockItems.length; i++) {
+             final item = lowStockItems[i];
+             // Limit to top 20 to avoid message size limits
+             if (i >= 20) {
+               sb.writeln("... va yana ${lowStockItems.length - 20} ta mahsulot.");
+               break;
+             }
+             sb.writeln("${i + 1}. *${item['name']}* - ${item['stock']} ${item['unit']}");
+           }
+           
+           sb.writeln("");
+           sb.writeln("#lowstock #omborxona");
+
+           final message = sb.toString();
+
+           // 4. Send to ALL users (Since this is critical info)
+           int successCount = 0;
+           for (var user in users) {
+              final err = await sendMessage(user['chatId'], message);
+              if (err == null) successCount++;
+           }
+           
+           print("✅ Scheduler: Low stock alert sent to $successCount users.");
+           
+           // 5. Mark as done for today
+           if (successCount > 0) {
+             await prefs.setString(_keyLastAlertDate, todayStr);
+           }
+        } else {
+          print("✅ Scheduler: No low stock items found today.");
+          // Mark as done anyway so we don't query DB on every restart today
+          await prefs.setString(_keyLastAlertDate, todayStr);
+        }
+      } catch (e) {
+        print("❌ Scheduler Alert Error: $e");
+      }
+    }
+  }
 
   Future<void> checkWeeklyBackup(dynamic databaseHelperInstance) async {
     // 1. Check Schedule
@@ -169,7 +247,7 @@ class TelegramService {
           final error = await sendDocument(
             targetUser['chatId'], 
             file, 
-            caption: "🛡️ Avtomatik Haftalik Zaxira (Backup)\nSana: ${now.toString()}"
+            caption: "🛡️ Avtomatik Haftalik Zaxira (Backup)\nSana: ${now.toString()}\n#backup"
           );
           
           if (error == null) {

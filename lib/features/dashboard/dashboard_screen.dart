@@ -12,11 +12,14 @@ import '../stock_out/stock_out_view.dart';
 import '../database/product_database_view.dart'; // New Import
 import '../input/input_view.dart';
 import '../output/output_view.dart';
+import '../assets/assets_view.dart';
 import '../reports/reports_view.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/auth_provider.dart';
 import '../splash/splash_screen.dart';
 import '../../core/utils/app_notifications.dart';
+import '../../core/widgets/global_search_modal.dart';
+import 'package:flutter/services.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -53,144 +56,144 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+// ... (Inside _DashboardScreenState)
+
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
     
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Container(color: Theme.of(context).scaffoldBackgroundColor),
-          Row(
+    // Global Shortcut Listener
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () => GlobalSearchModal.show(context),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () => GlobalSearchModal.show(context),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
             children: [
-              // Sidebar
-              SizedBox(
-                width: 250,
-                child: GlassContainer(
-                  borderRadius: 0,
-                  opacity: 0.8,
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-                        child: Row(
-                          children: [
-                            Image.asset('assets/logo.png', width: 80, height: 80),
-                            const SizedBox(width: 12),
-                            Flexible(
-                              child: Text(
-                                t.text('title_app'), 
-                                style: TextStyle(
-                                  fontSize: 12, 
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.1,
-                                   color: Theme.of(context).textTheme.headlineMedium?.color,
+              Container(color: Theme.of(context).scaffoldBackgroundColor),
+              Row(
+                children: [
+                  // Sidebar
+                  SizedBox(
+                    width: 250,
+                    child: GlassContainer(
+                      borderRadius: 0,
+                      opacity: 0.8,
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+                            child: Column( // Changed to Column for better vertical layout
+                              children: [
+                                Image.asset('assets/logo.png', width: 100, height: 100),
+                                const SizedBox(height: 16),
+                                Text(
+                                  t.text('title_app'), 
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 18, 
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.2,
+                                     color: Theme.of(context).textTheme.headlineMedium?.color,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      _SidebarItem(
-                        icon: Icons.dashboard, 
-                        label: t.text('menu_dashboard'), 
-                        isActive: _selectedIndex == 0,
-                        onTap: () {
-                          setState(() => _selectedIndex = 0);
-                          _loadDashboardData(); // Refresh on click
-                        },
-                      ),
-                      _SidebarItem(
-                        icon: Icons.inventory_2, 
-                        label: t.text('menu_inventory'), 
-                        isActive: _selectedIndex == 1,
-                        onTap: () => setState(() => _selectedIndex = 1),
-                      ),
-                      _SidebarItem(
-                        icon: Icons.storage, // Changed icon
-                        label: t.text('menu_database'), 
-                        isActive: _selectedIndex == 2,
-                        onTap: () => setState(() => _selectedIndex = 2),
-                      ),
-                      _SidebarItem(
-                        icon: Icons.download, 
-                        label: t.text('menu_in'), 
-                        isActive: _selectedIndex == 3,
-                        onTap: () => setState(() => _selectedIndex = 3),
-                      ),
-                      _SidebarItem(
-                        icon: Icons.upload, 
-                        label: t.text('menu_out'), 
-                        isActive: _selectedIndex == 4,
-                        onTap: () => setState(() => _selectedIndex = 4),
-                      ),
-                      _SidebarItem(
-                        icon: Icons.analytics, 
-                        label: t.text('menu_reports'), 
-                        isActive: _selectedIndex == 5,
-                        onTap: () => setState(() => _selectedIndex = 5),
-                      ),
-                      const Spacer(),
-                      
-                      _SidebarItem(
-                        icon: Icons.settings, 
-                        label: t.text('menu_settings'), 
-                        isActive: _selectedIndex == 6,
-                        onTap: () => setState(() => _selectedIndex = 6),
-                      ),
-                      
-                      _SidebarItem(
-                        icon: Icons.lock, 
-                        label: t.text('menu_logout'), 
-                        isActive: false,
-                        onTap: () {
-                          Provider.of<AuthProvider>(context, listen: false).logout();
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(builder: (c) => const SplashScreen()),
-                            (route) => false,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Main Content + Status Bar
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: _buildContent(),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.dashboard, 
+                            label: t.text('menu_dashboard'), 
+                            isActive: _selectedIndex == 0,
+                            onTap: () {
+                              setState(() => _selectedIndex = 0);
+                              _loadDashboardData(); // Refresh on click
+                            },
+                          ),
+                          _SidebarItem(
+                            icon: Icons.inventory_2, 
+                            label: t.text('menu_inventory'), 
+                            isActive: _selectedIndex == 1,
+                            onTap: () => setState(() => _selectedIndex = 1),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.storage, // Changed icon
+                            label: t.text('menu_database'), 
+                            isActive: _selectedIndex == 2,
+                            onTap: () => setState(() => _selectedIndex = 2),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.download, 
+                            label: t.text('menu_in'), 
+                            isActive: _selectedIndex == 3,
+                            onTap: () => setState(() => _selectedIndex = 3),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.upload, 
+                            label: t.text('menu_out'), 
+                            isActive: _selectedIndex == 4,
+                            onTap: () => setState(() => _selectedIndex = 4),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.devices_other, 
+                            label: "Jihozlar", // Hardcoded translation key for now or add to json later
+                            isActive: _selectedIndex == 5,
+                            onTap: () => setState(() => _selectedIndex = 5),
+                          ),
+                          _SidebarItem(
+                            icon: Icons.analytics, 
+                            label: t.text('menu_reports'), 
+                            isActive: _selectedIndex == 6,
+                            onTap: () => setState(() => _selectedIndex = 6),
+                          ),
+                          const Spacer(),
+                          
+                          _SidebarItem(
+                            icon: Icons.settings, 
+                            label: t.text('menu_settings'), 
+                            isActive: _selectedIndex == 7,
+                            onTap: () => setState(() => _selectedIndex = 7),
+                          ),
+                          
+                          _SidebarItem(
+                            icon: Icons.lock, 
+                            label: t.text('menu_logout'), 
+                            isActive: false,
+                            onTap: () {
+                              Provider.of<AuthProvider>(context, listen: false).logout();
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (c) => const SplashScreen()),
+                                (route) => false,
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                    _buildStatusBar(),
-                  ],
-                ),
+                  ),
+
+                  // Main Content + Status Bar
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: _buildContent(),
+                          ),
+                        ),
+                        _buildStatusBar(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildStatusBar() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: AppColors.glassBorder.withValues(alpha: 0.5),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          const Icon(Icons.circle, color: AppColors.success, size: 12),
-          const SizedBox(width: 8),
-          Text(Provider.of<AppTranslations>(context).text('system_active'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-        ],
+        ),
       ),
     );
   }
@@ -217,7 +220,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 16),
                     Expanded(
                       child: items.isEmpty 
-                        ? Center(child: Text("Ma'lumot topilmadi"))
+                        ? const Center(child: Text("Ma'lumot topilmadi"))
                         : ListView.separated(
                             controller: myscrollController,
                             itemCount: items.length,
@@ -252,6 +255,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildStatusBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      color: AppColors.glassBorder.withValues(alpha: 0.5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Icon(Icons.circle, color: AppColors.success, size: 12),
+          const SizedBox(width: 8),
+          Text(Provider.of<AppTranslations>(context).text('system_active'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent() {
     switch (_selectedIndex) {
       case 0:
@@ -259,20 +278,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 1:
         return const InventoryView();
       case 2:
-        return const ProductDatabaseView(); // Replaced Locations
+        return const ProductDatabaseView();
       case 3:
         return const StockInView();
       case 4:
         return const StockOutView();
       case 5:
-        return const ReportsView();
+        return const AssetsView();
       case 6:
+        return const ReportsView();
+      case 7:
         return const SettingsView();
       default:
         return _buildDashboardView();
     }
   }
 
+  // NOTE: I need to update _buildDashboardView to include the search button next to the Date.
   Widget _buildDashboardView() {
     final t = Provider.of<AppTranslations>(context);
     
@@ -291,19 +313,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(t.text('menu_dashboard'), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
                 ],
               ),
-              GlassContainer(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                borderRadius: 30,
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateTime.now().toString().substring(0, 10), 
-                      style: const TextStyle(fontWeight: FontWeight.bold)
+              Row(
+                children: [
+                   // Search Button
+                   GlassContainer(
+                     onTap: () => GlobalSearchModal.show(context),
+                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                     borderRadius: 30,
+                     child: Row(
+                       children: [
+                         const Icon(Icons.search, size: 20, color: Colors.grey),
+                         const SizedBox(width: 8),
+                         Text("Qidirish (Cmd+K)", style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
+                       ],
+                     ),
+                   ),
+                   const SizedBox(width: 16),
+                   // Date Badge
+                   GlassContainer(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    borderRadius: 30,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          DateTime.now().toString().substring(0, 10), 
+                          style: const TextStyle(fontWeight: FontWeight.bold)
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),

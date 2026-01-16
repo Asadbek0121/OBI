@@ -181,6 +181,14 @@ class AppTranslations extends ChangeNotifier {
       'grid_set_columns': 'Ustunlarni sozlash',
       'grid_set_filter': 'Filtrni sozlash',
       'grid_reset_filter': 'Filtrni bekor qilish',
+      'filter_contains': 'Tarkibida bor',
+      'filter_equals': 'Teng',
+      'filter_starts_with': 'Boshlanadi',
+      'filter_ends_with': 'Tugaydi',
+      'filter_greater': 'Katta',
+      'filter_greater_equal': 'Katta yoki teng',
+      'filter_less': 'Kichik',
+      'filter_less_equal': 'Kichik yoki teng',
 
       // Database View
       'db_title': 'Ma\'lumotlar Bazasi',
@@ -209,6 +217,8 @@ class AppTranslations extends ChangeNotifier {
       'msg_not_found': 'Topilmadi',
       'inventory_desc': 'Ombordagi mahsulotlarning umumiy holati va qoldig\'i.',
       'btn_select_folder': 'Papkani tanlash',
+      'msg_confirm_delete': 'Ushbu ma\'lumotni o\'chirmoqchimisiz?',
+      'msg_deleted': 'O\'chirildi',
     },
     'ru': {
       // Sidebar
@@ -365,6 +375,14 @@ class AppTranslations extends ChangeNotifier {
       'grid_set_columns': 'Настройка столбцов',
       'grid_set_filter': 'Установить фильтр',
       'grid_reset_filter': 'Сбросить фильтр',
+      'filter_contains': 'Содержит',
+      'filter_equals': 'Равно',
+      'filter_starts_with': 'Начинается с',
+      'filter_ends_with': 'Заканчивается на',
+      'filter_greater': 'Больше',
+      'filter_greater_equal': 'Больше или равно',
+      'filter_less': 'Меньше',
+      'filter_less_equal': 'Меньше или равно',
 
       // Database View
       'db_title': 'База Данных',
@@ -392,6 +410,8 @@ class AppTranslations extends ChangeNotifier {
       'label_critical': 'критично',
       'msg_not_found': 'Не найдено',
       'inventory_desc': 'Общее состояние и остатки товаров на складе.',
+      'msg_confirm_delete': 'Вы уверены, что хотите удалить?',
+      'msg_deleted': 'Удалено',
     },
     'tr': {
       // Sidebar
@@ -548,6 +568,14 @@ class AppTranslations extends ChangeNotifier {
       'grid_set_columns': 'Sütunları ayarla',
       'grid_set_filter': 'Filtrele',
       'grid_reset_filter': 'Filtreyi sıfırla',
+      'filter_contains': 'İçerir',
+      'filter_equals': 'Eşittir',
+      'filter_starts_with': 'İle başlar',
+      'filter_ends_with': 'İle biter',
+      'filter_greater': 'Büyüktür',
+      'filter_greater_equal': 'Büyük veya eşit',
+      'filter_less': 'Küçüktür',
+      'filter_less_equal': 'Küçük veya eşit',
 
       // Database View
       'db_title': 'Veri Tabanı',
@@ -575,6 +603,8 @@ class AppTranslations extends ChangeNotifier {
       'label_critical': 'kritik',
       'msg_not_found': 'Bulunamadı',
       'inventory_desc': 'Depodaki ürünlerin genel durumu ve bakiyesi.',
+      'msg_confirm_delete': 'Silmek istediğinizden emin misiniz?',
+      'msg_deleted': 'Silindi',
     },
   };
 }

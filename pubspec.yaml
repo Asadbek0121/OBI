@@ -56,12 +56,14 @@ dependencies:
   pluto_grid: ^8.1.0 # Excel-like Data Grid
   
   # File & Export Utilities
-  file_picker: ^6.1.1
+  file_picker: ^10.3.8
   pdf: ^3.11.0
   printing: ^5.13.0
-  excel: ^4.0.3
+  excel: ^4.0.6
+  spreadsheet_decoder: ^2.1.2
   share_plus: ^10.1.0
   http: ^1.6.0
+  barcode_widget: ^2.0.4
 
 dev_dependencies:
   flutter_test:

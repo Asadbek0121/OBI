@@ -11,10 +11,10 @@ import 'core/localization/app_translations.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/services/profile_provider.dart';
 
-// Placeholder for now
 import 'features/dashboard/dashboard_screen.dart'; 
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
+import 'features/setup/database_setup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,22 +28,13 @@ void main() async {
     center: true,
     backgroundColor: Colors.transparent,
     skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden, // Hides native title bar for custom one
+    titleBarStyle: TitleBarStyle.normal, // Show native title bar with controls (fixes missing buttons)
   );
   
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
     await windowManager.focus();
   });
-
-  // 🛡️ SECURITY INIT: Open the Secure Vault
-  try {
-    await DatabaseHelper.instance.database;
-    print("✅ System: Secure Database initialized successfully.");
-  } catch (e) {
-    print("❌ System: Failed to initialize Secure Database: $e");
-    // In a real app, show a "Fatal Error" dialog here.
-  }
 
   // 🌍 LOCALIZATION & THEME INIT
   final appTranslations = AppTranslations();
@@ -58,16 +49,35 @@ void main() async {
   final authProvider = AuthProvider();
   await authProvider.init();
 
+  // 📂 DB CONFIGURATION CHECK
+  final dbPath = await DatabaseHelper.instance.getConfiguredPath();
+  Widget startScreen;
+  
+  if (dbPath == null) {
+     // User hasn't picked a DB location yet
+     print("⚠️ System: No DB configured. Showing Setup Screen.");
+     startScreen = const DatabaseSetupScreen();
+  } else {
+     // Configured! Proceed with normal boot.
+     startScreen = const SplashScreen();
+     
+    // 🛡️ SECURITY INIT: Open the Secure Vault
+    try {
+      await DatabaseHelper.instance.database;
+      print("✅ System: Secure Database initialized successfully.");
+    } catch (e) {
+      print("❌ System: Failed to initialize Secure Database: $e");
+    }
 
-
-  // 🤖 TELEGRAM SCHEDULER
-  try {
-     print("🤖 System: Checking Telegram Backup Schedule...");
-     final tgService = TelegramService();
-     // We pass the DatabaseHelper instance so it can create backups
-     await tgService.checkWeeklyBackup(DatabaseHelper.instance);
-  } catch (e) {
-     print("❌ System: Telegram Scheduler Error: $e");
+    // 🤖 TELEGRAM SCHEDULER
+    try {
+       print("🤖 System: Checking Telegram Backup Schedule...");
+       final tgService = TelegramService();
+       await tgService.checkWeeklyBackup(DatabaseHelper.instance);
+       await tgService.checkDailyLowStockAlert(DatabaseHelper.instance);
+    } catch (e) {
+       print("❌ System: Telegram Scheduler Error: $e");
+    }
   }
 
   runApp(
@@ -78,13 +88,14 @@ void main() async {
         ChangeNotifierProvider.value(value: profileProvider),
         ChangeNotifierProvider.value(value: authProvider),
       ],
-      child: const ClinicalWarehouseApp(),
+      child: ClinicalWarehouseApp(home: startScreen),
     )
   );
 }
 
 class ClinicalWarehouseApp extends StatelessWidget {
-  const ClinicalWarehouseApp({super.key});
+  final Widget home;
+  const ClinicalWarehouseApp({super.key, required this.home});
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +114,8 @@ class ClinicalWarehouseApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: const SplashScreen(),
+      home: home,
     );
   }
 }
+

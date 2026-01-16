@@ -17,7 +17,7 @@ class StockInView extends StatefulWidget {
 }
 
 class _StockInViewState extends State<StockInView> {
-  late final List<PlutoColumn> columns;
+  late List<PlutoColumn> columns; // Removed final
   late final List<PlutoRow> rows;
   late PlutoGridStateManager stateManager;
 
@@ -28,6 +28,7 @@ class _StockInViewState extends State<StockInView> {
   ];
 
   bool isLoading = false;
+  bool isGridLoaded = false;
 
   @override
   void initState() {
@@ -38,9 +39,19 @@ class _StockInViewState extends State<StockInView> {
   Future<void> _loadSuppliers() async {
     try {
       final dbSuppliers = await DatabaseHelper.instance.getSuppliers();
-      if (dbSuppliers.isNotEmpty && mounted) {
+      if (mounted) {
         setState(() {
-          suppliers = dbSuppliers;
+           if (dbSuppliers.isNotEmpty) {
+             suppliers = dbSuppliers;
+           }
+           // Re-initialize columns with new data
+           _updateColumns();
+           
+           // If grid is already loaded, we must update the stateManager's columns too
+           if (isGridLoaded) {
+             final col = stateManager.columns.firstWhere((c) => c.field == 'supplier');
+             col.type = PlutoColumnType.select(suppliers);
+           }
         });
       }
     } catch (e) {
@@ -52,8 +63,16 @@ class _StockInViewState extends State<StockInView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (isLoading) return;
-    final t = Provider.of<AppTranslations>(context);
+    _updateColumns();
     
+    rows = List.generate(
+      1,
+      (index) => _createEmptyRow(index + 1),
+    );
+  }
+
+  void _updateColumns() {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     columns = [
       PlutoColumn(
         title: t.text('col_no'),
@@ -129,7 +148,7 @@ class _StockInViewState extends State<StockInView> {
       PlutoColumn(
         title: t.text('col_from'),
         field: 'supplier',
-        type: PlutoColumnType.select(suppliers.isNotEmpty ? suppliers : [t.text('msg_loading')]), 
+        type: PlutoColumnType.select(suppliers), 
         width: 150,
       ),
       PlutoColumn(
@@ -140,11 +159,6 @@ class _StockInViewState extends State<StockInView> {
         enableEditingMode: false,
       ),
     ];
-
-    rows = List.generate(
-      1,
-      (index) => _createEmptyRow(index + 1),
-    );
   }
 
   PlutoRow _createEmptyRow(int index) {
@@ -247,6 +261,14 @@ class _StockInViewState extends State<StockInView> {
         setColumns: t.text('grid_set_columns'),
         setFilter: t.text('grid_set_filter'),
         resetFilter: t.text('grid_reset_filter'),
+        filterContains: t.text('filter_contains'),
+        filterEquals: t.text('filter_equals'),
+        filterStartsWith: t.text('filter_starts_with'),
+        filterEndsWith: t.text('filter_ends_with'),
+        filterGreaterThan: t.text('filter_greater'),
+        filterGreaterThanOrEqualTo: t.text('filter_greater_equal'),
+        filterLessThan: t.text('filter_less'),
+        filterLessThanOrEqualTo: t.text('filter_less_equal'),
       ),
       columnSize: const PlutoGridColumnSizeConfig(
         autoSizeMode: PlutoAutoSizeMode.scale,
@@ -315,6 +337,7 @@ class _StockInViewState extends State<StockInView> {
                 onLoaded: (PlutoGridOnLoadedEvent event) {
                   stateManager = event.stateManager;
                   stateManager.setShowColumnFilter(false);
+                  isGridLoaded = true;
                 },
                 onChanged: (PlutoGridOnChangedEvent event) async {
                   

@@ -11,7 +11,9 @@ import '../../core/utils/app_notifications.dart';
 import '../../core/widgets/app_dialogs.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/database/database_helper.dart';
 import '../../core/services/telegram_service.dart';
+import '../../core/services/excel_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -206,6 +208,41 @@ class _SettingsViewState extends State<SettingsView> {
             ),
         ],
       );
+    }
+  }
+
+
+  Future<void> _importExcel(BuildContext context) async {
+    debugPrint("📥 Excel Import Button Pressed");
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+       type: FileType.custom,
+       allowedExtensions: ['xlsx', 'xls'],
+    );
+     
+    if (result != null && result.files.single.path != null) {
+       if (!mounted) return;
+       AppDialogs.showBlurDialog(context: context, title: "Yuklanmoqda...", content: const CircularProgressIndicator());
+       try {
+          final res = await ExcelService.importData(result.files.single.path!);
+          if (!mounted) return;
+          Navigator.pop(context); // close loader
+          
+          if (res['in'] == 0 && res['out'] == 0) {
+             // Show helpful error
+             AppDialogs.showBlurDialog(
+               context: context, 
+               title: "Hech narsa yuklanmadi", 
+               content: const Text("Fayl ichidan 'mahsulot' va 'soni' (yoki 'qty') ustunlari topilmadi.\n\nIltimos, ustunlar nomini to'g'rilang yoki boshqa faylni sinab ko'ring."),
+               actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Tushunarli"))],
+             );
+          } else {
+             AppNotifications.showSuccess(context, "Muvaffaqiyatli! Kirim: ${res['in']}, Chiqim: ${res['out']} ta.");
+          }
+       } catch (e) {
+          if (!mounted) return;
+          Navigator.pop(context);
+          AppNotifications.showError(context, "Xatolik: $e");
+       }
     }
   }
 
@@ -556,6 +593,14 @@ class _SettingsViewState extends State<SettingsView> {
                 subtitle: "Oxirgi zaxira: Bugun, 14:00",
                 color: AppColors.success,
                 onTap: () => _showBackupDialog(context),
+              ),
+              _SettingCard(
+                width: 350,
+                icon: Icons.file_upload,
+                title: "Excel Import",
+                subtitle: "Tayyor ma'lumotlarni yuklash",
+                color: Colors.teal,
+                onTap: () => _importExcel(context),
               ),
             ],
           ),

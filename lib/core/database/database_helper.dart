@@ -6,19 +6,57 @@ import 'package:path_provider/path_provider.dart';
 // import 'package:sqflite_sqlcipher/sqflite_sqlcipher.dart'; // Temporarily disabled for build fix
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
   final _secureStorage = const FlutterSecureStorage();
-  final String _keyStorageName = 'clinical_warehouse_db_key_v1';
+  final String _prefKeyDbPath = 'clinical_warehouse_db_path';
+  String? _customDbPath;
 
   DatabaseHelper._init();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('clinical_warehouse_v3_connected.db'); // Forced fresh start
+    
+    // 1. Try to load custom path if not set in memory
+    if (_customDbPath == null) {
+      final prefs = await SharedPreferences.getInstance();
+      _customDbPath = prefs.getString(_prefKeyDbPath);
+    }
+    
+    // 2. If still null, use default internal default (fallback) 
+    // BUT strictly we want the user to pick one. For now, we keep a fallback for safety 
+    // or if the UI flow hasn't been blocked yet.
+    if (_customDbPath != null) {
+       _database = await _initDB(_customDbPath!);
+    } else {
+       // Fallback to internal app storage if nothing configured
+       final dbPath = await getDatabasesPath();
+       final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
+       _database = await _initDB(path);
+    }
+    
     return _database!;
+  }
+
+  // New method to set user-selected path
+  Future<void> setDatabasePath(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKeyDbPath, path);
+    _customDbPath = path;
+    
+    // Reset connection
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+  }
+
+  Future<String?> getConfiguredPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_prefKeyDbPath);
   }
 
   Future<Database> _initDB(String filePath) async {
@@ -28,8 +66,14 @@ class DatabaseHelper {
       databaseFactory = databaseFactoryFfi;
     }
 
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    // Check if it's an absolute path (User selected) or relative (Default)
+    String path = filePath;
+    if (!isAbsolute(path)) {
+       final dbPath = await getDatabasesPath();
+       path = join(dbPath, filePath);
+    }
+    
+    debugPrint("📂 OPENING DATABASE AT: $path");
 
     // Encryption Temporarily Disabled to fix Build
     // String? encryptionKey = await _secureStorage.read(key: _keyStorageName);
@@ -42,6 +86,21 @@ class DatabaseHelper {
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
+  }
+
+  Future<void> createAssetsTableIfNeeded() async {
+    final db = await instance.database;
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS assets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        model TEXT,
+        color TEXT,
+        location TEXT,
+        barcode TEXT UNIQUE,
+        created_at TEXT
+      )
+    ''');
   }
 
   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
@@ -95,7 +154,7 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE stock_out (
+      CREATED TABLE stock_out (
         id TEXT PRIMARY KEY,
         product_id TEXT,
         date_time TEXT,
@@ -104,6 +163,19 @@ class DatabaseHelper {
         batch_reference TEXT,
         notes TEXT,
         FOREIGN KEY (product_id) REFERENCES products (id)
+      )
+    ''');
+    
+    // 5. FIXED ASSETS (New Module)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS assets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        model TEXT,
+        color TEXT,
+        location TEXT,
+        barcode TEXT UNIQUE,
+        created_at TEXT
       )
     ''');
 
@@ -165,6 +237,16 @@ class DatabaseHelper {
   Future<void> insertReceiver(String name) async {
     final db = await instance.database;
     await db.insert('receivers', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  Future<void> deleteSupplier(String name) async {
+    final db = await instance.database;
+    await db.delete('suppliers', where: 'name = ?', whereArgs: [name]);
+  }
+
+  Future<void> deleteReceiver(String name) async {
+    final db = await instance.database;
+    await db.delete('receivers', where: 'name = ?', whereArgs: [name]);
   }
   
   // --- Product Logic ---
@@ -430,6 +512,104 @@ class DatabaseHelper {
       debugPrint("Backup Failed: $e");
       return null;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> searchGlobal(String query) async {
+    final db = await instance.database;
+    final sanitized = '%$query%';
+    final results = <Map<String, dynamic>>[];
+
+    // 1. Products & Stock
+    // We join with stock calc to show "Aspirin - 50 ta"
+    final products = await db.rawQuery('''
+      SELECT 
+        'product' as type,
+        p.id, 
+        p.name, 
+        p.unit,
+        ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
+         (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
+      FROM products p
+      WHERE p.name LIKE ?
+      LIMIT 5
+    ''', [sanitized]);
+    results.addAll(products);
+
+    // 2. Recent Transactions (History) - Search by Product Name or Party
+    final transactions = await db.rawQuery('''
+       SELECT * FROM (
+        SELECT 
+          'history_in' as type,
+          si.date_time,
+          p.name as title,
+          si.supplier_name as subtitle,
+          si.quantity
+        FROM stock_in si
+        JOIN products p ON si.product_id = p.id
+        WHERE p.name LIKE ? OR si.supplier_name LIKE ?
+        
+        UNION ALL
+        
+        SELECT 
+          'history_out' as type,
+          so.date_time,
+          p.name as title,
+          so.receiver_name as subtitle,
+          so.quantity
+        FROM stock_out so
+        JOIN products p ON so.product_id = p.id
+        WHERE p.name LIKE ? OR so.receiver_name LIKE ?
+      )
+      ORDER BY date_time DESC
+      LIMIT 5
+    ''', [sanitized, sanitized, sanitized, sanitized]);
+    results.addAll(transactions);
+    
+    // 3. Suppliers / Receivers (People)
+    final suppliers = await db.query('suppliers', where: 'name LIKE ?', whereArgs: [sanitized], limit: 3);
+    for (var s in suppliers) {
+      results.add({'type': 'person', 'title': s['name'], 'subtitle': 'Yetkazib beruvchi'});
+    }
+    
+    final receivers = await db.query('receivers', where: 'name LIKE ?', whereArgs: [sanitized], limit: 3);
+    for (var r in receivers) {
+      results.add({'type': 'person', 'title': r['name'], 'subtitle': 'Qabul qiluvchi'});
+    }
+    
+    // 4. Fixed Assets (Items)
+    // Checks Name, Location, or Barcode
+    final assets = await db.query(
+      'assets', 
+      where: 'name LIKE ? OR barcode LIKE ? OR location LIKE ?', 
+      whereArgs: [sanitized, sanitized, sanitized], 
+      limit: 5
+    );
+    for (var a in assets) {
+      results.add({
+        'type': 'asset', 
+        'title': a['name'], 
+        'subtitle': "Joyi: ${a['location']} • Model: ${a['model']}",
+        'barcode': a['barcode']
+      });
+    }
+
+    return results;
+  }
+
+  // --- Assets CRUD ---
+  Future<void> insertAsset(Map<String, dynamic> asset) async {
+    final db = await instance.database;
+    await db.insert('assets', asset);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllAssets() async {
+    final db = await instance.database;
+    return await db.query('assets', orderBy: 'id DESC');
+  }
+
+  Future<void> deleteAsset(int id) async {
+    final db = await instance.database;
+    await db.delete('assets', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> clearAllData() async {
