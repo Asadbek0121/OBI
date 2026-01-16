@@ -214,13 +214,8 @@ class AppTranslations extends ChangeNotifier {
       'col_to_receiver': 'KIMGA',
       'col_to': 'KIMGA',
       'col_total_amount': 'JAMI SUMMA',
-      'col_payment_status': 'TO\'LOV HOLATI',
       'col_no': '#',
       
-      'pay_cash': 'Naqd',
-      'pay_debt': 'Qarzga',
-      'pay_transfer': 'O\'tkazma',
-
       // Grid Menu
       'grid_freeze_start': 'Boshiga qotirish',
       'grid_freeze_end': 'Oxiriga qotirish',
