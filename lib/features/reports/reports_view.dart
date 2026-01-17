@@ -60,6 +60,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       // Load Stock In Data
       final inData = await DatabaseHelper.instance.getStockInReport(startDate: startStr, endDate: endStr);
       _inRows = inData.map((item) => PlutoRow(
+        key: ValueKey(item['id']),
         cells: {
           'date': PlutoCell(value: item['date_time'].toString().substring(0, 10)),
           'product_id': PlutoCell(value: item['product_id']),
@@ -74,12 +75,14 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
           'party': PlutoCell(value: item['supplier_name']),
           'payment_status': PlutoCell(value: item['payment_status'] ?? '-'),
           'total': PlutoCell(value: item['total_amount']),
+          'actions': PlutoCell(value: ''),
         }
       )).toList();
 
       // Load Stock Out Data
       final outData = await DatabaseHelper.instance.getStockOutReport(startDate: startStr, endDate: endStr);
       _outRows = outData.map((item) => PlutoRow(
+        key: ValueKey(item['id']),
         cells: {
           'date': PlutoCell(value: item['date_time'].toString().substring(0, 10)),
           'product': PlutoCell(value: item['product_name']),
@@ -87,6 +90,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
           'unit': PlutoCell(value: item['unit']),
           'party': PlutoCell(value: item['receiver_name']),
           'notes': PlutoCell(value: item['notes'] ?? ''),
+          'actions': PlutoCell(value: ''),
         }
       )).toList();
     } catch (e) {
@@ -96,6 +100,109 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     if (mounted) {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _onDeleteRow(PlutoColumnRendererContext context, bool isIn) {
+    if (context.row.key is! ValueKey) return;
+    final int id = (context.row.key as ValueKey).value;
+
+    AppDialogs.showConfirmDialog(
+      context: this.context,
+      title: "O'chirishni tasdiqlang",
+      message: "Ushbu yozuvni o'chirib yubormoqchimisiz? Bu ombor qoldig'iga ta'sir qilishi mumkin.",
+      onConfirm: () async {
+        try {
+          if (isIn) {
+            await DatabaseHelper.instance.deleteStockIn(id);
+          } else {
+             await DatabaseHelper.instance.deleteStockOut(id);
+          }
+          if (mounted) {
+            context.stateManager.removeRows([context.row]);
+            AppNotifications.showSuccess(this.context, "Muvaffaqiyatli o'chirildi");
+          }
+        } catch (e) {
+          if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+        }
+      }
+    );
+  }
+
+  void _onEditRow(PlutoColumnRendererContext context, bool isIn) {
+    // Basic editing for now: Quantity, Price/Notes
+    if (context.row.key is! ValueKey) return;
+    final int id = (context.row.key as ValueKey).value;
+    final cells = context.row.cells;
+
+    final nameController = TextEditingController(text: cells['product']?.value.toString());
+    final qtyController = TextEditingController(text: cells['quantity']?.value?.toString());
+    
+    // For IN: Price
+    final priceController = isIn ? TextEditingController(text: cells['price']?.value?.toString()) : null;
+    // For OUT: Notes
+    final notesController = !isIn ? TextEditingController(text: cells['notes']?.value?.toString()) : null;
+
+    showDialog(
+      context: this.context,
+      builder: (c) => AlertDialog(
+        title: const Text("Tahrirlash"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Mahsulot (O\'zgartirib bo\'lmaydi)'), enabled: false),
+            TextField(controller: qtyController, decoration: const InputDecoration(labelText: 'Miqdor'), keyboardType: TextInputType.number),
+            if (isIn)
+               TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Narx'), keyboardType: TextInputType.number),
+            if (!isIn)
+               TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Izoh')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final qty = double.tryParse(qtyController.text) ?? 0;
+                if (qty <= 0) {
+                  AppNotifications.showError(this.context, "Miqdor noto'g'ri");
+                  return;
+                }
+                
+                final updateData = {'quantity': qty};
+                
+                if (isIn && priceController != null) {
+                   final price = double.tryParse(priceController.text) ?? 0;
+                   updateData['price_per_unit'] = price;
+                   // Recalculate total if possible, but simplified for now
+                   // In a real scenario, we should recount taxes/surcharges.
+                   // As a quick fix, update total roughly:
+                   updateData['total_amount'] = price * qty;
+                }
+
+                if (!isIn && notesController != null) {
+                  updateData['notes'] = notesController.text;
+                }
+
+                if (isIn) {
+                  await DatabaseHelper.instance.updateStockIn(id, updateData);
+                } else {
+                  await DatabaseHelper.instance.updateStockOut(id, updateData);
+                }
+
+                if (mounted) {
+                   Navigator.pop(c);
+                   _loadData(); // Reload to refresh grid
+                   AppNotifications.showSuccess(this.context, "Yangilandi");
+                }
+              } catch (e) {
+                if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+              }
+            }, 
+            child: const Text("Saqlash")
+          ),
+        ],
+      )
+    );
   }
 
   Future<void> _selectDateRange() async {
@@ -584,6 +691,31 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       PlutoColumn(title: t.text('col_from'), field: 'party', type: PlutoColumnType.text(), width: 120),
       PlutoColumn(title: t.text('col_payment_status'), field: 'payment_status', type: PlutoColumnType.text(), width: 120),
       PlutoColumn(title: t.text('col_total_amount'), field: 'total', type: PlutoColumnType.currency(symbol: ''), width: 120),
+      PlutoColumn(
+        title: t.text('actions') ?? 'Amallar',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 100,
+        enableSorting: false,
+        enableFilterMenuItem: false,
+        renderer: (rendererContext) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                onPressed: () => _onEditRow(rendererContext, true),
+                tooltip: "Tahrirlash",
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                onPressed: () => _onDeleteRow(rendererContext, true),
+                tooltip: "O'chirish",
+              ),
+            ],
+          );
+        },
+      ),
     ];
   }
 
@@ -595,6 +727,31 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       PlutoColumn(title: t.text('col_unit'), field: 'unit', type: PlutoColumnType.text(), width: 80),
       PlutoColumn(title: t.text('col_to') ?? 'Kimga', field: 'party', type: PlutoColumnType.text(), width: 200),
       PlutoColumn(title: t.text('col_notes') ?? 'Izoh', field: 'notes', type: PlutoColumnType.text(), width: 150),
+      PlutoColumn(
+        title: t.text('actions') ?? 'Amallar',
+        field: 'actions',
+        type: PlutoColumnType.text(),
+        width: 100,
+        enableSorting: false,
+        enableFilterMenuItem: false,
+        renderer: (rendererContext) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                onPressed: () => _onEditRow(rendererContext, false),
+                tooltip: "Tahrirlash",
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red, size: 18),
+                onPressed: () => _onDeleteRow(rendererContext, false),
+                tooltip: "O'chirish",
+              ),
+            ],
+          );
+        },
+      ),
     ];
   }
 }

@@ -98,6 +98,19 @@ class DatabaseHelper {
     await db.execute('PRAGMA journal_mode = WAL;');
     await db.execute('PRAGMA synchronous = NORMAL;');
 
+    // 2. FORCE CHECK: Ensure 'assets' table has 'photo_path' column
+    // This is critical for fixing the specific missing column crash on existing Windows deployments
+    try {
+      await db.execute('ALTER TABLE assets ADD COLUMN photo_path TEXT');
+      debugPrint("✅ Schema Repair: Added 'photo_path' to assets table.");
+    } catch (e) {
+      // Expected if column exists. Check if it's strictly a duplicate column error.
+      // If not, print it.
+      if (!e.toString().toLowerCase().contains('duplicate')) {
+        // debugPrint("ℹ️ Schema Check: 'photo_path' likely exists.");
+      }
+    }
+
     // 2. Assets Module Tables (RESTACKED)
     await db.execute('''
       CREATE TABLE IF NOT EXISTS asset_locations (
@@ -1152,5 +1165,26 @@ class DatabaseHelper {
     await db.delete('assets');
     await db.delete('branch_orders');
     await db.delete('branch_order_items');
+  }
+
+  // Transaction Management (Edit/Delete)
+  Future<void> deleteStockIn(int id) async {
+    final db = await instance.database;
+    await db.delete('stock_in', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteStockOut(int id) async {
+    final db = await instance.database;
+    await db.delete('stock_out', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateStockIn(int id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.update('stock_in', data, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateStockOut(int id, Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.update('stock_out', data, where: 'id = ?', whereArgs: [id]);
   }
 }

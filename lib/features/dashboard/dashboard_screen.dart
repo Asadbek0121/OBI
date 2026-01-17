@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import '../telegram/telegram_orders_view.dart';
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
 
@@ -522,16 +523,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                child: Column(
                  crossAxisAlignment: CrossAxisAlignment.start,
                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.bolt, color: Colors.amber, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          "${t.text('dash_status_today')} (${DateTime.now().toString().substring(0, 10)})", 
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
-                        ),
-                      ],
-                    ),
+                      _LiveClockHeader(label: t.text('dash_status_today')),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -1034,6 +1026,62 @@ class _BranchSmallStat extends StatelessWidget {
       children: [
         Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
         Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
+      ],
+    );
+  }
+}
+
+class _LiveClockHeader extends StatefulWidget {
+  final String label;
+  const _LiveClockHeader({required this.label});
+
+  @override
+  State<_LiveClockHeader> createState() => _LiveClockHeaderState();
+}
+
+class _LiveClockHeaderState extends State<_LiveClockHeader> {
+  late Timer _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  String _formatDigit(int n) => n.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    // Format: YYYY-MM-DD HH:mm:ss
+    final dateStr = "${_now.year}-${_formatDigit(_now.month)}-${_formatDigit(_now.day)}";
+    final timeStr = "${_formatDigit(_now.hour)}:${_formatDigit(_now.minute)}:${_formatDigit(_now.second)}";
+
+    return Row(
+      children: [
+        const Icon(Icons.bolt, color: Colors.amber, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          "${widget.label} ($dateStr ", 
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 0.5),
+        ),
+        Text(
+          timeStr,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary, letterSpacing: 1.5, fontFeatures: const [FontFeature.tabularFigures()]),
+        ),
+        Text(
+          ")",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700]),
+        ),
       ],
     );
   }
