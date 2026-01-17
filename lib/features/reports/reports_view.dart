@@ -157,71 +157,133 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     if (paymentStatus == '-') paymentStatus = null;
     final paymentOptions = ['Naqd', 'Qarzga', "O'tkazma"];
 
+    // Helper for styled input
+    InputDecoration fieldDecor(String label, IconData icon) {
+      return InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, size: 20, color: Colors.grey[600]),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+        filled: true,
+        fillColor: Colors.grey[50], // Very light grey
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      );
+    }
+
     showDialog(
       context: this.context,
       builder: (c) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: const Text("Tahrirlash"),
+            title: Text("Tahrirlash (${isIn ? 'Kirim' : 'Chiqim'})", style: const TextStyle(fontWeight: FontWeight.bold)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             scrollable: true,
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Mahsulot (O\'zgartirib bo\'lmaydi)'), enabled: false),
-                const SizedBox(height: 10),
-                
-                // Date & Time Picker
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: Text("${tempDate.year}-${tempDate.month.toString().padLeft(2,'0')}-${tempDate.day.toString().padLeft(2,'0')}"),
-                        onPressed: () async {
-                          final d = await showDatePicker(context: context, initialDate: tempDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
-                          if (d != null) setStateDialog(() => tempDate = d);
-                        },
+            contentPadding: const EdgeInsets.all(24),
+            content: SizedBox(
+              width: 400, // Fixed width for better look on desktop
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                   TextField(
+                     controller: nameController, 
+                     decoration: fieldDecor('Mahsulot', Icons.inventory_2),
+                     enabled: false,
+                     style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                   ),
+                   const SizedBox(height: 16),
+                  
+                  // Date & Time Picker Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final d = await showDatePicker(context: context, initialDate: tempDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                            if (d != null) setStateDialog(() => tempDate = d);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.grey[50],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 18, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text("${tempDate.year}-${tempDate.month.toString().padLeft(2,'0')}-${tempDate.day.toString().padLeft(2,'0')}", style: const TextStyle(fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.access_time, size: 16),
-                        label: Text("${tempTime.hour.toString().padLeft(2,'0')}:${tempTime.minute.toString().padLeft(2,'0')}"),
-                        onPressed: () async {
-                          final t = await showTimePicker(context: context, initialTime: tempTime);
-                          if (t != null) setStateDialog(() => tempTime = t);
-                        },
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final t = await showTimePicker(context: context, initialTime: tempTime);
+                            if (t != null) setStateDialog(() => tempTime = t);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.grey[50],
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.schedule, size: 18, color: AppColors.primary),
+                                const SizedBox(width: 8),
+                                Text("${tempTime.hour.toString().padLeft(2,'0')}:${tempTime.minute.toString().padLeft(2,'0')}", style: const TextStyle(fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  TextField(controller: qtyController, decoration: fieldDecor('Miqdor', Icons.numbers), keyboardType: TextInputType.number),
+                  const SizedBox(height: 16),
+                  
+                  TextField(
+                    controller: partyController, 
+                    decoration: fieldDecor(isIn ? 'Yetkazib beruvchi (Kimdan)' : 'Qabul qiluvchi (Kimga)', isIn ? Icons.business : Icons.person)
+                  ),
+                  
+                  if (isIn) ...[
+                    const SizedBox(height: 16),
+                    TextField(controller: priceController, decoration: fieldDecor('Narx (Dona)', Icons.attach_money), keyboardType: TextInputType.number),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
+                      decoration: fieldDecor("To'lov turi", Icons.payment),
+                      dropdownColor: Colors.white,
+                      items: paymentOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      onChanged: (v) => paymentStatus = v,
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
 
-                TextField(controller: qtyController, decoration: const InputDecoration(labelText: 'Miqdor'), keyboardType: TextInputType.number),
-                const SizedBox(height: 10),
-                TextField(controller: partyController, decoration: InputDecoration(labelText: isIn ? 'Yetkazib beruvchi' : 'Qabul qiluvchi')),
-                
-                if (isIn) ...[
-                  const SizedBox(height: 10),
-                  TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Narx (Dona)'), keyboardType: TextInputType.number),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<String>(
-                    value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
-                    decoration: const InputDecoration(labelText: "To'lov turi"),
-                    items: paymentOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                    onChanged: (v) => paymentStatus = v,
-                  ),
+                  if (!isIn) ...[
+                     const SizedBox(height: 16),
+                     TextField(controller: notesController, decoration: fieldDecor('Izoh', Icons.edit_note), maxLines: 2),
+                  ],
                 ],
-
-                if (!isIn) ...[
-                   const SizedBox(height: 10),
-                   TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Izoh')),
-                ],
-              ],
+              ),
             ),
+            actionsPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
+              TextButton(
+                onPressed: () => Navigator.pop(c), 
+                style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+                child: const Text("Bekor qilish")
+              ),
               ElevatedButton(
                 onPressed: () async {
                   try {
@@ -270,7 +332,13 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                   } catch (e) {
                     if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
                   }
-                }, 
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white, 
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                ), 
                 child: const Text("Saqlash")
               ),
             ],
