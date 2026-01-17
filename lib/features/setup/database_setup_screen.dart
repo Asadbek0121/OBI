@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/features/splash/splash_screen.dart';
+import '../../core/widgets/window_buttons.dart';
 
 class DatabaseSetupScreen extends StatefulWidget {
   const DatabaseSetupScreen({super.key});
@@ -111,60 +112,70 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E88E5), // Matched Splash Screen Blue
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Image.asset('assets/logo.png', width: 100, height: 100),
-              const SizedBox(height: 24),
-              const Text(
-                "Baza Joylashuvi",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+      body: Stack(
+        children: [
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
               ),
-              const SizedBox(height: 8),
-              Text(
-                "Dastur ishlashi uchun ma'lumotlar bazasi qayerda saqlanishini tanlang.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withOpacity(0.7)),
-              ),
-              const SizedBox(height: 32),
-              
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/logo.png', width: 100, height: 100),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Baza Joylashuvi",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Dastur ishlashi uchun ma'lumotlar bazasi qayerda saqlanishini tanlang.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                    ),
 
-              if (_isLoading)
-                const CircularProgressIndicator()
-              else ...[
-                _OptionButton(
-                  icon: Icons.create_new_folder_rounded,
-                  title: "Yangi Baza Yaratish",
-                  subtitle: "Papkada yangi fayl ochiladi",
-                  color: Colors.blue,
-                  onTap: _createNewDatabase,
-                ),
-                const SizedBox(height: 16),
-                _OptionButton(
-                  icon: Icons.folder_open_rounded,
-                  title: "Mavjud Bazani Tanlash",
-                  subtitle: "Eski .db faylni ko'rsating",
-                  color: Colors.orange,
-                  onTap: _pickExistingDatabase,
-                ),
-              ],
-            ],
+                  if (_isLoading)
+                    const CircularProgressIndicator()
+                  else ...[
+                    _OptionButton(
+                      icon: Icons.create_new_folder_rounded,
+                      title: "Yangi Baza Yaratish",
+                      subtitle: "Papkada yangi fayl ochiladi",
+                      color: Colors.blue,
+                      onTap: _createNewDatabase,
+                    ),
+                    const SizedBox(height: 16),
+                    _OptionButton(
+                      icon: Icons.folder_open_rounded,
+                      title: "Mavjud Bazani Tanlash",
+                      subtitle: "Eski .db faylni ko'rsating",
+                      color: Colors.orange,
+                      onTap: _pickExistingDatabase,
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
+          if (!Platform.isMacOS)
+            const Positioned(
+              top: 0,
+              right: 0,
+              child: SafeArea(child: WindowButtons()),
+            ),
+        ],
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'package:clinical_warehouse/core/services/auth_provider.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/features/dashboard/dashboard_screen.dart';
+import '../../core/widgets/window_buttons.dart';
+import 'dart:io';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -117,8 +119,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Row(
+      body: Stack(
         children: [
+          Row(
+            children: [
           // --- LEFT PANEL (BRANDING) ---
           // Animates from width 100% -> 40%
           AnimatedBuilder(
@@ -323,6 +327,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               );
             },
           ),
+        ],
+      ),
+          if (!Platform.isMacOS)
+            const Positioned(
+              top: 0,
+              right: 0,
+              child: SafeArea(child: WindowButtons()),
+            ),
         ],
       ),
     );

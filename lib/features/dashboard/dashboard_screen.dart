@@ -23,6 +23,8 @@ import 'package:flutter/services.dart';
 import '../telegram/telegram_orders_view.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:window_manager/window_manager.dart';
+import '../../core/widgets/window_buttons.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -133,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-                            child: Column( // Changed to Column for better vertical layout
+                            child: Column(
                               children: [
                                 Image.asset('assets/logo.png', width: 100, height: 100),
                                 const SizedBox(height: 16),
@@ -156,7 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             isActive: _selectedIndex == 0,
                             onTap: () {
                               setState(() => _selectedIndex = 0);
-                              _loadDashboardData(); // Refresh on click
+                              _loadDashboardData(); 
                             },
                           ),
                           _SidebarItem(
@@ -166,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onTap: () => setState(() => _selectedIndex = 1),
                           ),
                           _SidebarItem(
-                            icon: Icons.storage, // Changed icon
+                            icon: Icons.storage, 
                             label: t.text('menu_database'), 
                             isActive: _selectedIndex == 2,
                             onTap: () => setState(() => _selectedIndex = 2),
@@ -185,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           _SidebarItem(
                             icon: Icons.devices_other, 
-                            label: "Jihozlar", // Hardcoded translation key for now or add to json later
+                            label: "Jihozlar", 
                             isActive: _selectedIndex == 5,
                             onTap: () => setState(() => _selectedIndex = 5),
                           ),
@@ -233,6 +235,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Expanded(
                     child: Column(
                       children: [
+                        // 🖥️ CUSTOM WINDOW TITLE BAR (Windows/Linux)
+                        if (!Platform.isMacOS)
+                          SizedBox(
+                            height: 40,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: DragToMoveArea(
+                                    child: Container(color: Colors.transparent),
+                                  ),
+                                ),
+                                const WindowButtons(),
+                                const SizedBox(width: 8),
+                              ],
+                            ),
+                          ),
+
+                        Expanded(
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(24.0),
@@ -245,6 +265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ],
               ),
+              
             ],
           ),
         ),
