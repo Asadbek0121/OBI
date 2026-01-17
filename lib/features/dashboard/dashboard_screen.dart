@@ -407,20 +407,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                    ),
                    const SizedBox(width: 16),
                    // Date Badge
-                   GlassContainer(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    borderRadius: 30,
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          DateTime.now().toString().substring(0, 10), 
-                          style: const TextStyle(fontWeight: FontWeight.bold)
-                        ),
-                      ],
-                    ),
-                  ),
+                    GlassContainer(
+                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                     borderRadius: 30,
+                     child: const _HeaderClock(),
+                   ),
                 ],
               ),
             ],
@@ -523,7 +514,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                child: Column(
                  crossAxisAlignment: CrossAxisAlignment.start,
                  children: [
-                      _LiveClockHeader(label: t.text('dash_status_today')),
+                    Row(
+                      children: [
+                        const Icon(Icons.bolt, color: Colors.amber, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          "${t.text('dash_status_today')} (${DateTime.now().toString().substring(0, 10)})", 
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -1031,15 +1031,14 @@ class _BranchSmallStat extends StatelessWidget {
   }
 }
 
-class _LiveClockHeader extends StatefulWidget {
-  final String label;
-  const _LiveClockHeader({required this.label});
+class _HeaderClock extends StatefulWidget {
+  const _HeaderClock();
 
   @override
-  State<_LiveClockHeader> createState() => _LiveClockHeaderState();
+  State<_HeaderClock> createState() => _HeaderClockState();
 }
 
-class _LiveClockHeaderState extends State<_LiveClockHeader> {
+class _HeaderClockState extends State<_HeaderClock> {
   late Timer _timer;
   late DateTime _now;
 
@@ -1062,25 +1061,25 @@ class _LiveClockHeaderState extends State<_LiveClockHeader> {
 
   @override
   Widget build(BuildContext context) {
-    // Format: YYYY-MM-DD HH:mm:ss
+    // Format: YYYY-MM-DD
     final dateStr = "${_now.year}-${_formatDigit(_now.month)}-${_formatDigit(_now.day)}";
     final timeStr = "${_formatDigit(_now.hour)}:${_formatDigit(_now.minute)}:${_formatDigit(_now.second)}";
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.bolt, color: Colors.amber, size: 20),
+        const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
         const SizedBox(width: 8),
         Text(
-          "${widget.label} ($dateStr ", 
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 0.5),
+          dateStr, 
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)
         ),
+        const SizedBox(width: 8),
+        Container(width: 1, height: 16, color: Colors.grey.withOpacity(0.5)),
+        const SizedBox(width: 8),
         Text(
           timeStr,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary, letterSpacing: 1.5, fontFeatures: const [FontFeature.tabularFigures()]),
-        ),
-        Text(
-          ")",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700]),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary, fontFeatures: [FontFeature.tabularFigures()]),
         ),
       ],
     );
