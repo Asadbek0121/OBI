@@ -57,7 +57,35 @@ class TelegramService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyUsers);
     if (raw == null) return [];
-    return List<Map<String, dynamic>>.from(jsonDecode(raw));
+    
+    final List<dynamic> jsonList = jsonDecode(raw);
+    return jsonList.map((e) {
+      final m = Map<String, dynamic>.from(e);
+      m['chatId'] = m['chatId'].toString(); // Ensure String
+      return m;
+    }).toList();
+  }
+
+  Future<void> _cleanDuplicates() async {
+    final users = await getUsers();
+    final uniqueUsers = <String, Map<String, dynamic>>{};
+    
+    for (var u in users) {
+      final id = u['chatId'].toString();
+      // If duplicate exists, prefer the one with a role other than pending
+      if (uniqueUsers.containsKey(id)) {
+        if (uniqueUsers[id]!['role'] == 'pending' && u['role'] != 'pending') {
+          uniqueUsers[id] = u;
+        }
+      } else {
+        uniqueUsers[id] = u;
+      }
+    }
+    
+    if (uniqueUsers.length != users.length) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyUsers, jsonEncode(uniqueUsers.values.toList()));
+    }
   }
 
   Future<void> addUser(String name, String chatId, String role) async {
@@ -357,6 +385,7 @@ class TelegramService {
 
   void startBotListener() async {
     if (_isListening) return;
+    await _cleanDuplicates();
     _isListening = true;
     print("🤖 Telegram Bot: Polling started...");
     while (_isListening) {
