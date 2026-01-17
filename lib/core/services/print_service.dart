@@ -103,15 +103,16 @@ class PrintService {
     );
 
     await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
+      onLayout: (PdfPageFormat f) async => pdf.save(),
       name: 'Sticker_${asset['barcode']}.pdf',
+      format: format, // Hint for the print dialog
     );
   }
 
   static Future<void> printOrderQR(String qrData, String label) async {
     final pdf = pw.Document();
 
-    // 40mm x 30mm Label Size
+    // 40mm x 30mm Label Size (Standard Xprinter Label)
     final format = PdfPageFormat(40 * PdfPageFormat.mm, 30 * PdfPageFormat.mm);
 
     pdf.addPage(
@@ -140,8 +141,9 @@ class PrintService {
     );
 
     await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
+      onLayout: (PdfPageFormat f) async => pdf.save(),
       name: 'OrderQR_$label.pdf',
+      format: format, // Hint for the print dialog
     );
   }
 
