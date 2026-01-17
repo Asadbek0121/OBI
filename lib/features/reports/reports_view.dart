@@ -62,7 +62,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       _inRows = inData.map((item) => PlutoRow(
         key: ValueKey(item['id']),
         cells: {
-          'date': PlutoCell(value: item['date_time'].toString().substring(0, 10)),
+          'date': PlutoCell(value: item['date_time'].toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
           'product_id': PlutoCell(value: item['product_id']),
           'product': PlutoCell(value: item['product_name']),
           'price': PlutoCell(value: item['price_per_unit']),
@@ -84,7 +84,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       _outRows = outData.map((item) => PlutoRow(
         key: ValueKey(item['id']),
         cells: {
-          'date': PlutoCell(value: item['date_time'].toString().substring(0, 10)),
+          'date': PlutoCell(value: item['date_time'].toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
           'product': PlutoCell(value: item['product_name']),
           'quantity': PlutoCell(value: item['quantity']),
           'unit': PlutoCell(value: item['unit']),
@@ -104,7 +104,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
   void _onDeleteRow(PlutoColumnRendererContext context, bool isIn) async {
     if (context.row.key is! ValueKey) return;
-    final int id = (context.row.key as ValueKey).value;
+    final dynamic id = (context.row.key as ValueKey).value;
 
     final confirmed = await AppDialogs.showConfirmDialog(
       context: this.context,
@@ -130,78 +130,152 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   }
 
   void _onEditRow(PlutoColumnRendererContext context, bool isIn) {
-    // Basic editing for now: Quantity, Price/Notes
     if (context.row.key is! ValueKey) return;
-    final int id = (context.row.key as ValueKey).value;
+    final dynamic id = (context.row.key as ValueKey).value;
     final cells = context.row.cells;
 
+    // Controllers
     final nameController = TextEditingController(text: cells['product']?.value.toString());
     final qtyController = TextEditingController(text: cells['quantity']?.value?.toString());
+    final partyController = TextEditingController(text: cells['party']?.value?.toString());
     
-    // For IN: Price
+    // Date Handling
+    DateTime currentDt;
+    try {
+      currentDt = DateTime.parse(cells['date']?.value.toString() ?? DateTime.now().toString());
+    } catch (_) {
+      currentDt = DateTime.now();
+    }
+    DateTime tempDate = currentDt;
+    TimeOfDay tempTime = TimeOfDay.fromDateTime(currentDt);
+
+    // Specific Fields
     final priceController = isIn ? TextEditingController(text: cells['price']?.value?.toString()) : null;
-    // For OUT: Notes
     final notesController = !isIn ? TextEditingController(text: cells['notes']?.value?.toString()) : null;
+    
+    String? paymentStatus = isIn ? (cells['payment_status']?.value?.toString()) : null;
+    if (paymentStatus == '-') paymentStatus = null;
+    final paymentOptions = ['Naqd', 'Qarzga', "O'tkazma"];
 
     showDialog(
       context: this.context,
-      builder: (c) => AlertDialog(
-        title: const Text("Tahrirlash"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Mahsulot (O\'zgartirib bo\'lmaydi)'), enabled: false),
-            TextField(controller: qtyController, decoration: const InputDecoration(labelText: 'Miqdor'), keyboardType: TextInputType.number),
-            if (isIn)
-               TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Narx'), keyboardType: TextInputType.number),
-            if (!isIn)
-               TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Izoh')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final qty = double.tryParse(qtyController.text) ?? 0;
-                if (qty <= 0) {
-                  AppNotifications.showError(this.context, "Miqdor noto'g'ri");
-                  return;
-                }
+      builder: (c) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text("Tahrirlash"),
+            scrollable: true,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Mahsulot (O\'zgartirib bo\'lmaydi)'), enabled: false),
+                const SizedBox(height: 10),
                 
-                final Map<String, dynamic> updateData = {'quantity': qty};
+                // Date & Time Picker
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calendar_today, size: 16),
+                        label: Text("${tempDate.year}-${tempDate.month.toString().padLeft(2,'0')}-${tempDate.day.toString().padLeft(2,'0')}"),
+                        onPressed: () async {
+                          final d = await showDatePicker(context: context, initialDate: tempDate, firstDate: DateTime(2020), lastDate: DateTime(2030));
+                          if (d != null) setStateDialog(() => tempDate = d);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time, size: 16),
+                        label: Text("${tempTime.hour.toString().padLeft(2,'0')}:${tempTime.minute.toString().padLeft(2,'0')}"),
+                        onPressed: () async {
+                          final t = await showTimePicker(context: context, initialTime: tempTime);
+                          if (t != null) setStateDialog(() => tempTime = t);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                TextField(controller: qtyController, decoration: const InputDecoration(labelText: 'Miqdor'), keyboardType: TextInputType.number),
+                const SizedBox(height: 10),
+                TextField(controller: partyController, decoration: InputDecoration(labelText: isIn ? 'Yetkazib beruvchi' : 'Qabul qiluvchi')),
                 
-                if (isIn && priceController != null) {
-                   final price = double.tryParse(priceController.text) ?? 0;
-                   updateData['price_per_unit'] = price;
-                   // Recalculate total if possible, but simplified for now
-                   // In a real scenario, we should recount taxes/surcharges.
-                   // As a quick fix, update total roughly:
-                   updateData['total_amount'] = price * qty;
-                }
+                if (isIn) ...[
+                  const SizedBox(height: 10),
+                  TextField(controller: priceController, decoration: const InputDecoration(labelText: 'Narx (Dona)'), keyboardType: TextInputType.number),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
+                    decoration: const InputDecoration(labelText: "To'lov turi"),
+                    items: paymentOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    onChanged: (v) => paymentStatus = v,
+                  ),
+                ],
 
-                if (!isIn && notesController != null) {
-                  updateData['notes'] = notesController.text;
-                }
+                if (!isIn) ...[
+                   const SizedBox(height: 10),
+                   TextField(controller: notesController, decoration: const InputDecoration(labelText: 'Izoh')),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final qty = double.tryParse(qtyController.text) ?? 0;
+                    if (qty <= 0) {
+                      AppNotifications.showError(this.context, "Miqdor noto'g'ri");
+                      return;
+                    }
+                    
+                    // Reconstruct DateTime
+                    final finalDt = DateTime(tempDate.year, tempDate.month, tempDate.day, tempTime.hour, tempTime.minute);
 
-                if (isIn) {
-                  await DatabaseHelper.instance.updateStockIn(id, updateData);
-                } else {
-                  await DatabaseHelper.instance.updateStockOut(id, updateData);
-                }
+                    final Map<String, dynamic> updateData = {
+                      'quantity': qty,
+                      'date_time': finalDt.toString(), // Save full string
+                    };
 
-                if (mounted) {
-                   Navigator.pop(c);
-                   _loadData(); // Reload to refresh grid
-                   AppNotifications.showSuccess(this.context, "Yangilandi");
-                }
-              } catch (e) {
-                if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
-              }
-            }, 
-            child: const Text("Saqlash")
-          ),
-        ],
+                    if (isIn) {
+                       updateData['supplier_name'] = partyController.text;
+                       if (priceController != null) {
+                         final price = double.tryParse(priceController.text) ?? 0;
+                         updateData['price_per_unit'] = price;
+                         updateData['total_amount'] = price * qty;
+                       }
+                       if (paymentStatus != null) {
+                         updateData['payment_status'] = paymentStatus;
+                       }
+                    } else {
+                       updateData['receiver_name'] = partyController.text;
+                       if (notesController != null) {
+                         updateData['notes'] = notesController.text;
+                       }
+                    }
+
+                    if (isIn) {
+                      await DatabaseHelper.instance.updateStockIn(id, updateData);
+                    } else {
+                      await DatabaseHelper.instance.updateStockOut(id, updateData);
+                    }
+
+                    if (mounted) {
+                       Navigator.pop(c);
+                       _loadData(); // Reload to refresh grid
+                       AppNotifications.showSuccess(this.context, "Yangilandi");
+                    }
+                  } catch (e) {
+                    if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+                  }
+                }, 
+                child: const Text("Saqlash")
+              ),
+            ],
+          );
+        }
       )
     );
   }

@@ -1168,22 +1168,22 @@ class DatabaseHelper {
   }
 
   // Transaction Management (Edit/Delete)
-  Future<void> deleteStockIn(int id) async {
+  Future<void> deleteStockIn(dynamic id) async {
     final db = await instance.database;
     await db.delete('stock_in', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> deleteStockOut(int id) async {
+  Future<void> deleteStockOut(dynamic id) async {
     final db = await instance.database;
     await db.delete('stock_out', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> updateStockIn(int id, Map<String, dynamic> data) async {
+  Future<void> updateStockIn(dynamic id, Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.update('stock_in', data, where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> updateStockOut(int id, Map<String, dynamic> data) async {
+  Future<void> updateStockOut(dynamic id, Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.update('stock_out', data, where: 'id = ?', whereArgs: [id]);
   }
