@@ -584,7 +584,19 @@ class TelegramService {
       _userStates[chatId] = "waiting_for_qr_scan";
       await sendMessage(chatId, "📲 *QR KOD SKANERLASH* \n\nYuk qutisidagi QR kodni telefoningiz kamerasi (yoki QR Scanner ilovasi) orqali skanerlang. \n\nSkanerlanganda avtomatik Telegram ochiladi va yuk qabul qilinadi.");
     } else if ((text.contains("Buyurtma Holati") || text.contains("📝")) && isBranch) {
-      await _handleOrderStatuses(chatId);
+      await _sendOrderFilterMenu(chatId);
+    } else if (text == "📋 Oxirgi Buyurtma") {
+       await _handleLastOrder(chatId);
+    } else if (text == "⏳ Kutilmoqda") {
+       await _handleOrderStatuses(chatId, status: 'pending', limit: 50);
+    } else if (text == "✅ Tasdiqlangan") {
+       await _handleOrderStatuses(chatId, status: 'approved', limit: 50);
+    } else if (text == "🚚 Yetkazilgan") {
+       await _handleOrderStatuses(chatId, status: 'delivered', limit: 50);
+    } else if (text == "❌ Rad etilgan") {
+       await _handleOrderStatuses(chatId, status: 'rejected', limit: 50);
+    } else if (text == "📑 Barchasi") {
+       await _handleOrderStatuses(chatId, limit: 100);
     } else if (text.contains("Mahsulot Qidirish")) {
       await sendMessage(chatId, "🔍 Qidirish uchun nomini yozing yoki jihoz shtrix-kodi rasmini yuboring:");
     } else if (text.length > 2) {
@@ -592,23 +604,50 @@ class TelegramService {
     }
   }
 
-  Future<void> _handleOrderStatuses(String chatId) async {
+  Future<void> _sendOrderFilterMenu(String chatId) async {
+    final keyboard = {
+      'keyboard': [
+        [{'text': '📋 Oxirgi Buyurtma'}, {'text': '⏳ Kutilmoqda'}],
+        [{'text': '✅ Tasdiqlangan'}, {'text': '🚚 Yetkazilgan'}],
+        [{'text': '❌ Rad etilgan'}, {'text': '📑 Barchasi'}],
+        [{'text': '🔙 Asosiy Menyu'}]
+      ],
+      'resize_keyboard': true,
+      'one_time_keyboard': false
+    };
+    await sendMessage(chatId, "📂 *BUYURTMALAR TARIXI*\n\nQuyidagi bo'limlardan birini tanlang:", replyMarkup: keyboard);
+  }
+
+  Future<void> _handleLastOrder(String chatId) async {
+     await _handleOrderStatuses(chatId, limit: 1);
+  }
+
+  Future<void> _handleOrderStatuses(String chatId, {String? status, int limit = 10}) async {
     try {
       final db = await DatabaseHelper.instance.database;
+      
+      String whereClause = 'chat_id = ?';
+      List<dynamic> whereArgs = [chatId];
+
+      if (status != null) {
+        whereClause += ' AND status = ?';
+        whereArgs.add(status);
+      }
+
       final orders = await db.query(
         'branch_orders', 
-        where: 'chat_id = ?', 
-        whereArgs: [chatId], 
+        where: whereClause, 
+        whereArgs: whereArgs, 
         orderBy: 'id DESC', 
-        limit: 10
+        limit: limit
       );
 
       if (orders.isEmpty) {
-        await sendMessage(chatId, "📋 Sizda hali buyurtmalar mavjud emas.");
+        await sendMessage(chatId, "📋 Ma'lumot topilmadi.");
         return;
       }
 
-      String msg = "📋 *SIZNING BUYURTMALARINGIZ (Oxirgi 10 ta):*\n\n";
+      String msg = "📋 *BUYURTMA NATIJALARI:*\n\n";
       for (var o in orders) {
         String statusIcon = "⏳";
         String statusText = "Kutilmoqda";
@@ -627,7 +666,7 @@ class TelegramService {
 
       await sendMessage(chatId, msg);
     } catch (e) {
-      await sendMessage(chatId, "⚠️ Holatni yuklashda xatolk: $e");
+      await sendMessage(chatId, "⚠️ Xatolik: $e");
     }
   }
 
