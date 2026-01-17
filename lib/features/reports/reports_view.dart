@@ -102,30 +102,31 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     }
   }
 
-  void _onDeleteRow(PlutoColumnRendererContext context, bool isIn) {
+  void _onDeleteRow(PlutoColumnRendererContext context, bool isIn) async {
     if (context.row.key is! ValueKey) return;
     final int id = (context.row.key as ValueKey).value;
 
-    AppDialogs.showConfirmDialog(
+    final confirmed = await AppDialogs.showConfirmDialog(
       context: this.context,
       title: "O'chirishni tasdiqlang",
-      message: "Ushbu yozuvni o'chirib yubormoqchimisiz? Bu ombor qoldig'iga ta'sir qilishi mumkin.",
-      onConfirm: () async {
-        try {
-          if (isIn) {
-            await DatabaseHelper.instance.deleteStockIn(id);
-          } else {
-             await DatabaseHelper.instance.deleteStockOut(id);
-          }
-          if (mounted) {
-            context.stateManager.removeRows([context.row]);
-            AppNotifications.showSuccess(this.context, "Muvaffaqiyatli o'chirildi");
-          }
-        } catch (e) {
-          if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
-        }
-      }
+      content: "Ushbu yozuvni o'chirib yubormoqchimisiz? Bu ombor qoldig'iga ta'sir qilishi mumkin.",
     );
+
+    if (confirmed == true) {
+      try {
+        if (isIn) {
+          await DatabaseHelper.instance.deleteStockIn(id);
+        } else {
+           await DatabaseHelper.instance.deleteStockOut(id);
+        }
+        if (mounted) {
+          context.stateManager.removeRows([context.row]);
+          AppNotifications.showSuccess(this.context, "Muvaffaqiyatli o'chirildi");
+        }
+      } catch (e) {
+        if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+      }
+    }
   }
 
   void _onEditRow(PlutoColumnRendererContext context, bool isIn) {
@@ -168,7 +169,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                   return;
                 }
                 
-                final updateData = {'quantity': qty};
+                final Map<String, dynamic> updateData = {'quantity': qty};
                 
                 if (isIn && priceController != null) {
                    final price = double.tryParse(priceController.text) ?? 0;
