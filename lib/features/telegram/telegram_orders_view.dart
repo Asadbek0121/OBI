@@ -10,6 +10,8 @@ import '../../core/utils/app_notifications.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/print_service.dart';
 
+import 'package:http/http.dart' as http;
+
 class TelegramManagementView extends StatefulWidget {
   const TelegramManagementView({super.key});
 
@@ -67,13 +69,14 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
 
   @override
   Widget build(BuildContext context) {
+    final t = Provider.of<AppTranslations>(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Telegram Bot Boshqaruvi", style: Theme.of(context).textTheme.headlineMedium),
+            Text(t.text('telegram_title'), style: Theme.of(context).textTheme.headlineMedium),
             IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAll),
           ],
         ),
@@ -81,9 +84,9 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
         TabBar(
           controller: _tabController,
           isScrollable: true,
-          tabs: const [
-            Tab(text: "📦 Buyurtmalar"),
-            Tab(text: "⚙️ Bot Sozlamalari"),
+          tabs: [
+            Tab(text: "📦 ${t.text('telegram_orders')}"),
+            Tab(text: "⚙️ ${t.text('telegram_settings')}"),
           ],
         ),
         const SizedBox(height: 24),
@@ -91,8 +94,8 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildOrdersTab(),
-              _buildSettingsTab(),
+              _buildOrdersTab(t),
+              _buildSettingsTab(t),
             ],
           ),
         ),
@@ -100,9 +103,9 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
     );
   }
 
-  Widget _buildOrdersTab() {
+  Widget _buildOrdersTab(AppTranslations t) {
      if (_isLoadingOrders) return const Center(child: CircularProgressIndicator());
-     if (_orders.isEmpty) return const Center(child: Text("Hozircha buyurtmalar yo'q"));
+     if (_orders.isEmpty) return Center(child: Text(t.text('msg_no_data')));
 
      return ListView.builder(
         itemCount: _orders.length,
@@ -112,10 +115,10 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
           final isPending = status == 'pending';
 
           Color statusColor = Colors.grey;
-          String statusText = "Kutilmoqda";
-          if (status == 'approved') { statusColor = AppColors.success; statusText = "Tasdiqlangan"; }
-          else if (status == 'rejected') { statusColor = AppColors.error; statusText = "Rad etilgan"; }
-          else if (status == 'delivered') { statusColor = Colors.blue; statusText = "Yetkazilgan"; }
+          String statusText = t.text('status_pending'); // Need to add this key or use hardcoded check
+          if (status == 'approved') { statusColor = AppColors.success; statusText = t.text('status_approved'); }
+          else if (status == 'rejected') { statusColor = AppColors.error; statusText = t.text('status_rejected'); }
+          else if (status == 'delivered') { statusColor = Colors.blue; statusText = t.text('status_delivered'); }
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -292,12 +295,12 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
      );
   }
 
-  Widget _buildSettingsTab() {
+  Widget _buildSettingsTab(AppTranslations t) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Bot Konfiguratsiyasi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(t.text('telegram_config'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: 16),
           GlassContainer(
             child: Padding(
@@ -306,7 +309,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                 children: [
                   TextField(
                     controller: _tokenController,
-                    decoration: const InputDecoration(labelText: "Bot Token API", border: OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: t.text('telegram_token_label'), border: const OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
@@ -314,9 +317,9 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                     child: ElevatedButton(
                       onPressed: () async {
                         await _telegramService.saveBotToken(_tokenController.text);
-                        AppNotifications.showSuccess(context, "Saqlandi");
+                        if (mounted) AppNotifications.showSuccess(context, t.text('msg_saved'));
                       }, 
-                      child: const Text("Tokenni saqlash")
+                      child: Text(t.text('telegram_save_token'))
                     ),
                   ),
                 ],
@@ -324,28 +327,28 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
             ),
           ),
           const SizedBox(height: 32),
-          const Text("Foydalanuvchilar va Huquqlar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(t.text('telegram_users'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
           const SizedBox(height: 16),
           Row(
             children: [
               TextButton.icon(
                 onPressed: _showManualAddDialog, 
                 icon: const Icon(Icons.add), 
-                label: const Text("Qo'lda qo'shish")
+                label: Text(t.text('telegram_add_manual'))
               ),
               const SizedBox(width: 12),
               TextButton.icon(
                 onPressed: _scanForUsers, 
                 icon: const Icon(Icons.person_search), 
-                label: const Text("Scan (Yangi userlar)")
+                label: Text(t.text('telegram_scan'))
               ),
             ],
           ),
           const SizedBox(height: 12),
           if (_users.isEmpty) 
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: GlassContainer(child: Padding(padding: EdgeInsets.all(20), child: Center(child: Text("Foydalanuvchilar mavjud emas")))),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GlassContainer(child: Padding(padding: const EdgeInsets.all(20), child: Center(child: Text(t.text('msg_no_data'))))),
             )
           else
             ListView.separated(
@@ -708,30 +711,14 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
   }
 
   void _scanForUsers() async {
-    AppNotifications.showInfo(context, "Yangi foydalanuvchilar qidirilmoqda...");
-    final updates = await _telegramService.getUpdates();
+    AppNotifications.showInfo(context, "Ro'yxat yangilanmoqda...");
+    await _loadAll();
     
-    if (!mounted) return;
-    if (updates.isEmpty) {
-      AppNotifications.showError(context, "Yangi so'rovlar topilmadi.");
-      return;
-    }
-
-    final selected = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (c) => SimpleDialog(
-        title: const Text("Userni tanlang"),
-        children: updates.map((u) => SimpleDialogOption(
-          child: Text("${u['firstName']} (${u['username'] ?? 'No Username'})"),
-          onPressed: () => Navigator.pop(c, u),
-        )).toList(),
-      ),
-    );
-
-    if (selected != null) {
-      await _telegramService.addUser(selected['firstName'], selected['chatId'], 'Viewer');
-      _loadAll();
-      AppNotifications.showSuccess(context, "User qo'shildi!");
+    final pendingCount = _users.where((u) => u['role'] == 'pending').length;
+    if (pendingCount > 0) {
+      AppNotifications.showSuccess(context, "$pendingCount ta yangi (kutilayotgan) foydalanuvchi bor.");
+    } else {
+      AppNotifications.showInfo(context, "Yangi foydalanuvchilar yo'q. Ular botga /start bosishlari lozim.");
     }
   }
 
@@ -805,6 +792,25 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                 "$branchName - Buyurtma qog'ozi",
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.print),
+              label: const Text("Chop etish"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+              onPressed: () async {
+                 // Fetch bytes
+                 try {
+                   final response = await http.get(Uri.parse(imageUrl));
+                   if (response.statusCode == 200) {
+                      await PrintService.printImage(response.bodyBytes, branchName);
+                   } else {
+                      if(mounted) AppNotifications.showError(context, "Rasmni yuklab bo'lmadi");
+                   }
+                 } catch (e) {
+                    if(mounted) AppNotifications.showError(context, "Xatolik: $e");
+                 }
+              },
             ),
           ],
         ),

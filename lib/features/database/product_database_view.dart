@@ -23,7 +23,7 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -52,6 +52,7 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
                 Tab(text: t.text('db_products')),
                 Tab(text: t.text('db_suppliers')),
                 Tab(text: t.text('db_receivers')),
+                Tab(text: t.text('db_payment_types')),
               ],
             ),
           ],
@@ -64,6 +65,7 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
               _ProductGrid(),
               _SimpleListGrid(type: 'supplier'),
               _SimpleListGrid(type: 'receiver'),
+              _SimpleListGrid(type: 'payment_type'),
             ],
           ),
         ),
@@ -317,8 +319,10 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
     List<String> data = [];
     if (widget.type == 'supplier') {
         data = await DatabaseHelper.instance.getSuppliers();
-    } else {
+    } else if (widget.type == 'receiver') {
         data = await DatabaseHelper.instance.getReceivers();
+    } else {
+        data = await DatabaseHelper.instance.getPaymentTypes();
     }
     
     if (mounted) {
@@ -347,8 +351,10 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
       if (name.isNotEmpty) {
         if (widget.type == 'supplier') {
           await DatabaseHelper.instance.insertSupplier(name);
-        } else {
+        } else if (widget.type == 'receiver') {
           await DatabaseHelper.instance.insertReceiver(name);
+        } else {
+          await DatabaseHelper.instance.insertPaymentType(name);
         }
         savedCount++;
       }
@@ -369,7 +375,8 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
     final t = Provider.of<AppTranslations>(context);
     final List<PlutoColumn> columns = [
       PlutoColumn(
-        title: widget.type == 'supplier' ? t.text('db_suppliers') : t.text('db_receivers'),
+        title: widget.type == 'supplier' ? t.text('db_suppliers') : 
+               (widget.type == 'receiver' ? t.text('db_receivers') : t.text('db_payment_types')),
         field: 'name',
         type: PlutoColumnType.text(),
         width: 400,
@@ -488,8 +495,10 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
     if (confirm == true) {
       if (widget.type == 'supplier') {
           await DatabaseHelper.instance.deleteSupplier(name);
-      } else {
+      } else if (widget.type == 'receiver') {
           await DatabaseHelper.instance.deleteReceiver(name);
+      } else {
+          await DatabaseHelper.instance.deletePaymentType(name);
       }
       stateManager.removeRows([row]);
       if (mounted) {

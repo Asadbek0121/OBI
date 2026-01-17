@@ -187,7 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           _SidebarItem(
                             icon: Icons.devices_other, 
-                            label: "Jihozlar", 
+                            label: t.text('menu_assets'), 
                             isActive: _selectedIndex == 5,
                             onTap: () => setState(() => _selectedIndex = 5),
                           ),
@@ -208,7 +208,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           
                           _SidebarItem(
                             icon: Icons.smart_toy, 
-                            label: "Telegram Bot", 
+                            label: t.text('menu_telegram'),
                             isActive: _selectedIndex == 8,
                             badgeCount: _pendingTelegramOrders,
                             onTap: () => setState(() => _selectedIndex = 8),
@@ -252,7 +252,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
 
-                        Expanded(
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(24.0),
@@ -528,7 +527,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const Icon(Icons.bolt, color: Colors.amber, size: 20),
                         const SizedBox(width: 8),
                         Text(
-                          "BUGUNGI HOLAT (${DateTime.now().toString().substring(0, 10)})", 
+                          "${t.text('dash_status_today')} (${DateTime.now().toString().substring(0, 10)})", 
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
                         ),
                       ],
@@ -538,8 +537,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Expanded(
                           child: _TodayStatItem(
-                            label: "Kirim",
-                            value: "${_todayStats['in_count']} ta",
+                            label: t.text('dash_income'),
+                            value: "${_todayStats['in_count']} ${t.text('unit_items')}",
                             subvalue: "${(_todayStats['in_sum'] as num).toDouble().toStringAsFixed(0)}",
                             icon: Icons.arrow_downward_rounded,
                             color: Colors.green,
@@ -548,9 +547,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.3)),
                         Expanded(
                           child: _TodayStatItem(
-                            label: "Chiqim",
-                            value: "${_todayStats['out_count']} ta",
-                            subvalue: "Tarqatildi",
+                            label: t.text('dash_outcome'),
+                            value: "${_todayStats['out_count']} ${t.text('unit_items')}",
+                            subvalue: t.text('dash_distributed'),
                             icon: Icons.arrow_upward_rounded,
                             color: Colors.orange,
                           ),
@@ -558,9 +557,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(width: 1, height: 40, color: Colors.grey.withOpacity(0.3)),
                          Expanded(
                           child: _TodayStatItem(
-                            label: "Faollik",
+                            label: t.text('dash_activity'),
                             value: "${_todayStats['in_count'] + _todayStats['out_count']}",
-                            subvalue: "Jami operatsiyalar",
+                            subvalue: t.text('dash_total_ops'),
                             icon: Icons.timeline,
                             color: Colors.blue,
                           ),
@@ -582,7 +581,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                  const Icon(Icons.business_rounded, color: Colors.blueAccent, size: 20),
                  const SizedBox(width: 8),
                  Text(
-                   "FILIALLAR ANALITIKASI", 
+                   t.text('dash_branch_analytics'), 
                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[700], letterSpacing: 1),
                  ),
               ],
@@ -627,13 +626,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _BranchSmallStat(label: "Jami", value: "${branch['total_orders']}"),
-                              _BranchSmallStat(label: "Kutilmoqda", value: "${branch['pending_count']}", color: Colors.orange),
-                              _BranchSmallStat(label: "Yetkazildi", value: "${branch['delivered_count']}", color: Colors.green),
+                              _BranchSmallStat(label: t.text('dash_total'), value: "${branch['total_orders']}"),
+                              _BranchSmallStat(label: t.text('dash_pending'), value: "${branch['pending_count']}", color: Colors.orange),
+                              _BranchSmallStat(label: t.text('dash_delivered'), value: "${branch['delivered_count']}", color: Colors.green),
                             ],
                           ),
                           Text(
-                            "Oxirgi: ${branch['last_order_date'].toString().substring(0, 10)}",
+                            "${t.text('dash_last_update')}: ${branch['last_order_date'].toString().substring(0, 10)}",
                             style: TextStyle(color: Colors.grey[500], fontSize: 10),
                           ),
                         ],
@@ -653,12 +652,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final isWide = width > 800;
               
               final totalVal = _stats['total_value'] as double;
-              String totalValueStr;
-              if (totalVal >= 1000000) {
-                 totalValueStr = "${(totalVal / 1000000).toStringAsFixed(1)}M ${t.text('unit_currency')}";
-              } else {
-                 totalValueStr = "${totalVal.toStringAsFixed(0)} ${t.text('unit_currency')}";
-              }
+              // Format with spaces and 2 decimal places for "tiyin"
+              final formattedVal = totalVal.toStringAsFixed(2).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]} ');
+              final totalValueStr = "$formattedVal ${t.text('unit_currency')}";
 
               return Wrap(
                 spacing: 16,

@@ -224,6 +224,23 @@ class DatabaseHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_in_date ON stock_in(date_time)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_stock_out_date ON stock_out(date_time)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
+
+    // 4. Payment Types Table
+    await db.execute('CREATE TABLE IF NOT EXISTS payment_types (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE)');
+    // Seed if empty
+    try {
+      final res = await db.rawQuery('SELECT COUNT(*) FROM payment_types');
+      final ptCount = res.isNotEmpty ? (res.first.values.first as int) : 0;
+      
+      if (ptCount == 0) {
+        final pts = ['Naqd', 'Qarzga', "O'tkazma"];
+        for (var p in pts) {
+           await db.insert('payment_types', {'name': p});
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ Payment Types Seed Error: $e");
+    }
   }
 
   Future<void> createAssetsTableIfNeeded() async {
@@ -417,6 +434,22 @@ class DatabaseHelper {
   Future<void> deleteReceiver(String name) async {
     final db = await instance.database;
     await db.delete('receivers', where: 'name = ?', whereArgs: [name]);
+  }
+
+  Future<List<String>> getPaymentTypes() async {
+    final db = await instance.database;
+    final res = await db.query('payment_types', orderBy: 'id ASC');
+    return res.map((e) => e['name'] as String).toList();
+  }
+
+  Future<void> insertPaymentType(String name) async {
+    final db = await instance.database;
+    await db.insert('payment_types', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
+  }
+
+  Future<void> deletePaymentType(String name) async {
+    final db = await instance.database;
+    await db.delete('payment_types', where: 'name = ?', whereArgs: [name]);
   }
   
   // --- Product Logic ---

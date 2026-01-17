@@ -59,6 +59,10 @@ class _AssetsViewState extends State<AssetsView> {
         _sidebarItems = items;
         if (_sidebarParentId == null) {
           _buildings = items; // Useful for dropdowns
+          // Update title based on current language if we are at root
+          try {
+             _sidebarTitle = Provider.of<AppTranslations>(context, listen: false).text('assets_building');
+          } catch (e) {}
         }
       });
     }
@@ -69,15 +73,15 @@ class _AssetsViewState extends State<AssetsView> {
       if (_selectedRoomId != null) {
         _selectedRoomId = null;
         // _sidebarParentId is already the floorId
-        _sidebarTitle = "Xonalar";
+        _sidebarTitle = Provider.of<AppTranslations>(context, listen: false).text('assets_room');
       } else if (_selectedFloorId != null) {
         _selectedFloorId = null;
         _sidebarParentId = _selectedBuildingId;
-        _sidebarTitle = "Qavatlar";
+        _sidebarTitle = Provider.of<AppTranslations>(context, listen: false).text('assets_floor');
       } else if (_selectedBuildingId != null) {
         _selectedBuildingId = null;
         _sidebarParentId = null;
-        _sidebarTitle = "Binolar";
+        _sidebarTitle = Provider.of<AppTranslations>(context, listen: false).text('assets_building');
       }
       _loadMetadata();
       _applyFilters();
@@ -238,7 +242,7 @@ class _AssetsViewState extends State<AssetsView> {
           child: GridView.builder(
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 300,
-              mainAxisExtent: 220,
+              mainAxisExtent: 260,
               crossAxisSpacing: 20,
               mainAxisSpacing: 20,
             ),
@@ -267,11 +271,11 @@ class _AssetsViewState extends State<AssetsView> {
             _selectedBuildingId = item['id'];
             _selectedFloorId = null;
             _sidebarParentId = item['id'];
-            _sidebarTitle = "Qavatlar";
+            _sidebarTitle = t.text('assets_floor');
           } else if (type == 'floor') {
             _selectedFloorId = item['id'];
             _sidebarParentId = item['id'];
-            _sidebarTitle = "Xonalar";
+            _sidebarTitle = t.text('assets_room');
           } else {
             _selectedRoomId = item['id'];
           }
@@ -302,31 +306,38 @@ class _AssetsViewState extends State<AssetsView> {
               ],
             ),
             const SizedBox(height: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name'],
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  item['short_code'] ?? "ID kodi yo'q",
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                ),
-              ],
+             Expanded(
+               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item['name'],
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    item['short_code'] ?? t.text('assets_no_code'),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  ),
+                ],
+              ),
             ),
             const Divider(height: 16, color: AppColors.glassBorder),
             Row(
               children: [
                 Icon(Icons.arrow_forward_ios_rounded, size: 12, color: color.withOpacity(0.5)),
                 const SizedBox(width: 8),
-                Text(
-                  type == 'building' ? t.text('assets_view_floors') : (type == 'floor' ? t.text('assets_view_rooms') : t.text('assets_view_items')),
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                Expanded(
+                  child: Text(
+                    type == 'building' ? t.text('assets_view_floors') : (type == 'floor' ? t.text('assets_view_rooms') : t.text('assets_view_items')),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                // const Spacer(), // Removed Spacer as Expanded takes space
                 IconButton(
                   icon: const Icon(Icons.download_rounded, size: 18, color: Colors.grey),
                   onPressed: () => ExcelService.exportAssetsHierarchy(
@@ -421,10 +432,10 @@ class _AssetsViewState extends State<AssetsView> {
                   setState(() {
                     if (type == 'building') {
                       _selectedBuildingId = item['id']; _selectedFloorId = _selectedRoomId = null;
-                      _sidebarParentId = item['id']; _sidebarTitle = "Qavatlar";
+                      _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_floor');
                     } else if (type == 'floor') {
                       _selectedFloorId = item['id']; _selectedRoomId = null;
-                      _sidebarParentId = item['id']; _sidebarTitle = "Xonalar";
+                      _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_room');
                     } else {
                       _selectedRoomId = item['id'];
                     }
@@ -1710,15 +1721,24 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                     
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("JOYI:", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            Text("${_asset['grandparent_location_name'] != null ? _asset['grandparent_location_name'] + ' > ' : ''}${_asset['parent_location_name'] ?? ''} > ${_asset['location_name'] ?? 'Noma\'lum'}", 
-                                 style: const TextStyle(fontSize: 18, color: Colors.blue)),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text("${t.text('menu_location').toUpperCase()}:", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Text(
+                                "${_asset['grandparent_location_name'] != null ? _asset['grandparent_location_name'] + ' > ' : ''}${_asset['parent_location_name'] ?? ''} > ${_asset['location_name'] ?? 'Noma\'lum'}", 
+                                style: const TextStyle(fontSize: 18, color: Colors.blue),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 16),
                         ElevatedButton.icon(
                           onPressed: _showTransferDialog,
                           icon: const Icon(Icons.move_up_rounded, size: 18),

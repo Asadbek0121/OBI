@@ -26,6 +26,7 @@ class _StockInViewState extends State<StockInView> {
     'MEDTEXNIKA', 
     'ABDULLA PHARM'
   ];
+  List<String> paymentTypes = ['Naqd', 'Qarzga', 'O\'tkazma'];
 
   bool isLoading = false;
   bool isGridLoaded = false;
@@ -34,6 +35,25 @@ class _StockInViewState extends State<StockInView> {
   void initState() {
     super.initState();
     _loadSuppliers();
+    _loadPaymentTypes();
+  }
+
+  Future<void> _loadPaymentTypes() async {
+    try {
+      final dbTypes = await DatabaseHelper.instance.getPaymentTypes();
+      if (mounted && dbTypes.isNotEmpty) {
+        setState(() {
+          paymentTypes = dbTypes;
+          _updateColumns();
+          if (isGridLoaded) {
+             final col = stateManager.columns.firstWhere((c) => c.field == 'payment_status');
+             col.type = PlutoColumnType.select(paymentTypes);
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading payment types: $e");
+    }
   }
 
   Future<void> _loadSuppliers() async {
@@ -154,11 +174,7 @@ class _StockInViewState extends State<StockInView> {
       PlutoColumn(
         title: t.text('col_payment_status'),
         field: 'payment_status',
-        type: PlutoColumnType.select([
-          t.text('pay_cash'),
-          t.text('pay_debt'),
-          t.text('pay_transfer'),
-        ]), 
+        type: PlutoColumnType.select(paymentTypes), 
         width: 150,
       ),
       PlutoColumn(
@@ -186,7 +202,7 @@ class _StockInViewState extends State<StockInView> {
           'surcharge_percent': PlutoCell(value: ''),
           'surcharge_sum': PlutoCell(value: ''),
           'supplier': PlutoCell(value: suppliers.isNotEmpty ? suppliers.first : ''),
-          'payment_status': PlutoCell(value: Provider.of<AppTranslations>(context, listen: false).text('pay_cash')),
+          'payment_status': PlutoCell(value: paymentTypes.isNotEmpty ? paymentTypes.first : 'Naqd'),
           'total_amount': PlutoCell(value: ''),
         },
       );

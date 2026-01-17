@@ -373,7 +373,8 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   final _telegramService = TelegramService();
 
   Future<void> _sendToTelegram() async {
-    final users = await _telegramService.getUsers();
+    final allUsers = await _telegramService.getUsers();
+    final users = allUsers.where((u) => u['role'] == 'admin').toList();
     
     if (!mounted) return;
     
