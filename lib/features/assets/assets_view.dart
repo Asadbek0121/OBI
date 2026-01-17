@@ -1220,14 +1220,21 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
                                // Find floor and building ID for this room to pre-fill
                                final floor = await DatabaseHelper.instance.getLocationById(item['parent_id']);
                                int? bid;
+                               int? fid;
                                if (floor != null) {
-                                 bid = floor['type'] == 'building' ? (floor['id'] as int?) : (floor['parent_id'] as int?);
+                                 if (floor['type'] == 'building') {
+                                    bid = floor['id'] as int?;
+                                    fid = null;
+                                 } else {
+                                    bid = floor['parent_id'] as int?;
+                                    fid = floor['id'] as int?;
+                                 }
                                }
                                if (mounted) {
                                  Navigator.pop(context, {
                                    'action': 'add_asset',
                                    'buildingId': bid,
-                                   'floorId': item['parent_id'],
+                                   'floorId': fid,
                                    'roomId': item['id']
                                  });
                                }
@@ -1357,6 +1364,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
       if (_selectedFloorId != null) {
         final r = await DatabaseHelper.instance.getLocations(parentId: _selectedFloorId!);
         setState(() => _rooms = r);
+      } else {
+         // Auto-populate rooms with building children if floor is not selected (for 2-level config)
+         setState(() => _rooms = f);
       }
     }
   }
@@ -1368,8 +1378,14 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
       // Only reset if the new building doesn't contain the current floor
       if (_selectedFloorId != null && !f.any((e) => e['id'] == _selectedFloorId)) {
         _selectedFloorId = null;
-        _rooms = [];
-        _selectedRoomId = null;
+      }
+      
+      // If no floor selected, rooms list should default to building children (mix of rooms/floors)
+      if (_selectedFloorId == null) {
+        _rooms = f;
+        if (_selectedRoomId != null && !f.any((e) => e['id'] == _selectedRoomId)) {
+           _selectedRoomId = null;
+        }
       }
     });
     
