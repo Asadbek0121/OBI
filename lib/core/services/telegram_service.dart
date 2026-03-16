@@ -513,6 +513,14 @@ class TelegramService {
     final isAdmin = user['role'] == 'admin';
     final isBranch = user['role'] == 'branch';
 
+    if (msg['voice'] != null && isAdmin) {
+      await sendMessage(
+        chatId,
+        "🎙 *Ovoz qabul qilindi!* (AI tahrirlovchi...)\n\n_Hozirda AI ovozni matnga o'girish tizimlari faol emas. Iloji bo'lsa darhol quyidagi \n\"🧠 AI Analizator\" tugmasidan (yoki matn yozish orqali) foydalaning!_",
+      );
+      return;
+    }
+
     // Handle states
     if (_userStates[chatId] == 'waiting_for_qty') {
       final qty = double.tryParse(text);
@@ -735,6 +743,8 @@ class TelegramService {
       await _handleTodayStats(chatId);
     } else if (text.contains("Umumiy Hisobot") && isAdmin) {
       await _handleTotalStats(chatId);
+    } else if (text.contains("AI Analizator") && isAdmin) {
+      await _handleAIAnalytics(chatId);
     } else if (text.contains("Kam Qolganlar") && isAdmin) {
       await _handleLowStock(chatId);
     } else if (text.contains("Jihozlar")) {
@@ -1589,6 +1599,9 @@ class TelegramService {
           {"text": "💰 Umumiy Hisobot"},
         ],
         [
+          {"text": "🧠 AI Analizator"},
+        ],
+        [
           {"text": "⚠️ Kam Qolganlar"},
           {"text": "🖥 Jihozlar"},
         ],
@@ -1629,4 +1642,71 @@ class TelegramService {
     final markup = {"keyboard": keyboard, "resize_keyboard": true};
     await sendMessage(chatId, text, replyMarkup: markup);
   }
+
+  Future<void> _handleAIAnalytics(String chatId) async {
+    try {
+      await sendMessage(chatId, "⏳ *AI Analiz qilinmoqda...* Iltimos, kuting.");
+      final db = await DatabaseHelper.instance.database;
+      
+      // 1. Most active product
+      final topOut = await db.rawQuery(
+        '''SELECT p.name, SUM(so.quantity) as total_out
+           FROM stock_out so
+           JOIN products p ON so.product_id = p.id
+           WHERE so.date_time >= date('now', '-30 days')
+           GROUP BY p.id
+           ORDER BY total_out DESC
+           LIMIT 3'''
+      );
+
+      // 2. Shortage risk (current stock / velocity)
+      final shortage = await db.rawQuery(
+        '''SELECT p.name, 
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id) - 
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id) as current_stock,
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days')) as out_30d
+           FROM products p
+           WHERE current_stock > 0 AND out_30d > 0
+           ORDER BY (current_stock * 1.0 / out_30d) ASC
+           LIMIT 3'''
+      );
+
+      String report = "🧠 *SUN'IY INTELLEKT ANALITIKASI*\n";
+      report += "_(So'nggi 30 kunlik dinamika tahlili)_\n\n";
+
+      report += "🔥 *Eng tez sarflanayotganlar (Top-3):*\n";
+      if (topOut.isEmpty) {
+         report += " ➖ Hozircha chiqim yozuvlari yo'q\n";
+      } else {
+        for (var row in topOut) {
+          report += " 🔺 ${row['name']} - ${row['total_out']} ta sotildi\n";
+        }
+      }
+      report += "\n";
+
+      report += "⚠️ *Tugash xavfi ostidagilar (Prognoz):*\n";
+      if (shortage.isEmpty) {
+         report += " ✅ Zaxira barqaror holatda \n";
+      } else {
+        for (var row in shortage) {
+          final stock = row['current_stock'] as num;
+          final runRate = row['out_30d'] as num;
+          if (runRate > 0) {
+            final daysLeft = (stock / (runRate / 30.0)).round();
+            if (daysLeft < 30) {
+               report += " ❗ *${row['name']}* - taxminan *$daysLeft kunga* yetadi ($stock ta qolgan)\n";
+            } else {
+               report += " 🟢 *${row['name']}* - $daysLeft kunga yetadi ($stock ta qolgan)\n";
+            }
+          }
+        }
+      }
+      report += "\n💡 _AI Tavsiyasi:_ Tepada '❗' belgili tovarlarga zudlik bilan qo'shimcha buyurtma shakllantiring.";
+
+      await sendMessage(chatId, report);
+    } catch (e) {
+      await sendMessage(chatId, "❌ AI ulanishida xatolik yuz berdi: $e");
+    }
+  }
+
 }
