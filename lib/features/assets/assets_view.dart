@@ -178,10 +178,6 @@ class _AssetsViewState extends State<AssetsView> {
             children: [
               _buildHeader(t),
               const SizedBox(height: 24),
-              if (!_shouldShowLocationCards()) ...[
-                 _buildCategoryBar(t),
-                 const SizedBox(height: 16),
-              ],
               Expanded(
                 child: _isLoading 
                   ? const Center(child: CircularProgressIndicator())
@@ -203,6 +199,7 @@ class _AssetsViewState extends State<AssetsView> {
     // AND either we are at the top level or we haven't selected a final room yet
     // AND the user hasn't typed in search (search should show results immediately)
     if (_searchCtrl.text.isNotEmpty) return false;
+    if (_selectedCategoryId != null) return false;
     if (_selectedRoomId != null) return false;
     return _sidebarItems.isNotEmpty;
   }
@@ -513,9 +510,11 @@ class _AssetsViewState extends State<AssetsView> {
   Widget _buildHeader(AppTranslations t) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 16,
+      runSpacing: 16,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -606,30 +605,6 @@ class _AssetsViewState extends State<AssetsView> {
     );
   }
 
-  Widget _buildCategoryBar(AppTranslations t) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _CategoryChip(
-            label: t.text('filter_all_places'), // Use existing key 'filter_all_places' or add 'filter_all'
-            isSelected: _selectedCategoryId == null,
-            onTap: () => setState(() { _selectedCategoryId = null; _applyFilters(); }),
-          ),
-          ..._categories.map((c) =>  _CategoryChip(
-            label: c['name'],
-            isSelected: _selectedCategoryId == c['id'],
-            onTap: () => setState(() { _selectedCategoryId = c['id']; _applyFilters(); }),
-          )),
-          IconButton(
-            onPressed: _showCategoryManager, 
-            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.grey),
-            tooltip: "Kategoriya qo'shish",
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildGrid(AppTranslations t) {
     return GridView.builder(
@@ -844,17 +819,34 @@ class _CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) => onTap(),
-        selectedColor: AppColors.primary,
-        backgroundColor: Colors.white.withValues(alpha: 0.05),
-        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.grey[400]),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.2)),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected 
+              ? Colors.blue 
+              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected 
+                ? Colors.white 
+                : (isDark ? Colors.white70 : Colors.black45),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1113,10 +1105,9 @@ class _CategoryManagerDialogState extends State<_CategoryManagerDialog> {
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
-    return _buildBaseManager(t.text('col_category'), _ctrl, _list, (name) async {
+    return _buildBaseManager(context, t.text('col_category'), _ctrl, _list, (name) async {
        await DatabaseHelper.instance.insertAssetCategory(name);
        _load();
     }, (id) async {
@@ -1307,32 +1298,74 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
   }
 }
 
-Widget _buildBaseManager(String title, TextEditingController ctrl, List<Map<String, dynamic>> list, Function(String) onAdd, Function(int) onDel, AppTranslations t) {
+Widget _buildBaseManager(BuildContext context, String title, TextEditingController ctrl, List<Map<String, dynamic>> list, Function(String) onAdd, Function(int) onDel, AppTranslations t) {
+  final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
   return Dialog(
     backgroundColor: Colors.transparent,
-    child: GlassContainer(
+    child: Container(
       width: 400,
       height: 500,
       padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10))
+        ],
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: t.text('col_name')))),
-              const SizedBox(width: 10),
-              ElevatedButton(onPressed: () { if(ctrl.text.isNotEmpty) { onAdd(ctrl.text); ctrl.clear(); } }, child: const Icon(Icons.add)),
+              Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+              const CloseButton(),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: ctrl, 
+                  decoration: InputDecoration(
+                    hintText: t.text('col_name'),
+                    filled: true,
+                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)
+                  )
+                )
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () { if(ctrl.text.isNotEmpty) { onAdd(ctrl.text); ctrl.clear(); } }, 
+                child: const Icon(Icons.add)
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           Expanded(
-            child: ListView.separated(
-              itemCount: list.length,
-              separatorBuilder: (c, idx) => const Divider(),
-              itemBuilder: (context, index) => ListTile(
-                title: Text(list[index]['name']),
-                trailing: IconButton(onPressed: () => onDel(list[index]['id']), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20)),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListView.separated(
+                itemCount: list.length,
+                separatorBuilder: (c, idx) => Divider(height: 1, color: Colors.grey.withValues(alpha: 0.2)),
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(list[index]['name'], style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : Colors.black87)),
+                  trailing: IconButton(onPressed: () => onDel(list[index]['id']), icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 22)),
+                ),
               ),
             ),
           ),

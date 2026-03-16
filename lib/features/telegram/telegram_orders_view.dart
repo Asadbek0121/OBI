@@ -379,11 +379,11 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       DropdownButton<String>(
-                        value: ['admin', 'branch', 'Viewer', 'pending'].contains(role) ? role : 'pending',
+                        value: ['admin', 'branch', 'viewer', 'Viewer', 'pending'].contains(role) ? (role == 'Viewer' ? 'viewer' : role) : 'pending',
                         items: const [
                           DropdownMenuItem(value: 'admin', child: Text("Admin")),
                           DropdownMenuItem(value: 'branch', child: Text("Filial")),
-                          DropdownMenuItem(value: 'Viewer', child: Text("Ko'ruvchi")),
+                          DropdownMenuItem(value: 'viewer', child: Text("Ko'ruvchi")),
                           DropdownMenuItem(value: 'pending', child: Text("Kutmoqda")),
                         ],
                         onChanged: (val) async {

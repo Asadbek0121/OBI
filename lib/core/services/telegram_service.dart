@@ -14,6 +14,11 @@ class TelegramService {
   static const String _keyBotToken = 'telegram_bot_token';
   static const String _keyUsers = 'telegram_users';
 
+  // --- Singleton Pattern ---
+  static final TelegramService _instance = TelegramService._internal();
+  factory TelegramService() => _instance;
+  TelegramService._internal();
+
   // --- State Management ---
   final Map<String, String> _userStates = {};
   final Map<String, List<Map<String, dynamic>>> _userCarts = {};
@@ -736,6 +741,8 @@ class TelegramService {
       await _handleAssetsStatMenu(chatId);
     } else if (text.contains("Oxirgi Harakatlar") && isAdmin) {
       await _handleRecentActivity(chatId);
+    } else if (text.contains("Excel Hisobot") && isAdmin) {
+      await _handleExcelExport(chatId);
     } else if (text.contains("Foto Buyurtma") && isBranch) {
       _userStates[chatId] = "waiting_for_order_photo";
       await sendMessage(
@@ -1017,9 +1024,19 @@ class TelegramService {
           "🆔 ID: `#ORD-$orderId`\n"
           "📦 Mahsulotlar: **${cart.length} xil**\n"
           "-------------------------\n"
-          "📝 Tasdiqlash uchun ilovaga kiring.";
+          "Ilovaga kiring yoki darhol Telegram orqali tasdiqlang 👇";
+          
+      final inlineKb = {
+        'inline_keyboard': [
+          [
+            {'text': "✅ Tasdiqlash", 'callback_data': "order_approve:$orderId"},
+            {'text': "❌ Rad etish", 'callback_data': "order_reject:$orderId"},
+          ]
+        ]
+      };
+      
       for (var admin in admins) {
-        await sendMessage(admin['chatId'], adminMsg);
+        await sendMessage(admin['chatId'], adminMsg, replyMarkup: inlineKb);
       }
     } catch (e) {
       await sendMessage(chatId, "⚠️ Xatolik yuz berdi: $e");
@@ -1060,10 +1077,44 @@ class TelegramService {
     } else if (data == 'order_clear') {
       _userCarts[chatId] = [];
       await sendMessage(chatId, "🗑 Savat tozalandi.");
+    } else if (data.startsWith('order_approve:')) {
+      final oid = int.tryParse(data.split(':')[1]);
+      if (oid != null) {
+        await updateOrderStatus(oid, 'approved', chatId, adminComment: "Telegram orqali tasdiqlandi");
+        await editMessageText(chatId, messageId, "✅ Buyurtma #ORD-$oid muvaffaqiyatli tasdiqlandi!");
+      }
+    } else if (data.startsWith('order_reject:')) {
+      final oid = int.tryParse(data.split(':')[1]);
+      if (oid != null) {
+        await updateOrderStatus(oid, 'rejected', chatId, adminComment: "Telegram orqali rad etildi");
+        await editMessageText(chatId, messageId, "❌ Buyurtma #ORD-$oid rad etildi!");
+      }
     }
   }
 
   // --- Handlers ---
+  
+  Future<void> _handleExcelExport(String chatId) async {
+    try {
+      await sendMessage(chatId, "⏳ *Excel hisobot shakllantirilmoqda...*");
+      final db = DatabaseHelper.instance;
+      final path = await db.createBackup(null); // Assuming createBackup exports to an xlsx or similar
+      if (path != null) {
+        final error = await sendDocument(
+          chatId,
+          File(path),
+          caption: "📁 *Omborxona arxivi va hisoboti*",
+        );
+        if (error != null) {
+          await sendMessage(chatId, "⚠️ Faylni yuborib bo'lmadi: $error");
+        }
+      } else {
+        await sendMessage(chatId, "⚠️ Hozircha eksport ma'lumoti yo'q.");
+      }
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Xatolik yuz berdi: $e");
+    }
+  }
 
   Future<void> _handleAssetsStatMenu(String chatId, {int? messageId}) async {
     final db = await DatabaseHelper.instance.database;
@@ -1546,6 +1597,7 @@ class TelegramService {
           {"text": "🔎 Mahsulot Qidirish"},
         ],
         [
+          {"text": "📥 Excel Hisobot Yuklash"},
           {"text": "🔄 Yangilash"},
         ],
       ];
