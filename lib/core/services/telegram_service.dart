@@ -417,29 +417,62 @@ class TelegramService {
 
   Future<void> checkWeeklyBackup(DatabaseHelper databaseHelperInstance) async {
     final prefs = await SharedPreferences.getInstance();
-    final currentWeek =
-        (DateTime.now().millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7))
-            .floor();
+    final currentWeek = (DateTime.now().millisecondsSinceEpoch / (1000 * 60 * 60 * 24 * 7)).floor();
     if (currentWeek > (prefs.getInt(_keyLastBackupWeek) ?? 0)) {
       final users = await getUsers();
       if (users.isEmpty) return;
+      
+      final admin = users.any((u) => u['role'] == 'admin') 
+          ? users.firstWhere((u) => u['role'] == 'admin') 
+          : users.first;
+      
+      try {
+        final path = await databaseHelperInstance.createBackup(null);
+        if (path != null) {
+          await sendDocument(admin['chatId'], File(path), caption: "🛡️ Avtomatik Haftalik Zaxira (Arxiv)");
+          await prefs.setInt(_keyLastBackupWeek, currentWeek);
+        }
+      } catch (e) {
+        debugPrint("Weekly backup error: $e");
+      }
+    }
+  }
+
+  Future<void> checkDailyBackup(DatabaseHelper databaseHelperInstance) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month}-${now.day}";
+    
+    if (prefs.getString('last_daily_backup_date') == todayStr) return;
+    
+    // Auto backup every night at 23:00 or whenever opened after that
+    if (now.hour >= 23 || now.hour < 6) {
+      final users = await getUsers();
+      if (users.isEmpty) return;
+
+      final admin = users.any((u) => u['role'] == 'admin') 
+          ? users.firstWhere((u) => u['role'] == 'admin') 
+          : users.first;
+
       try {
         final path = await databaseHelperInstance.createBackup(null);
         if (path != null) {
           final error = await sendDocument(
-            users.first['chatId'],
-            File(path),
-            caption: "🛡️ Avtomatik Haftalik Zaxira",
+            admin['chatId'], 
+            File(path), 
+            caption: "🔐 *KUNLIK AVTO-ZAXIRA*\nTizim xavfsizligi yuzasidan barcha ma'lumotlar arxivlandi."
           );
           if (error == null) {
-            await prefs.setInt(_keyLastBackupWeek, currentWeek);
+            await prefs.setString('last_daily_backup_date', todayStr);
+            debugPrint("✅ Kunlik zaxira yuborildi.");
           }
         }
       } catch (e) {
-      debugPrint("getUpdates error: $e");
-    }
+        debugPrint("Daily backup error: $e");
+      }
     }
   }
+
 
   // --- BOT LISTENER (Interactive Mode) ---
   bool _isListening = false;
@@ -1653,7 +1686,8 @@ class TelegramService {
         '''SELECT p.name, SUM(so.quantity) as total_out
            FROM stock_out so
            JOIN products p ON so.product_id = p.id
-           WHERE so.date_time >= date('now', '-30 days')
+           WHERE so.date_time >= date('now', '-30 days') 
+             AND so.is_deleted = 0 AND p.is_deleted = 0
            GROUP BY p.id
            ORDER BY total_out DESC
            LIMIT 3'''
@@ -1662,11 +1696,11 @@ class TelegramService {
       // 2. Shortage risk (current stock / velocity)
       final shortage = await db.rawQuery(
         '''SELECT p.name, 
-                  (SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id) - 
-                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id) as current_stock,
-                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days')) as out_30d
+                  ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+                   (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as current_stock,
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
            FROM products p
-           WHERE current_stock > 0 AND out_30d > 0
+           WHERE p.is_deleted = 0 AND current_stock > 0 AND out_30d > 0
            ORDER BY (current_stock * 1.0 / out_30d) ASC
            LIMIT 3'''
       );

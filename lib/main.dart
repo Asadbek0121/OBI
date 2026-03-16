@@ -87,6 +87,7 @@ void main() async {
        
        // Initial Check
        await tgService.checkWeeklyBackup(DatabaseHelper.instance);
+       await tgService.checkDailyBackup(DatabaseHelper.instance);
        await tgService.checkDailyLowStockAlert(DatabaseHelper.instance);
        await tgService.checkDailyReportAuto(DatabaseHelper.instance);
 
@@ -94,6 +95,7 @@ void main() async {
        // This ensures if app is left open, it still sends the report at 18:00
        Stream.periodic(const Duration(minutes: 30)).listen((_) async {
           await tgService.checkDailyReportAuto(DatabaseHelper.instance);
+          await tgService.checkDailyBackup(DatabaseHelper.instance);
        });
 
        // 🎧 START INTERACTIVE BOT LISTENER

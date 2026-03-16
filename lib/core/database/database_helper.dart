@@ -126,6 +126,18 @@ class DatabaseHelper {
       } catch (e) {
         // Ignore if exists
       }
+
+      // 🛡️ STEP 2 for SECURITY: Soft Delete Columns (Recycle Bin)
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN is_deleted INTEGER DEFAULT 0");
+      } catch (e) {
+        // Ignore if exists
+      }
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN deleted_at TEXT");
+      } catch (e) {
+        // Ignore if exists
+      }
     }
 
 
@@ -503,7 +515,7 @@ class DatabaseHelper {
   // --- Product Logic ---
   Future<Map<String, dynamic>?> getProductById(String id) async {
     final db = await instance.database;
-    final results = await db.query('products', where: 'id = ?', whereArgs: [id], limit: 1);
+    final results = await db.query('products', where: 'id = ? AND is_deleted = 0', whereArgs: [id], limit: 1);
     return results.isNotEmpty ? results.first : null;
   }
 
@@ -514,15 +526,15 @@ class DatabaseHelper {
   
    Future<List<Map<String, dynamic>>> getAllProducts() async {
     final db = await instance.database;
-    return await db.query('products');
+    return await db.query('products', where: 'is_deleted = 0');
   }
 
   Future<void> deleteProduct(String id) async {
     final db = await instance.database;
-    // Optional: Delete related transactions first if no CASCADE
-    await db.delete('stock_in', where: 'product_id = ?', whereArgs: [id]);
-    await db.delete('stock_out', where: 'product_id = ?', whereArgs: [id]);
-    await db.delete('products', where: 'id = ?', whereArgs: [id]);
+    final deletedAt = DateTime.now().toUtc().toIso8601String();
+    await db.update('stock_in', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
+    await db.update('stock_out', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
+    await db.update('products', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'id = ?', whereArgs: [id]);
   }
 
   // --- Transactions ---
@@ -552,12 +564,13 @@ class DatabaseHelper {
       FROM products p
       LEFT JOIN (
         SELECT product_id, SUM(quantity) as total_in 
-        FROM stock_in GROUP BY product_id
+        FROM stock_in WHERE is_deleted = 0 GROUP BY product_id
       ) si ON p.id = si.product_id
       LEFT JOIN (
         SELECT product_id, SUM(quantity) as total_out 
-        FROM stock_out GROUP BY product_id
+        FROM stock_out WHERE is_deleted = 0 GROUP BY product_id
       ) so ON p.id = so.product_id
+      WHERE p.is_deleted = 0
     ''');
     
     return res.map((row) {
@@ -577,7 +590,7 @@ class DatabaseHelper {
     final db = await instance.database;
     
     // 1. Total Inventory Value (Optimized index query)
-    final valueRes = await db.rawQuery('SELECT IFNULL(SUM(total_amount), 0) as total_value FROM stock_in');
+    final valueRes = await db.rawQuery('SELECT IFNULL(SUM(total_amount), 0) as total_value FROM stock_in WHERE is_deleted = 0');
     final totalValue = (valueRes.first['total_value'] as num).toDouble();
 
     // 2 & 3. Low stock and Finished items (Calculated in one pass for performance)
@@ -896,10 +909,10 @@ class DatabaseHelper {
           p.id, 
           p.name, 
           p.unit,
-          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id) - 
-           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id)) as stock
+          ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock
         FROM products p
-        WHERE p.name LIKE ?
+        WHERE p.name LIKE ? AND p.is_deleted = 0
         LIMIT 5
       ''', [sanitized]);
       results.addAll(products);
@@ -918,7 +931,7 @@ class DatabaseHelper {
           si.quantity
         FROM stock_in si
         JOIN products p ON si.product_id = p.id
-        WHERE p.name LIKE ? OR si.supplier_name LIKE ?
+        WHERE (p.name LIKE ? OR si.supplier_name LIKE ?) AND si.is_deleted = 0 AND p.is_deleted = 0
         
         UNION ALL
         
@@ -930,7 +943,7 @@ class DatabaseHelper {
           so.quantity
         FROM stock_out so
         JOIN products p ON so.product_id = p.id
-        WHERE p.name LIKE ? OR so.receiver_name LIKE ?
+        WHERE (p.name LIKE ? OR so.receiver_name LIKE ?) AND so.is_deleted = 0 AND p.is_deleted = 0
       )
       ORDER BY date_time DESC
       LIMIT 5
@@ -984,9 +997,9 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getLocations({int? parentId}) async {
     final db = await instance.database;
     if (parentId == null) {
-      return await db.query('asset_locations', where: 'parent_id IS NULL');
+      return await db.query('asset_locations', where: 'parent_id IS NULL AND is_deleted = 0');
     }
-    return await db.query('asset_locations', where: 'parent_id = ?', whereArgs: [parentId]);
+    return await db.query('asset_locations', where: 'parent_id = ? AND is_deleted = 0', whereArgs: [parentId]);
   }
 
   Future<int> insertLocation(Map<String, dynamic> data) async {
@@ -996,7 +1009,11 @@ class DatabaseHelper {
 
   Future<void> deleteLocation(int id) async {
     final db = await instance.database;
-    await db.delete('asset_locations', where: 'id = ?', whereArgs: [id]);
+    await db.update('asset_locations', {
+      'is_deleted': 1, 
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      'sync_status': 'pending_update'
+    }, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<Map<String, dynamic>?> getLocationById(int id) async {
@@ -1052,6 +1069,7 @@ class DatabaseHelper {
       LEFT JOIN asset_locations l ON a.location_id = l.id
       LEFT JOIN asset_locations p ON l.parent_id = p.id
       LEFT JOIN asset_locations g ON p.parent_id = g.id
+      WHERE a.is_deleted = 0
       ORDER BY a.id DESC
     ''');
   }
@@ -1063,7 +1081,11 @@ class DatabaseHelper {
 
   Future<void> deleteAsset(int id) async {
     final db = await instance.database;
-    await db.delete('assets', where: 'id = ?', whereArgs: [id]);
+    await db.update('assets', {
+      'is_deleted': 1, 
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      'sync_status': 'pending_update'
+    }, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> updateAsset(int id, Map<String, dynamic> data) async {
@@ -1078,7 +1100,7 @@ class DatabaseHelper {
       FROM assets a
       LEFT JOIN asset_locations l ON a.location_id = l.id
       LEFT JOIN asset_categories c ON a.category_id = c.id
-      WHERE a.barcode = ?
+      WHERE a.barcode = ? AND a.is_deleted = 0
       LIMIT 1
     ''', [barcode]);
     return res.isNotEmpty ? res.first : null;
@@ -1204,12 +1226,20 @@ class DatabaseHelper {
   // Transaction Management (Edit/Delete)
   Future<void> deleteStockIn(dynamic id) async {
     final db = await instance.database;
-    await db.delete('stock_in', where: 'id = ?', whereArgs: [id]);
+    await db.update('stock_in', {
+      'is_deleted': 1, 
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      'sync_status': 'pending_update'
+    }, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> deleteStockOut(dynamic id) async {
     final db = await instance.database;
-    await db.delete('stock_out', where: 'id = ?', whereArgs: [id]);
+    await db.update('stock_out', {
+      'is_deleted': 1, 
+      'deleted_at': DateTime.now().toUtc().toIso8601String(),
+      'sync_status': 'pending_update'
+    }, where: 'id = ?', whereArgs: [id]);
   }
 
   Future<void> updateStockIn(String id, Map<String, dynamic> data) async {
