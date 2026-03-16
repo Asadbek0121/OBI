@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
-// import 'app_config.dart';
+import 'app_config.dart';
 import 'core/database/database_helper.dart';
 import 'core/services/telegram_service.dart';
+import 'core/services/sync_service.dart';
 
 import 'package:provider/provider.dart';
 import 'core/localization/app_translations.dart';
@@ -18,6 +19,17 @@ import 'features/setup/database_setup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // ☁️ INITIALIZE SUPABASE
+  try {
+    await Supabase.initialize(
+      url: AppConfig.supabaseUrl,
+      anonKey: AppConfig.supabaseAnonKey,
+    );
+    debugPrint("✅ System: Supabase initialized.");
+  } catch (e) {
+    debugPrint("⚠️ System: Supabase init skipped or failed: $e");
+  }
+
   // Initialize Window Manager for Desktop
   await windowManager.ensureInitialized();
 
@@ -87,8 +99,12 @@ void main() async {
        // 🎧 START INTERACTIVE BOT LISTENER
        tgService.startBotListener();
 
+        // 🔄 SYNC SERVICE INIT
+        final syncService = SyncService();
+        await syncService.init();
+
     } catch (e) {
-       debugPrint("❌ System: Telegram Scheduler Error: $e");
+       debugPrint("❌ System: Service Initialization Error: $e");
     }
   }
 

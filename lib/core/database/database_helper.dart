@@ -102,12 +102,32 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE assets ADD COLUMN photo_path TEXT');
       debugPrint("✅ Schema Repair: Added 'photo_path' to assets table.");
     } catch (e) {
-      // Expected if column exists. Check if it's strictly a duplicate column error.
-      // If not, print it.
-      if (!e.toString().toLowerCase().contains('duplicate')) {
-        // debugPrint("ℹ️ Schema Check: 'photo_path' likely exists.");
+      if (!e.toString().toLowerCase().contains('duplicate')) {}
+    }
+
+    // 🚀 STEP 1 for CLOUD SYNC: Ensure ALL tables have 'updated_at' and 'sync_status'
+    final tablesToSync = [
+      'products', 'stock_in', 'stock_out', 'assets', 
+      'asset_locations', 'asset_categories', 'asset_movements',
+      'branch_orders', 'branch_order_items'
+    ];
+
+    for (var table in tablesToSync) {
+      // Add 'updated_at' column
+      try {
+        await db.execute('ALTER TABLE $table ADD COLUMN updated_at TEXT CURRENT_TIMESTAMP');
+      } catch (e) {
+        // Ignore if exists
+      }
+      
+      // Add 'sync_status' column (default: pending_insert for cloud sync logic)
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN sync_status TEXT DEFAULT 'pending_insert'");
+      } catch (e) {
+        // Ignore if exists
       }
     }
+
 
     // 2. Assets Module Tables (RESTACKED)
     await db.execute('''
@@ -458,6 +478,23 @@ class DatabaseHelper {
     await db.insert('payment_types', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
+  // --- Helper for Sync ---
+
+  Map<String, dynamic> _prepareInsert(Map<String, dynamic> data) {
+    var map = Map<String, dynamic>.from(data);
+    map['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    map['sync_status'] = 'pending_insert';
+    return map;
+  }
+
+  Map<String, dynamic> _prepareUpdate(Map<String, dynamic> data) {
+    var map = Map<String, dynamic>.from(data);
+    map['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    map['sync_status'] = 'pending_update';
+    return map;
+  }
+
+  // --- Products Master ---
   Future<void> deletePaymentType(String name) async {
     final db = await instance.database;
     await db.delete('payment_types', where: 'name = ?', whereArgs: [name]);
@@ -472,7 +509,7 @@ class DatabaseHelper {
 
   Future<void> insertProduct(Map<String, dynamic> product) async {
     final db = await instance.database;
-    await db.insert('products', product, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('products', _prepareInsert(product), conflictAlgorithm: ConflictAlgorithm.replace);
   }
   
    Future<List<Map<String, dynamic>>> getAllProducts() async {
@@ -491,12 +528,12 @@ class DatabaseHelper {
   // --- Transactions ---
   Future<void> insertStockIn(Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.insert('stock_in', data);
+    await db.insert('stock_in', _prepareInsert(data));
   }
 
   Future<void> insertStockOut(Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.insert('stock_out', data);
+    await db.insert('stock_out', _prepareInsert(data));
   }
 
   // --- Inventory Logic ---
@@ -849,7 +886,7 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> searchGlobal(String query) async {
     final db = await instance.database;
     final sanitized = '%$query%';
-    final results = <Map<String, dynamic>>[];
+    final results = <Map<String, dynamic>>{}; // Use a Set or Map to avoid duplicates if needed, or just List
 
     // 1. Products & Stock
     try {
@@ -938,7 +975,7 @@ class DatabaseHelper {
       debugPrint("❌ Assets Search Error: $e");
     }
 
-    return results;
+    return results.toList();
   }
 
   // --- Hierarchical Assets Management ---
@@ -1021,7 +1058,7 @@ class DatabaseHelper {
 
   Future<void> insertAsset(Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.insert('assets', data, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('assets', _prepareInsert(data), conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> deleteAsset(int id) async {
@@ -1031,7 +1068,7 @@ class DatabaseHelper {
 
   Future<void> updateAsset(int id, Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.update('assets', data, where: 'id = ?', whereArgs: [id]);
+    await db.update('assets', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
   }
 
   Future<Map<String, dynamic>?> getAssetByBarcode(String barcode) async {
@@ -1175,13 +1212,13 @@ class DatabaseHelper {
     await db.delete('stock_out', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> updateStockIn(dynamic id, Map<String, dynamic> data) async {
+  Future<void> updateStockIn(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.update('stock_in', data, where: 'id = ?', whereArgs: [id]);
+    await db.update('stock_in', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> updateStockOut(dynamic id, Map<String, dynamic> data) async {
+  Future<void> updateStockOut(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.update('stock_out', data, where: 'id = ?', whereArgs: [id]);
+    await db.update('stock_out', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
   }
 }
