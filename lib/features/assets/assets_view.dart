@@ -20,7 +20,6 @@ class AssetsView extends StatefulWidget {
 class _AssetsViewState extends State<AssetsView> {
   List<Map<String, dynamic>> _allAssets = [];
   List<Map<String, dynamic>> _filteredAssets = [];
-  List<Map<String, dynamic>> _categories = [];
   
   bool _isLoading = true;
   final TextEditingController _searchCtrl = TextEditingController();
@@ -49,11 +48,9 @@ class _AssetsViewState extends State<AssetsView> {
   }
 
   Future<void> _loadMetadata() async {
-    final cats = await DatabaseHelper.instance.getAssetCategories();
     final items = await DatabaseHelper.instance.getLocations(parentId: _sidebarParentId);
     if (mounted) {
       setState(() {
-        _categories = cats;
         _sidebarItems = items;
         if (_sidebarParentId == null) {
           // Update title based on current language if we are at root
@@ -652,12 +649,6 @@ class _AssetsViewState extends State<AssetsView> {
   }
 
   // Dialogs & Screens
-  void _showCategoryManager() {
-     showDialog(
-       context: context,
-       builder: (context) => const _CategoryManagerDialog(),
-     ).then((_)=> _loadMetadata());
-  }
 
   void _showLocationManager({int? initialParentId}) {
     showDialog(
@@ -810,47 +801,6 @@ class _QuickAddBtn extends StatelessWidget {
   }
 }
 
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _CategoryChip({required this.label, required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected 
-              ? Colors.blue 
-              : (isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? Colors.blue : Colors.grey.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected 
-                ? Colors.white 
-                : (isDark ? Colors.white70 : Colors.black45),
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _AnimatedAssetCard extends StatefulWidget {
   final int index;
