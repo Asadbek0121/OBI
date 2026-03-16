@@ -1,4 +1,4 @@
 class AppConfig {
   static const String supabaseUrl = 'https://zrsorgdjmsadqksdykyq.supabase.co';
-  static const String supabaseAnonKey = 'sb_publishable_TPhosX1bOyRSMqS5hZH3kw_X7GLeJ9s';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWJhc2FzZSIsInNlcnZpY2Vfcm9sZSI6ImFub24iLCJpYXQiOjE3NDIxMDk1MzcsImV4cCI6MjA1NzY4NTUzN30.C_t-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y';
 }
