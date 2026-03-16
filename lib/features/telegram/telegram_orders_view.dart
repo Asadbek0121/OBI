@@ -7,7 +7,6 @@ import '../../core/database/database_helper.dart';
 import '../../core/services/telegram_service.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/services/print_service.dart';
-
 import 'package:http/http.dart' as http;
 
 class TelegramManagementView extends StatefulWidget {
@@ -202,8 +201,19 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                           child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
                         ),
                       
-                      if (status == 'approved') ...[
+                      if (status == 'approved' || status == 'delivered') ...[
                         const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.print_outlined, color: Colors.blueGrey),
+                          onPressed: () {
+                            if (order['items'] != null && (order['items'] as List).isNotEmpty) {
+                              PrintService.printWaybill(order, List<Map<String, dynamic>>.from(order['items']));
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bu buyurtma ichida tovar yo'q, faqat rasm bo'lishi mumkin.")));
+                            }
+                          },
+                          tooltip: "Nakladnoy (A4) kvitansiya chiqarish",
+                        ),
                         IconButton(
                           icon: const Icon(Icons.qr_code_2, color: Colors.blue),
                           onPressed: () => _showQRDialog(order['id']),

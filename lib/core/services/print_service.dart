@@ -175,6 +175,124 @@ class PrintService {
     );
   }
 
+  static Future<void> printWaybill(Map<String, dynamic> order, List<Map<String, dynamic>> items) async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(30),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text("OMBOR YO'LLANMASI (Nakladnoy)", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 5),
+                      pw.Text("No: #ORD-${order['id']}", style: pw.TextStyle(fontSize: 14)),
+                      pw.Text("Sana: ${order['created_at']?.toString().substring(0, 16).replaceAll('T', ' ') ?? DateTime.now().toString().substring(0,16)}", style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                    ]
+                  ),
+                  pw.Container(
+                    padding: const pw.EdgeInsets.all(10),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.blue, width: 2),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
+                    ),
+                    child: pw.Text("KASALXONA OMBORXONASI\nQABUL QILISH AKTI", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue)),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 30),
+
+              // Parties Info
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text("Yuboruvchi (Ombor):", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                        pw.Text("Markaziy Ombor", style: const pw.TextStyle(fontSize: 14)),
+                        pw.Text("Qabul Qiluvchi (Filial/Bo'lim):", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                        pw.Text("${order['branch_name'] ?? 'Filial'}", style: const pw.TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+
+              // Items Table
+              pw.Text("Tarkibi:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+              pw.SizedBox(height: 10),
+              pw.TableHelper.fromTextArray(
+                context: context,
+                border: pw.TableBorder.all(color: PdfColors.grey400, width: 1),
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.blue),
+                headers: ['#', 'Mahsulot nomi', 'Miqdori', 'O\'lchov birligi'],
+                data: List<List<String>>.generate(items.length, (index) {
+                  final item = items[index];
+                  return [
+                    (index + 1).toString(),
+                    item['product_name'].toString(),
+                    item['quantity'].toString(),
+                    item['unit'].toString(),
+                  ];
+                }),
+              ),
+              pw.SizedBox(height: 40),
+
+              // Signatures
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Text("Topshirdi (Omborchi):", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 30),
+                      pw.Container(width: 150, height: 1, color: PdfColors.black),
+                      pw.SizedBox(height: 5),
+                      pw.Text("(F.I.SH / Imzo)", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                    ]
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    children: [
+                      pw.Text("Qabul qildi:", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 30),
+                      pw.Container(width: 150, height: 1, color: PdfColors.black),
+                      pw.SizedBox(height: 5),
+                      pw.Text("(F.I.SH / Imzo)", style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+                    ]
+                  ),
+                ]
+              ),
+
+              pw.Spacer(),
+              pw.Center(child: pw.Text("Tizim orqali avtomatik ravishda tayyorlangan.", style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey))),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      name: 'Waybill_ORD${order['id']}.pdf',
+    );
+  }
+
   static pw.Widget _item(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),
