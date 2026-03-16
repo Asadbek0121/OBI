@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class DatabaseSecurityService {
@@ -28,9 +28,9 @@ class DatabaseSecurityService {
       if (key == null) {
         key = _generateSecureRandomKey();
         await _secureStorage.write(key: _kKeyStorageId, value: key);
-        print("🔐 Security: New Vault Key generated and stored in Secure Enclave.");
+        debugPrint("🔐 Security: New Vault Key generated and stored in Secure Enclave.");
       } else {
-        print("🔓 Security: Vault Key successfully retrieved from Secure Enclave.");
+        debugPrint("🔓 Security: Vault Key successfully retrieved from Secure Enclave.");
       }
 
       return key;

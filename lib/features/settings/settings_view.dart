@@ -11,10 +11,7 @@ import '../../core/utils/app_notifications.dart';
 import '../../core/widgets/app_dialogs.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/database/database_helper.dart';
-import '../../core/database/database_helper.dart';
-import '../../core/services/telegram_service.dart';
 import '../../core/services/excel_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -148,7 +145,7 @@ class _SettingsViewState extends State<SettingsView> {
                // Create Backup
                final savedPath = await DatabaseHelper.instance.createBackup(selectedDirectory);
                
-               if (mounted) {
+               if (context.mounted) {
                  if (savedPath != null) {
                     AppNotifications.showSuccess(context, "Zaxira saqlandi: $savedPath");
                  } else {
@@ -171,7 +168,7 @@ class _SettingsViewState extends State<SettingsView> {
       String path = result.files.single.path!;
       
       // Confirm Dialog
-      if (!mounted) return;
+      if (!context.mounted) return;
       final t = Provider.of<AppTranslations>(context, listen: false); // Ensure t is available
       
       AppDialogs.showBlurDialog(
@@ -189,17 +186,18 @@ class _SettingsViewState extends State<SettingsView> {
                 Navigator.pop(context); // Close dialog
                 
                 bool success = await DatabaseHelper.instance.restoreBackup(path);
-                if (mounted) {
+                if (context.mounted) {
                   if (success) {
                     AppNotifications.showSuccess(context, "Ma'lumotlar tiklandi! Dastur qayta ishga tushirilmoqda...");
                     
                     // Restart App Flow
                     Future.delayed(const Duration(seconds: 2), () {
+                        if (!context.mounted) return;
                         Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (c) => const SplashScreen()),
-                        (route) => false,
-                      );
-                    });
+                          MaterialPageRoute(builder: (c) => const SplashScreen()),
+                          (route) => false,
+                        );
+                      });
                   } else {
                     AppNotifications.showError(context, t.text('msg_error'));
                   }
@@ -221,11 +219,11 @@ class _SettingsViewState extends State<SettingsView> {
     );
      
     if (result != null && result.files.single.path != null) {
-       if (!mounted) return;
+       if (!context.mounted) return;
        AppDialogs.showBlurDialog(context: context, title: "Yuklanmoqda...", content: const CircularProgressIndicator());
        try {
           final res = await ExcelService.importData(result.files.single.path!);
-          if (!mounted) return;
+          if (!context.mounted) return;
           Navigator.pop(context); // close loader
           
           if (res['in'] == 0 && res['out'] == 0) {
@@ -240,7 +238,7 @@ class _SettingsViewState extends State<SettingsView> {
              AppNotifications.showSuccess(context, "Muvaffaqiyatli! Kirim: ${res['in']}, Chiqim: ${res['out']} ta.");
           }
        } catch (e) {
-          if (!mounted) return;
+          if (!context.mounted) return;
           Navigator.pop(context);
           AppNotifications.showError(context, "Xatolik: $e");
        }
@@ -248,12 +246,9 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   // --- Telegram Logic ---
-  final _telegramService = TelegramService();
-  final _tgTokenController = TextEditingController();
 
 
   Future<void> _clearAllData(BuildContext context) async {
-    final t = Provider.of<AppTranslations>(context, listen: false);
     final confirm = await AppDialogs.showConfirmDialog(
       context: context,
       title: "Diqqat!",
@@ -363,7 +358,7 @@ class _SettingsViewState extends State<SettingsView> {
                     themeProvider.toggleTheme(v);
                     AppNotifications.showInfo(context, v ? "Tun rejimi yoqildi" : "Kun rejimi yoqildi");
                   },
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                 ),
               ),
               const _LanguageCard(),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -23,7 +24,7 @@ class DatabaseHelper {
     // 🔐 "The Vault" Logic: Retrieve the key from Secure Enclave
     final String encryptionKey = await _securityService.getDatabaseEncryptionKey();
 
-    print("🛡️ Database: Opening generic Secure Database...");
+    debugPrint("🛡️ Database: Opening generic Secure Database...");
 
     // Open the database with AES-256 Encryption
     return await openDatabase(
@@ -35,7 +36,7 @@ class DatabaseHelper {
   }
 
   Future<void> _createDB(Database db, int version) async {
-    print("📝 Database: Creating fresh tables...");
+    debugPrint("📝 Database: Creating fresh tables...");
 
     // 1. UNITS
     await db.execute('''
@@ -124,6 +125,6 @@ class DatabaseHelper {
     await db.rawInsert('INSERT INTO categories(id, name, type) VALUES("c1", "Reagents", "reagent")');
     await db.rawInsert('INSERT INTO categories(id, name, type) VALUES("c2", "Consumables", "consumable")');
 
-    print("🌱 Database: Seed data inserted.");
+    debugPrint("🌱 Database: Seed data inserted.");
   }
 }

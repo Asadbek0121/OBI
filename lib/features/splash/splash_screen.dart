@@ -1,9 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'package:clinical_warehouse/core/services/auth_provider.dart';
-import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/features/dashboard/dashboard_screen.dart';
 import '../../core/widgets/window_buttons.dart';
 import 'dart:io';
@@ -82,7 +79,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   void _handleLogin() async {
-    final t = Provider.of<AppTranslations>(context, listen: false);
     final auth = Provider.of<AuthProvider>(context, listen: false);
     
     setState(() {
@@ -97,8 +93,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           transitionDuration: const Duration(milliseconds: 1000),
-          pageBuilder: (_, __, ___) => const DashboardScreen(),
-          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+          pageBuilder: (ctx, anim, secAnim) => const DashboardScreen(),
+          transitionsBuilder: (ctx, anim, secAnim, child) => FadeTransition(opacity: anim, child: child),
         ),
       );
     } else {
@@ -113,10 +109,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    // Colors
-    const Color primaryBlue = Color(0xFF2E3192);
-    const Color primaryCyan = Color(0xFF1BFFFF);
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -146,14 +138,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         top: -100, right: -100,
                         child: Container(
                           width: 400, height: 400,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.05)),
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.05)),
                         ),
                       ),
                       Positioned(
                         bottom: -50, left: -50,
                         child: Container(
                           width: 300, height: 300,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.05)),
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.05)),
                         ),
                       ),
                       
@@ -195,7 +187,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 const SizedBox(height: 16),
                                 Text(
                                   "Tizim yuklanmoqda...",
-                                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                                 ),
                               ]
                             ],
@@ -295,7 +287,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                   colors: [Color(0xFF0038F3), Color(0xFF00D2FF)],
                                 ),
                                 boxShadow: [
-                                  BoxShadow(color: const Color(0xFF0038F3).withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 8)),
+                                  BoxShadow(color: const Color(0xFF0038F3).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8)),
                                 ]
                               ),
                               child: ElevatedButton(
@@ -357,7 +349,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
         boxShadow: [
-          BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 4, offset:const Offset(0, 2))
+          BoxShadow(color: Colors.grey.withValues(alpha: 0.05), blurRadius: 4, offset:const Offset(0, 2))
         ]
       ),
       child: TextField(

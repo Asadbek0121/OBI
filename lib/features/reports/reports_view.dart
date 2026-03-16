@@ -262,7 +262,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                     TextField(controller: priceController, decoration: fieldDecor('Narx (Dona)', Icons.attach_money), keyboardType: TextInputType.number),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
+                      initialValue: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
                       decoration: fieldDecor("To'lov turi", Icons.payment),
                       dropdownColor: Colors.white,
                       items: paymentOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
@@ -324,13 +324,13 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                       await DatabaseHelper.instance.updateStockOut(id, updateData);
                     }
 
-                    if (mounted) {
-                       Navigator.pop(c);
-                       _loadData(); // Reload to refresh grid
-                       AppNotifications.showSuccess(this.context, "Yangilandi");
-                    }
+                    if (!context.mounted) return;
+                    Navigator.pop(c);
+                    _loadData(); // Reload to refresh grid
+                    AppNotifications.showSuccess(context, "Yangilandi");
                   } catch (e) {
-                    if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+                    if (!context.mounted) return;
+                    AppNotifications.showError(context, "Xatolik: $e");
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -572,6 +572,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     final t = Provider.of<AppTranslations>(context, listen: false);
     final fileBytes = await _generateExcel();
     if (fileBytes == null) {
+       if (!mounted) return;
        AppNotifications.showInfo(context, t.text('msg_no_data'));
        return;
     }
@@ -635,10 +636,12 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
     final fileBytes = await _generateComprehensiveExcel();
     if (fileBytes == null) {
+      if (!mounted) return;
       AppNotifications.showInfo(context, "Ma'lumot topilmadi");
       return;
     }
 
+    if (!mounted) return;
     // Select User
     final selectedUser = await showDialog<Map<String, dynamic>>(
       context: context, 
@@ -822,20 +825,20 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   List<PlutoColumn> _getInColumns(AppTranslations t) {
     return [
       PlutoColumn(title: t.text('col_date'), field: 'date', type: PlutoColumnType.text(), width: 110),
-      PlutoColumn(title: t.text('col_id') ?? 'ID', field: 'product_id', type: PlutoColumnType.text(), width: 80),
+      PlutoColumn(title: t.text('col_id'), field: 'product_id', type: PlutoColumnType.text(), width: 80),
       PlutoColumn(title: t.text('col_product'), field: 'product', type: PlutoColumnType.text(), width: 200),
       PlutoColumn(title: t.text('col_price'), field: 'price', type: PlutoColumnType.currency(symbol: ''), width: 100),
       PlutoColumn(title: t.text('col_unit'), field: 'unit', type: PlutoColumnType.text(), width: 70),
       PlutoColumn(title: t.text('col_qty'), field: 'quantity', type: PlutoColumnType.number(), width: 80),
-      PlutoColumn(title: t.text('col_tax_percent') ?? 'QQS %', field: 'tax_percent', type: PlutoColumnType.number(), width: 80),
-      PlutoColumn(title: t.text('col_tax_sum') ?? 'QQS Sum', field: 'tax_sum', type: PlutoColumnType.number(), width: 100),
-      PlutoColumn(title: t.text('col_surcharge_percent') ?? 'Ustama %', field: 'surcharge_percent', type: PlutoColumnType.number(), width: 80),
-      PlutoColumn(title: t.text('col_surcharge_sum') ?? 'Ustama Sum', field: 'surcharge_sum', type: PlutoColumnType.number(), width: 100),
+      PlutoColumn(title: t.text('col_tax_percent'), field: 'tax_percent', type: PlutoColumnType.number(), width: 80),
+      PlutoColumn(title: t.text('col_tax_sum'), field: 'tax_sum', type: PlutoColumnType.number(), width: 100),
+      PlutoColumn(title: t.text('col_surcharge_percent'), field: 'surcharge_percent', type: PlutoColumnType.number(), width: 80),
+      PlutoColumn(title: t.text('col_surcharge_sum'), field: 'surcharge_sum', type: PlutoColumnType.number(), width: 100),
       PlutoColumn(title: t.text('col_from'), field: 'party', type: PlutoColumnType.text(), width: 120),
       PlutoColumn(title: t.text('col_payment_status'), field: 'payment_status', type: PlutoColumnType.text(), width: 120),
       PlutoColumn(title: t.text('col_total_amount'), field: 'total', type: PlutoColumnType.currency(symbol: ''), width: 120),
       PlutoColumn(
-        title: t.text('actions') ?? 'Amallar',
+        title: t.text('actions'),
         field: 'actions',
         type: PlutoColumnType.text(),
         width: 100,
@@ -868,10 +871,10 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       PlutoColumn(title: t.text('col_product'), field: 'product', type: PlutoColumnType.text(), width: 250),
       PlutoColumn(title: t.text('col_qty'), field: 'quantity', type: PlutoColumnType.number(), width: 100),
       PlutoColumn(title: t.text('col_unit'), field: 'unit', type: PlutoColumnType.text(), width: 80),
-      PlutoColumn(title: t.text('col_to') ?? 'Kimga', field: 'party', type: PlutoColumnType.text(), width: 200),
-      PlutoColumn(title: t.text('col_notes') ?? 'Izoh', field: 'notes', type: PlutoColumnType.text(), width: 150),
+      PlutoColumn(title: t.text('col_to'), field: 'party', type: PlutoColumnType.text(), width: 200),
+      PlutoColumn(title: t.text('col_notes'), field: 'notes', type: PlutoColumnType.text(), width: 150),
       PlutoColumn(
-        title: t.text('actions') ?? 'Amallar',
+        title: t.text('actions'),
         field: 'actions',
         type: PlutoColumnType.text(),
         width: 100,

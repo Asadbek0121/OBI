@@ -126,7 +126,7 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
               decoration: BoxDecoration(
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -141,7 +141,7 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: widget.color.withOpacity(0.2),
+                        color: widget.color.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(widget.icon, color: widget.color, size: 24),
@@ -163,7 +163,7 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
                           Text(
                             widget.message,
                             style: TextStyle(
-                              color: Colors.black.withOpacity(0.7),
+                              color: Colors.black.withValues(alpha: 0.7),
                               fontSize: 13,
                             ),
                           ),

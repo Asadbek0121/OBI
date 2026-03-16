@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/glass_container.dart';
@@ -7,7 +6,6 @@ import '../../core/localization/app_translations.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/telegram_service.dart';
 import '../../core/utils/app_notifications.dart';
-import 'package:intl/intl.dart';
 import '../../core/services/print_service.dart';
 
 import 'package:http/http.dart' as http;
@@ -129,7 +127,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(backgroundColor: statusColor.withOpacity(0.1), child: Icon(Icons.shopping_bag_outlined, color: statusColor)),
+                      CircleAvatar(backgroundColor: statusColor.withValues(alpha: 0.1), child: Icon(Icons.shopping_bag_outlined, color: statusColor)),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -157,9 +155,9 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.withOpacity(0.2))
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2))
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,7 +174,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                                 Text("${item['quantity']} ${item['unit']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               ],
                             ),
-                          )).toList(),
+                          )),
                         ],
                       ),
                     ),
@@ -200,7 +198,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                       ] else 
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                           child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11)),
                         ),
                       
@@ -255,9 +253,9 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                                       Container(
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: AppColors.error.withOpacity(0.1),
+                                          color: AppColors.error.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(color: AppColors.error.withOpacity(0.3))
+                                          border: Border.all(color: AppColors.error.withValues(alpha: 0.3))
                                         ),
                                         child: Row(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,7 +359,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                 final role = u['role'] ?? 'pending';
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: (role == 'admin' ? Colors.red : role == 'branch' ? Colors.blue : Colors.grey).withOpacity(0.1),
+                    backgroundColor: (role == 'admin' ? Colors.red : role == 'branch' ? Colors.blue : Colors.grey).withValues(alpha: 0.1),
                     child: Icon(role == 'admin' ? Icons.admin_panel_settings : role == 'branch' ? Icons.store : Icons.person_outline, color: role == 'admin' ? Colors.red : role == 'branch' ? Colors.blue : Colors.grey),
                   ),
                   title: Row(
@@ -533,7 +531,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                     order['chat_id'], 
                     adminComment: commentCtrl.text
                   );
-                  
+                  if (!context.mounted) return;
                   AppNotifications.showSuccess(context, isApprove ? "Tasdiqlandi" : "Rad etildi");
                   _loadAll();
                   Navigator.pop(context);
@@ -565,7 +563,6 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
   }
 
   Future<Map<String, dynamic>?> _showProductSearchDialog() async {
-     String query = "";
      List<Map<String, dynamic>> results = [];
      final qtyCtrl = TextEditingController();
      
@@ -583,7 +580,6 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                    TextField(
                      decoration: const InputDecoration(labelText: "Qidirish...", prefixIcon: Icon(Icons.search), border: OutlineInputBorder()),
                      onChanged: (val) async {
-                        query = val;
                         if (val.length > 1) {
                            final db = await DatabaseHelper.instance.database;
                            final res = await db.query('products', where: 'name LIKE ?', whereArgs: ['%$val%'], limit: 5);
@@ -668,6 +664,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
             onPressed: () async {
               if (ctrl.text.isNotEmpty) {
                 await _telegramService.updateUserName(chatId, ctrl.text);
+                if (!c.mounted) return;
                 _loadAll();
                 Navigator.pop(c);
               }
@@ -699,6 +696,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty && idCtrl.text.isNotEmpty) {
                 await _telegramService.addUser(nameCtrl.text, idCtrl.text, 'Viewer');
+                if (!c.mounted) return;
                 _loadAll();
                 Navigator.pop(c);
               }
@@ -714,6 +712,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
     AppNotifications.showInfo(context, "Ro'yxat yangilanmoqda...");
     await _loadAll();
     
+    if (!mounted) return;
     final pendingCount = _users.where((u) => u['role'] == 'pending').length;
     if (pendingCount > 0) {
       AppNotifications.showSuccess(context, "$pendingCount ta yangi (kutilayotgan) foydalanuvchi bor.");
@@ -851,7 +850,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Image.network(

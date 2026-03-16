@@ -5,7 +5,6 @@ import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:barcode_widget/barcode_widget.dart';
 import 'package:clinical_warehouse/core/services/excel_service.dart';
 import 'package:clinical_warehouse/core/services/print_service.dart';
-import 'dart:math';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +21,6 @@ class _AssetsViewState extends State<AssetsView> {
   List<Map<String, dynamic>> _allAssets = [];
   List<Map<String, dynamic>> _filteredAssets = [];
   List<Map<String, dynamic>> _categories = [];
-  List<Map<String, dynamic>> _buildings = [];
   
   bool _isLoading = true;
   final TextEditingController _searchCtrl = TextEditingController();
@@ -58,11 +56,12 @@ class _AssetsViewState extends State<AssetsView> {
         _categories = cats;
         _sidebarItems = items;
         if (_sidebarParentId == null) {
-          _buildings = items; // Useful for dropdowns
           // Update title based on current language if we are at root
           try {
              _sidebarTitle = Provider.of<AppTranslations>(context, listen: false).text('assets_building');
-          } catch (e) {}
+          } catch (e) {
+             debugPrint("Translation error: $e");
+          }
         }
       });
     }
@@ -261,8 +260,9 @@ class _AssetsViewState extends State<AssetsView> {
     final type = item['type'] ?? 'building';
     final IconData icon = type == 'building' ? Icons.business_rounded :
                           type == 'floor' ? Icons.layers_rounded : Icons.meeting_room_rounded;
-    final Color color = type == 'building' ? Colors.blue :
-                        type == 'floor' ? Colors.purple : Colors.orange;
+    final Color color = type == 'building' ? Colors.blueAccent :
+                        type == 'floor' ? Colors.purpleAccent : Colors.orangeAccent;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
     return InkWell(
       onTap: () {
@@ -283,61 +283,65 @@ class _AssetsViewState extends State<AssetsView> {
           _applyFilters();
         });
       },
-      borderRadius: BorderRadius.circular(24),
-      child: GlassContainer(
-        borderRadius: 24,
-        padding: const EdgeInsets.all(24),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10, offset: const Offset(0, 4)
+            )
+          ],
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Icon(icon, color: color, size: 24),
                 ),
                 Text(
                   "${_getCountForLocation(item['id'], type)} ${t.text('assets_count_unit')}",
-                  style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-             Expanded(
-               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    item['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    item['short_code'] ?? t.text('assets_no_code'),
-                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  ),
-                ],
-              ),
+            const Spacer(),
+            Text(
+              item['name'],
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const Divider(height: 16, color: AppColors.glassBorder),
+            const SizedBox(height: 4),
+            Text(
+              (item['short_code'] ?? t.text('assets_no_code')).toString().toUpperCase(),
+              style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            ),
+            const Spacer(),
+            const Divider(height: 1, color: Colors.black12),
+            const SizedBox(height: 12),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(Icons.arrow_forward_ios_rounded, size: 12, color: color.withOpacity(0.5)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    type == 'building' ? t.text('assets_view_floors') : (type == 'floor' ? t.text('assets_view_rooms') : t.text('assets_view_items')),
-                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey[400]),
+                    const SizedBox(width: 4),
+                    Text(
+                      type == 'building' ? t.text('assets_view_floors') : (type == 'floor' ? t.text('assets_view_rooms') : t.text('assets_view_items')),
+                      style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                 ),
-                // const Spacer(), // Removed Spacer as Expanded takes space
                 IconButton(
                   icon: const Icon(Icons.download_rounded, size: 18, color: Colors.grey),
                   onPressed: () => ExcelService.exportAssetsHierarchy(
@@ -358,26 +362,41 @@ class _AssetsViewState extends State<AssetsView> {
   }
 
   Widget _buildFilterSidebar(AppTranslations t) {
-    return GlassContainer(
-      width: 260,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      borderRadius: 24,
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5))
+        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t.text('menu_location'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _QuickAddBtn(icon: Icons.business_rounded, label: t.text('assets_building'), onTap: _showLocationManager),
-                const SizedBox(width: 8),
-                _QuickAddBtn(icon: Icons.layers_rounded, label: t.text('assets_floor'), onTap: _showLocationManager),
-                const SizedBox(width: 8),
-                _QuickAddBtn(icon: Icons.meeting_room_rounded, label: t.text('assets_room'), onTap: _showLocationManager),
-              ],
+            Text(t.text('menu_location'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  _QuickAddBtn(icon: Icons.business_rounded, label: t.text('assets_building'), onTap: _showLocationManager),
+                  _QuickAddBtn(icon: Icons.layers_rounded, label: t.text('assets_floor'), onTap: _showLocationManager),
+                  _QuickAddBtn(icon: Icons.meeting_room_rounded, label: t.text('assets_room'), onTap: _showLocationManager),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
               children: [
                 if (_sidebarParentId != null)
@@ -390,8 +409,11 @@ class _AssetsViewState extends State<AssetsView> {
                           _sidebarTitle = t.text('assets_building');
                           _selectedBuildingId = null;
                         } else {
-                          if (p?['type'] == 'floor') _sidebarTitle = t.text('assets_floor');
-                          else if (p?['type'] == 'building') _sidebarTitle = t.text('assets_building');
+                          if (p?['type'] == 'floor') {
+                            _sidebarTitle = t.text('assets_floor');
+                          } else if (p?['type'] == 'building') {
+                            _sidebarTitle = t.text('assets_building');
+                          }
                         }
                       });
                       _loadMetadata();
@@ -400,8 +422,9 @@ class _AssetsViewState extends State<AssetsView> {
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
                     constraints: const BoxConstraints(),
                     padding: const EdgeInsets.only(right: 8),
+                    color: Colors.blueAccent,
                   ),
-                Text(_sidebarTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.blueAccent)),
+                Text(_sidebarTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueAccent)),
               ],
             ),
             const SizedBox(height: 8),
@@ -414,7 +437,7 @@ class _AssetsViewState extends State<AssetsView> {
                 _applyFilters(); 
               }),
             ),
-            const Divider(height: 16, color: Colors.white10),
+            const SizedBox(height: 8),
             
             // Location List Items
             ..._sidebarItems.map((item) {
@@ -451,14 +474,14 @@ class _AssetsViewState extends State<AssetsView> {
               );
             }),
 
-            const Divider(height: 24, color: Colors.white10),
-            Text(t.text('col_status'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 8),
+            const Divider(height: 32, color: Colors.black12),
+            Text(t.text('col_status'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
+            const SizedBox(height: 12),
             ...['status_new', 'status_used', 'status_repair', 'status_old'].map((key) => 
               _FilterItem(
                 label: t.text(key),
                 icon: Icons.circle,
-                iconSize: 8,
+                iconSize: 10,
                 iconColor: _getStatusColor(t.text(key)),
                 isSelected: _selectedStatus == t.text(key),
                 onTap: () => setState(() { 
@@ -471,11 +494,11 @@ class _AssetsViewState extends State<AssetsView> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _showLocationManager,
-              icon: const Icon(Icons.settings_suggest_rounded, size: 18),
-              label: Text(t.text('assets_manage_loc'), style: const TextStyle(fontSize: 11)),
+              icon: Icon(Icons.settings_suggest_rounded, size: 18, color: isDark ? Colors.white70 : Colors.black54),
+              label: Text(t.text('assets_manage_loc'), style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white.withOpacity(0.05),
-                foregroundColor: Colors.white70,
+                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
+                elevation: 0,
                 minimumSize: const Size(double.infinity, 45),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -488,84 +511,98 @@ class _AssetsViewState extends State<AssetsView> {
   }
 
   Widget _buildHeader(AppTranslations t) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isSmall = constraints.maxWidth < 900;
-        
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Row(
+            if (_selectedBuildingId != null) 
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: IconButton.filled(
+                  onPressed: _goBack,
+                  icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                    foregroundColor: Colors.blue,
+                  ),
+                ),
+              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_selectedBuildingId != null) 
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: IconButton.filled(
-                      onPressed: _goBack,
-                      icon: const Icon(Icons.arrow_back_rounded, size: 20),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        foregroundColor: AppColors.primary,
-                      ),
-                    ),
-                  ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(t.text('assets_title'), style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: -1)),
-                    Text(t.text('assets_subtitle'), style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-                  ],
-                ),
+                Text(t.text('assets_title'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: -0.5, color: isDark ? Colors.white : Colors.black87)),
+                Text(t.text('assets_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: isSmall ? 300 : 600,
-                  child: GlassContainer(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    borderRadius: 16,
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 250,
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search_rounded, color: Colors.blue, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: TextField(
                       controller: _searchCtrl,
                       onChanged: (v) => _applyFilters(),
                       decoration: InputDecoration(
                         hintText: t.text('assets_search'),
+                        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
                         border: InputBorder.none,
-                        icon: Icon(Icons.search_rounded, color: AppColors.primary.withOpacity(0.7), size: 22),
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            SizedBox(
+              height: 48,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: Colors.blue.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
                 ),
-                const SizedBox(width: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)]),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showAddAssetModal(),
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    label: Text(t.text('btn_add_new'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
+                child: ElevatedButton.icon(
+                  onPressed: () => _showAddAssetModal(),
+                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                  label: Text(t.text('btn_add_new'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
-              ],
+              ),
             ),
           ],
-        );
-      }
+        ),
+      ],
     );
   }
 
@@ -687,10 +724,9 @@ class _AssetsViewState extends State<AssetsView> {
           ElevatedButton(
             onPressed: () async {
               await DatabaseHelper.instance.deleteAsset(asset['id']);
-              if (mounted) {
-                Navigator.pop(context);
-                _loadAssets();
-              }
+              if (!context.mounted) return;
+              Navigator.pop(context);
+              _loadAssets();
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: Text(t.text('btn_delete')),
@@ -724,25 +760,29 @@ class _FilterItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
-            Icon(icon, size: iconSize, color: isSelected ? AppColors.primary : (iconColor ?? Colors.grey[600])),
+            Icon(icon, size: iconSize, color: isSelected ? Colors.blue : (iconColor ?? Colors.grey[500])),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label, 
                 style: TextStyle(
-                  color: isSelected ? AppColors.primary : Colors.grey[300],
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.blue : (isDark ? Colors.white70 : Colors.black87),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -750,7 +790,7 @@ class _FilterItem extends StatelessWidget {
               IconButton(
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
-                icon: const Icon(Icons.download_rounded, size: 16, color: Colors.grey),
+                icon: Icon(Icons.download_rounded, size: 16, color: isDark ? Colors.grey[600] : Colors.grey[400]),
                 onPressed: onExport,
                 tooltip: t.text('btn_export_excel'),
               ),
@@ -770,22 +810,23 @@ class _QuickAddBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 18, color: AppColors.primary),
+              Icon(icon, size: 18, color: Colors.blue),
               const SizedBox(height: 4),
-              Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+              Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: isDark ? Colors.white70 : Colors.black87)),
             ],
           ),
         ),
@@ -810,10 +851,10 @@ class _CategoryChip extends StatelessWidget {
         selected: isSelected,
         onSelected: (_) => onTap(),
         selectedColor: AppColors.primary,
-        backgroundColor: Colors.white.withOpacity(0.05),
+        backgroundColor: Colors.white.withValues(alpha: 0.05),
         labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.grey[400]),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.2)),
+        side: BorderSide(color: isSelected ? AppColors.primary : Colors.grey.withValues(alpha: 0.2)),
       ),
     );
   }
@@ -863,13 +904,13 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
             onTap: widget.onTap,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
+              transform: Matrix4.diagonal3Values(_isHovered ? 1.02 : 1.0, _isHovered ? 1.02 : 1.0, 1.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                color: Colors.white.withOpacity(0.03), // Subtle glass 
-                border: Border.all(color: Colors.white.withOpacity(_isHovered ? 0.2 : 0.05), width: 1.5),
+                color: Colors.white.withValues(alpha: 0.03), // Subtle glass 
+                border: Border.all(color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.05), width: 1.5),
                 boxShadow: _isHovered ? [
-                  BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, 10))
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))
                 ] : [],
               ),
               child: ClipRRect(
@@ -883,12 +924,12 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
                       child: Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
-                          color: hasImage ? Colors.black : AppColors.primary.withOpacity(0.05),
+                          color: hasImage ? Colors.black : AppColors.primary.withValues(alpha: 0.05),
                           image: hasImage 
                             ? DecorationImage(image: FileImage(File(widget.asset['photo_path'])), fit: BoxFit.cover) 
                             : null,
                           gradient: hasImage ? null : LinearGradient(
-                              colors: [AppColors.primary.withOpacity(0.05), AppColors.primary.withOpacity(0.15)],
+                              colors: [AppColors.primary.withValues(alpha: 0.05), AppColors.primary.withValues(alpha: 0.15)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -943,7 +984,7 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
                       flex: 4,
                       child: Container(
                         padding: const EdgeInsets.all(16),
-                        color: Colors.white.withOpacity(0.02), // Slight contrast
+                        color: Colors.white.withValues(alpha: 0.02), // Slight contrast
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -992,9 +1033,9 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
                                   margin: const EdgeInsets.only(left: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: statusColor.withOpacity(0.1),
+                                    color: statusColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: statusColor.withOpacity(0.3))
+                                    border: Border.all(color: statusColor.withValues(alpha: 0.3))
                                   ),
                                   child: Row(
                                     children: [
@@ -1026,13 +1067,19 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
   Widget _buildBigIcon() {
     IconData icon;
     final n = widget.asset['name'].toString().toLowerCase();
-    if (n.contains('komp') || n.contains('laptop')) icon = Icons.laptop_mac_rounded;
-    else if (n.contains('stol') || n.contains('mebel')) icon = Icons.table_restaurant_rounded;
-    else if (n.contains('printer')) icon = Icons.print_rounded;
-    else if (n.contains('monitor')) icon = Icons.desktop_windows_rounded;
-    else icon = Icons.inventory_2_rounded;
+    if (n.contains('komp') || n.contains('laptop')) {
+      icon = Icons.laptop_mac_rounded;
+    } else if (n.contains('stol') || n.contains('mebel')) {
+      icon = Icons.table_restaurant_rounded;
+    } else if (n.contains('printer')) {
+      icon = Icons.print_rounded;
+    } else if (n.contains('monitor')) {
+      icon = Icons.desktop_windows_rounded;
+    } else {
+      icon = Icons.inventory_2_rounded;
+    }
 
-    return Icon(icon, size: 56, color: AppColors.primary.withOpacity(0.3));
+    return Icon(icon, size: 56, color: AppColors.primary.withValues(alpha: 0.3));
   }
 
   Color _getStatusColor(String? status) {
@@ -1171,13 +1218,11 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
                 ElevatedButton(onPressed: () async {
                   if (_ctrl.text.isNotEmpty) {
                     String type = 'room';
-                    int? grandParentId;
                     if (_selectedParentId == null) {
                       type = 'building';
                     } else {
                        final p = await DatabaseHelper.instance.getLocationById(_selectedParentId!);
                        if (p?['type'] == 'building') type = 'floor';
-                       grandParentId = p?['parent_id'];
                     }
 
                     await DatabaseHelper.instance.insertLocation({
@@ -1197,7 +1242,7 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
             Expanded(
               child: ListView.separated(
                 itemCount: _list.length,
-                separatorBuilder: (_, __) => const Divider(color: Colors.white10),
+                separatorBuilder: (c, idx) => const Divider(color: Colors.white10),
                 itemBuilder: (context, index) {
                   final item = _list[index];
                   final bool isRoom = item['type'] == 'room';
@@ -1230,7 +1275,7 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
                                     fid = floor['id'] as int?;
                                  }
                                }
-                               if (mounted) {
+                               if (context.mounted) {
                                  Navigator.pop(context, {
                                    'action': 'add_asset',
                                    'buildingId': bid,
@@ -1284,7 +1329,7 @@ Widget _buildBaseManager(String title, TextEditingController ctrl, List<Map<Stri
           Expanded(
             child: ListView.separated(
               itemCount: list.length,
-              separatorBuilder: (_, __) => const Divider(),
+              separatorBuilder: (c, idx) => const Divider(),
               itemBuilder: (context, index) => ListTile(
                 title: Text(list[index]['name']),
                 trailing: IconButton(onPressed: () => onDel(list[index]['id']), icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20)),
@@ -1303,7 +1348,7 @@ class _AddAssetDialog extends StatefulWidget {
   final int? initialFloorId;
   final int? initialRoomId;
   final Map<String, dynamic>? asset;
-  const _AddAssetDialog({super.key, this.initialBuildingId, this.initialFloorId, this.initialRoomId, this.asset});
+  const _AddAssetDialog({this.initialBuildingId, this.initialFloorId, this.initialRoomId, this.asset});
   @override
   State<_AddAssetDialog> createState() => _AddAssetDialogState();
 }
@@ -1322,7 +1367,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
   String? _selectedStatus = 'Yangi';
   String? _photoPath;
 
-  List<Map<String, dynamic>> _cats = [];
+
   List<Map<String, dynamic>> _buildings = [];
   List<Map<String, dynamic>> _floors = [];
   List<Map<String, dynamic>> _rooms = [];
@@ -1352,9 +1397,8 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
   }
 
   void _load() async {
-    final c = await DatabaseHelper.instance.getAssetCategories();
     final b = await DatabaseHelper.instance.getLocations(parentId: null);
-    setState(() { _cats = c; _buildings = b; });
+    setState(() { _buildings = b; });
     
     // Proper cascading load for initial values
     if (_selectedBuildId != null) {
@@ -1488,9 +1532,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                         image: _photoPath != null ? DecorationImage(image: FileImage(File(_photoPath!)), fit: BoxFit.cover) : null,
                       ),
                       child: _photoPath == null ? Column(
@@ -1524,7 +1568,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
+                        initialValue: _selectedStatus,
                         isExpanded: true,
                         decoration: _deco("Holati"),
                         items: ['Yangi', 'Ishlatilgan', 'Tamirtalab', 'Eskirgan'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
@@ -1546,7 +1590,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedBuildId,
+                        initialValue: _selectedBuildId,
                         isExpanded: true,
                         decoration: _deco("Bino"),
                         items: _buildings.map((b) => DropdownMenuItem<int>(value: b['id'], child: Text(b['name']))).toList(),
@@ -1556,7 +1600,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedFloorId,
+                        initialValue: _selectedFloorId,
                         isExpanded: true,
                         decoration: _deco("Qavat"),
                         items: _floors.map((f) => DropdownMenuItem<int>(value: f['id'], child: Text(f['name']))).toList(),
@@ -1566,7 +1610,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedRoomId,
+                        initialValue: _selectedRoomId,
                         isExpanded: true,
                         decoration: _deco("Xona"),
                         items: _rooms.map((r) => DropdownMenuItem<int>(value: r['id'], child: Text(r['name']))).toList(),
@@ -1598,7 +1642,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
     );
   }
 
-  InputDecoration _deco(String l) => InputDecoration(labelText: l, filled: true, fillColor: Colors.white.withOpacity(0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
+  InputDecoration _deco(String l) => InputDecoration(labelText: l, filled: true, fillColor: Colors.white.withValues(alpha: 0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
 }
 
 // ASSET PASSPORT DIALOG (Stateful to load history)
@@ -1672,6 +1716,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
       _loadHistory();
     } else {
       // If refreshed is null (barcode changed?), just close?
+      if (!mounted) return;
       Navigator.pop(context, true);
     }
   }
@@ -1724,7 +1769,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _infoRow(t.text('col_name')+":", _asset['name']),
+                    _infoRow("${t.text('col_name')}:", _asset['name']),
                     _infoRow("${t.text('asset_inp_model')}/Marka:", _asset['model'] ?? '-'),
                     _infoRow("${t.text('asset_inp_serial')}:", _asset['serial_number'] ?? '-'),
                     _infoRow("${t.text('col_category')}:", _asset['category_name'] ?? '-'),
@@ -1759,7 +1804,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                           onPressed: _showTransferDialog,
                           icon: const Icon(Icons.move_up_rounded, size: 18),
                           label: Text(t.text('btn_transfer').toUpperCase()),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.withOpacity(0.1), foregroundColor: Colors.orange),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.withValues(alpha: 0.1), foregroundColor: Colors.orange),
                         ),
                       ],
                     ),
@@ -1843,7 +1888,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                 children: [
                   const Icon(Icons.circle, size: 10, color: Colors.blue),
                   if (index != _history.length - 1) 
-                    Container(width: 2, height: 30, color: Colors.grey.withOpacity(0.3)),
+                    Container(width: 2, height: 30, color: Colors.grey.withValues(alpha: 0.3)),
                 ],
               ),
               const SizedBox(width: 12),
@@ -1868,9 +1913,9 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withOpacity(0.1)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                         ),
                         child: Text(
                           "Izoh: ${move['notes']}",
@@ -1988,7 +2033,7 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
             
             // 1. Building
             DropdownButtonFormField<int>(
-              value: _selectedBuildId,
+              initialValue: _selectedBuildId,
               dropdownColor: const Color(0xFF1E1E1E),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
@@ -1996,9 +2041,9 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
                 labelStyle: const TextStyle(color: Colors.white70),
                 prefixIcon: const Icon(Icons.business_rounded, size: 20, color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.08),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
+                fillColor: Colors.white.withValues(alpha: 0.08),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
               ),
               items: _buildings.map((b) => DropdownMenuItem(value: b['id'] as int, child: Text(b['name']))).toList(),
               onChanged: (v) { 
@@ -2010,7 +2055,7 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
 
             // 2. Floor
             DropdownButtonFormField<int>(
-              value: _selectedFloorId,
+              initialValue: _selectedFloorId,
               dropdownColor: const Color(0xFF1E1E1E),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
@@ -2018,9 +2063,9 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
                 labelStyle: const TextStyle(color: Colors.white70),
                 prefixIcon: const Icon(Icons.layers_rounded, size: 20, color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.08),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
+                fillColor: Colors.white.withValues(alpha: 0.08),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
               ),
               items: _floors.map((f) => DropdownMenuItem(value: f['id'] as int, child: Text(f['name']))).toList(),
               onChanged: (v) { 
@@ -2032,7 +2077,7 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
 
             // 3. Room
             DropdownButtonFormField<int>(
-              value: _selectedRoomId,
+              initialValue: _selectedRoomId,
               dropdownColor: const Color(0xFF1E1E1E),
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
@@ -2040,9 +2085,9 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
                 labelStyle: const TextStyle(color: Colors.white70),
                 prefixIcon: const Icon(Icons.room_rounded, size: 20, color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.08),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
+                fillColor: Colors.white.withValues(alpha: 0.08),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
               ),
               items: _rooms.map((r) => DropdownMenuItem(value: r['id'] as int, child: Text(r['name']))).toList(),
               onChanged: (v) => setState(() => _selectedRoomId = v),
@@ -2055,9 +2100,9 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
               decoration: InputDecoration(
                 labelText: t.text('asset_transfer_reason'),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.08),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.1))),
+                fillColor: Colors.white.withValues(alpha: 0.08),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1))),
                 labelStyle: const TextStyle(color: Colors.white70),
                 alignLabelWithHint: true,
               ),

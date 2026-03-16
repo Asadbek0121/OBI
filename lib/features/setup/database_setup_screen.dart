@@ -61,36 +61,6 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
     }
   }
   
-  Future<void> _useDefaultLocation() async {
-     // Just proceed, DatabaseHelper will fallback to default logic if we don't set anything
-     // But to be explicit, we won't set the param, effectively using default.
-     // OR we can explicitly get the default path and set it.
-     // Let's just navigate to Splash, main.dart logic will handle it? 
-     // wait, main.dart will trigger this screen again if we don't set SOMETHING.
-     // So we must set a flag or path.
-     
-     // Actually, let's just use the internal path explicitly so config is 'set'
-      setState(() => _isLoading = true);
-      // We don't need to do anything, just proceed. 
-      // But wait, if we don't set a path, `getConfiguredPath` returns null.
-      // So we should probably set a flag "use_default" or similar. 
-      // For now, let's just make the user pick. The user asked for it. 
-      // I'll leave "Default" hidden or as an automatic fallback if they cancel? NO.
-      // Let's stick to the user's request: "Foydalanuvchi ozi tanlasa".
-      
-      // I will add a text button for "Default Location (Automatic)" just in case.
-      await DatabaseHelper.instance.setDatabasePath(''); // Empty string = marker for default?
-      // No, my DatabaseHelper logic checks for null.
-      // I should update DatabaseHelper to handle empty string as "Default" too?
-      // Or just navigate away. 
-      
-      // Better strategy: We can't use DatabaseHelper's fallback logic nicely if we loop.
-      // Let's just restart the app or Go to Splash.
-      // I'll add a 'Skip / Default' button that sets a special marker or just lets the user through.
-      
-      // Hack: For now, I will NOT offer a default button unless requested. The user wants control.
-  }
-
   Future<void> _finalizeSetup(String path) async {
     try {
       await DatabaseHelper.instance.setDatabasePath(path);
@@ -119,9 +89,9 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
               constraints: const BoxConstraints(maxWidth: 400),
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -136,7 +106,7 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
                   Text(
                     "Dastur ishlashi uchun ma'lumotlar bazasi qayerda saqlanishini tanlang.",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                   ),
                   const SizedBox(height: 32),
                   
@@ -206,9 +176,9 @@ class _OptionButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: color.withOpacity(0.5)),
+            border: Border.all(color: color.withValues(alpha: 0.5)),
             borderRadius: BorderRadius.circular(16),
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
           ),
           child: Row(
             children: [
@@ -219,11 +189,11 @@ class _OptionButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.5))),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white.withOpacity(0.3)),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white.withValues(alpha: 0.3)),
             ],
           ),
         ),

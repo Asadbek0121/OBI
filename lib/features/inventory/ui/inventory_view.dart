@@ -81,9 +81,9 @@ class _InventoryViewState extends State<InventoryView> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.5)),
+              border: Border.all(color: color.withValues(alpha: 0.5)),
             ),
             child: Text(
               label,
@@ -116,7 +116,6 @@ class _InventoryViewState extends State<InventoryView> {
           'id': PlutoCell(value: item['id'] ?? ''),
           'name': PlutoCell(value: item['name'] ?? ''),
           'stock': PlutoCell(value: item['stock'] ?? 0),
-          'stock': PlutoCell(value: item['stock'] ?? 0),
           'unit': PlutoCell(value: item['unit'] ?? ''),
           'status': PlutoCell(value: ''), // Calculated in renderer
           'actions': PlutoCell(value: ''),
@@ -134,7 +133,7 @@ class _InventoryViewState extends State<InventoryView> {
     
     AppDialogs.showBlurDialog(
       context: context,
-      title: t.text('confirm') ?? 'Confirm',
+      title: t.text('confirm'),
       content: const Text("Mahsulot va uning barcha tarixini o'chirib yubormoqchimisiz?"),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(t.text('btn_cancel'))),
@@ -148,7 +147,7 @@ class _InventoryViewState extends State<InventoryView> {
               _loadInventory();
             }
           },
-          child: Text(t.text('btn_delete') ?? 'Delete'),
+          child: Text(t.text('btn_delete')),
         ),
       ],
     );

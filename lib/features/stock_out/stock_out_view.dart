@@ -7,7 +7,6 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/widgets/app_dialogs.dart';
 
 class StockOutView extends StatefulWidget {
   const StockOutView({super.key});
@@ -311,9 +310,11 @@ class _StockOutViewState extends State<StockOutView> {
                     
                     if (qty > stock) {
                        event.row.cells['quantity']?.value = stock; // Auto-clamp
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         SnackBar(content: Text("Omborda yetarli emas! Mavjud: $stock"), duration: const Duration(seconds: 1)),
-                       );
+                       if (context.mounted) {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           SnackBar(content: Text("Omborda yetarli emas! Mavjud: $stock"), duration: const Duration(seconds: 1)),
+                         );
+                       }
                     }
                   }
                 },

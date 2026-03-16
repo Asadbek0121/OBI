@@ -7,7 +7,6 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/widgets/app_dialogs.dart';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});

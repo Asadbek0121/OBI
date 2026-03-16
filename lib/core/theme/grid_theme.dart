@@ -6,7 +6,6 @@ class GridTheme {
   static PlutoGridStyleConfig getStyle(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
-    final textSecondary = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
     final dividerColor = Theme.of(context).dividerColor;
 
     return PlutoGridStyleConfig(

@@ -11,7 +11,6 @@ import 'core/localization/app_translations.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/services/profile_provider.dart';
 
-import 'features/dashboard/dashboard_screen.dart'; 
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
 import 'features/setup/database_setup_screen.dart';
@@ -55,7 +54,7 @@ void main() async {
   
   if (dbPath == null) {
      // User hasn't picked a DB location yet
-     print("⚠️ System: No DB configured. Showing Setup Screen.");
+     debugPrint("⚠️ System: No DB configured. Showing Setup Screen.");
      startScreen = const DatabaseSetupScreen();
   } else {
      // Configured! Proceed with normal boot.
@@ -64,14 +63,14 @@ void main() async {
     // 🛡️ SECURITY INIT: Open the Secure Vault
     try {
       await DatabaseHelper.instance.database;
-      print("✅ System: Secure Database initialized successfully.");
+      debugPrint("✅ System: Secure Database initialized successfully.");
     } catch (e) {
-      print("❌ System: Failed to initialize Secure Database: $e");
+      debugPrint("❌ System: Failed to initialize Secure Database: $e");
     }
 
     // 🤖 TELEGRAM SCHEDULER
     try {
-       print("🤖 System: Checking Telegram Backup Schedule...");
+       debugPrint("🤖 System: Checking Telegram Backup Schedule...");
        final tgService = TelegramService();
        
        // Initial Check
@@ -89,7 +88,7 @@ void main() async {
        tgService.startBotListener();
 
     } catch (e) {
-       print("❌ System: Telegram Scheduler Error: $e");
+       debugPrint("❌ System: Telegram Scheduler Error: $e");
     }
   }
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../core/localization/app_translations.dart';
@@ -64,9 +63,11 @@ class _OutputViewState extends State<OutputView> {
         }
       }
       if (count > 0) {
+        if (!mounted) return;
         AppNotifications.showSuccess(context, "$count ${t.text('msg_saved')}");
       }
     } catch (e) {
+      if (!mounted) return;
       AppNotifications.showError(context, "Xatolik: $e");
     } finally {
       stateManager.setShowLoading(false);

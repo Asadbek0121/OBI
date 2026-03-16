@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
-  static const String _kIsLoggedInKey = 'is_logged_in';
   static const String _kUsernameKey = 'login_username';
   static const String _kPasswordKey = 'login_password';
 

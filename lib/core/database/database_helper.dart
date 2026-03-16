@@ -4,14 +4,12 @@ import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path_provider/path_provider.dart';
 // import 'package:sqflite_sqlcipher/sqflite_sqlcipher.dart'; // Temporarily disabled for build fix
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
-  final _secureStorage = const FlutterSecureStorage();
   final String _prefKeyDbPath = 'clinical_warehouse_db_path';
   String? _customDbPath;
 
@@ -307,7 +305,7 @@ class DatabaseHelper {
         tax_sum REAL DEFAULT 0,
         surcharge_percent REAL DEFAULT 0,
         surcharge_sum REAL DEFAULT 0,
-        payment_status TEXT, -- 'Naqd', 'Qarzga', 'O\'tkazma'
+        payment_status TEXT, -- 'Naqd', 'Qarzga', 'O'tkazma'
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
@@ -629,7 +627,7 @@ class DatabaseHelper {
     }
     if (endDate != null) {
       where += ' AND date_time <= ?';
-      args.add(endDate + ' 23:59:59');
+      args.add('$endDate 23:59:59');
     }
 
     return await db.rawQuery('''
@@ -652,7 +650,7 @@ class DatabaseHelper {
     }
     if (endDate != null) {
       where += ' AND date_time <= ?';
-      args.add(endDate + ' 23:59:59');
+      args.add('$endDate 23:59:59');
     }
 
     return await db.rawQuery('''
@@ -678,7 +676,6 @@ class DatabaseHelper {
       final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
       
       final backupFile = File(backupPath);
-      final currentDbFile = File(path);
 
       if (await backupFile.exists()) {
         await backupFile.copy(path);

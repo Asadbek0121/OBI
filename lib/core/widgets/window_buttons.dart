@@ -10,7 +10,7 @@ class WindowButtons extends StatelessWidget {
       margin: const EdgeInsets.all(8),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -37,7 +37,7 @@ class WindowButtons extends StatelessWidget {
           _WindowButton(
             icon: Icons.close,
             color: Colors.red,
-            hoverColor: Colors.red.withOpacity(0.1),
+            hoverColor: Colors.red.withValues(alpha: 0.1),
             onTap: () => windowManager.close(),
             tooltip: 'Close',
           ),
@@ -69,7 +69,7 @@ class _WindowButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(4),
-        hoverColor: hoverColor ?? Colors.grey.withOpacity(0.1),
+        hoverColor: hoverColor ?? Colors.grey.withValues(alpha: 0.1),
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Icon(icon, size: 16, color: color ?? Colors.grey[700]),
