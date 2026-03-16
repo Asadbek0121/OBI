@@ -1,4 +1,4 @@
 class AppConfig {
   static const String supabaseUrl = 'https://zrsorgdjmsadqksdykyq.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWJhc2FzZSIsInNlcnZpY2Vfcm9sZSI6ImFub24iLCJpYXQiOjE3NDIxMDk1MzcsImV4cCI6MjA1NzY4NTUzN30.C_t-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y-J-Y';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpyc29yZ2RqbXNhZHFrc2R5a3lxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODM2MzksImV4cCI6MjA4OTI1OTYzOX0.vhgTBEC2NrXrdL2-1n2p0aySobANWMF58twEZrF0yis';
 }
