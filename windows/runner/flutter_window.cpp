@@ -5,6 +5,8 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Graphics.Imaging.h>
 #include <winrt/base.h>
+#include <thread>
+#include <future>
 
 using namespace winrt;
 using namespace Windows::Media::Ocr;
@@ -13,7 +15,6 @@ using namespace Windows::Storage::Streams;
 using namespace Windows::Graphics::Imaging;
 
 #include "flutter_window.h"
-#include <optional>
 #include "flutter/generated_plugin_registrant.h"
 
 // Forward declaration
@@ -22,7 +23,7 @@ void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {
-    // Initialize WinRT for OCR
+    // Initializing for multi-threaded access
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
 }
 
@@ -51,7 +52,10 @@ bool FlutterWindow::OnCreate() {
   channel->SetMethodCallHandler(
       [](const auto& call, auto result) {
         if (call.method_name() == "performOCR") {
-          HandleOCRRequest(call, std::move(result));
+          // Offload OCR to a background thread to keep UI smooth
+          std::thread([c = call, r = std::move(result)]() mutable {
+              HandleOCRRequest(c, std::move(r));
+          }).detach();
         } else {
           result->NotImplemented();
         }
@@ -64,11 +68,7 @@ bool FlutterWindow::OnCreate() {
     this->Show();
   });
 
-  // Flutter can complete the first frame before the "show window" callback is
-  // registered. The following call ensures a frame is pending to ensure the
-  // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
-
   return true;
 }
 
@@ -76,7 +76,6 @@ void FlutterWindow::OnDestroy() {
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
-
   Win32Window::OnDestroy();
 }
 
@@ -84,7 +83,6 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
-  // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
         flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
@@ -103,9 +101,12 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
 }
 
-// Windows Native OCR Implementation using built-in OS features
+// Windows Native OCR Implementation
 void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method_call,
                      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+    // Ensure COM is initialized for this background thread
+    winrt::init_apartment(winrt::apartment_type::multi_threaded);
+    
     const auto* arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
     if (!arguments) {
         result->Error("INVALID_ARGS", "Arguments missing");
@@ -121,14 +122,12 @@ void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method
     std::string path = std::get<std::string>(path_it->second);
     std::wstring wpath(path.begin(), path.end());
 
-    // Run OCR in a background task
     try {
         auto file = StorageFile::GetFileFromPathAsync(wpath).get();
         auto stream = file.OpenAsync(FileAccessMode::Read).get();
         auto decoder = BitmapDecoder::CreateAsync(stream).get();
         auto bitmap = decoder.GetSoftwareBitmapAsync().get();
 
-        // Use English or Russian engines if available, default to system
         OcrEngine engine = OcrEngine::TryCreateFromUserProfileLanguages();
         auto ocrResult = engine.RecognizeAsync(bitmap).get();
 
@@ -137,7 +136,6 @@ void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method
             text += line.Text() + L"\n";
         }
 
-        // Convert wstring back to string for Flutter
         int size_needed = WideCharToMultiByte(CP_UTF8, 0, &text[0], (int)text.size(), NULL, 0, NULL, NULL);
         std::string strTo(size_needed, 0);
         WideCharToMultiByte(CP_UTF8, 0, &text[0], (int)text.size(), &strTo[0], size_needed, NULL, NULL);
