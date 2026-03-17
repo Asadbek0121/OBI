@@ -132,3 +132,4 @@ msix_config:
   logo_path: assets/logo.png
   capabilities: internetClient, internetClientServer, privateNetworkClientServer
   architecture: x64
+  install: false

@@ -32,18 +32,20 @@ jobs:
         run: flutter build windows --release
 
       - name: Create MSIX Installer
-        run: flutter pub run msix:create
+        run: flutter pub run msix:create --install false
 
       - name: Locate Build Output
         id: build_output
         shell: powershell
         run: |
-          $msix = Get-ChildItem -Path "build\windows\runner\Release\*.msix" -ErrorAction SilentlyContinue
-          if ($msix) {
-            echo "MSIX_PATH=$($msix.FullName)" >> $env:GITHUB_ENV
+          $msixFile = Get-ChildItem -Path "build\windows\runner\Release\*.msix" | Select-Object -First 1
+          if ($msixFile) {
+            echo "MSIX_PATH=$($msixFile.FullName)" >> $env:GITHUB_ENV
             echo "HAS_MSIX=true" >> $env:GITHUB_ENV
+            Write-Host "Found MSIX: $($msixFile.FullName)"
           } else {
             echo "HAS_MSIX=false" >> $env:GITHUB_ENV
+            Write-Host "MSIX not found"
           }
           
           if (Test-Path "build\windows\x64\runner\Release") {
@@ -71,4 +73,5 @@ jobs:
           path: |
             build/windows/runner/Release/*.msix
             clinical_warehouse_windows.zip
+
 
