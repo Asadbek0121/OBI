@@ -63,9 +63,8 @@ jobs:
              echo "RELEASE_PATH=build\windows\runner\Release" >> $env:GITHUB_ENV
           }
 
-      - name: Compress Build Release (Fallback)
-        if: env.HAS_MSIX != 'true'
-        run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_windows.zip
+      - name: Create Portable Zip (EXE version)
+        run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_portable.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
@@ -73,7 +72,7 @@ jobs:
         with:
           files: |
             ${{ env.MSIX_PATH }}
-            clinical_warehouse_windows.zip
+            clinical_warehouse_portable.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -82,6 +81,6 @@ jobs:
           path: |
             build/windows/x64/runner/Release/*.msix
             build/windows/runner/Release/*.msix
-            clinical_warehouse_windows.zip
+            clinical_warehouse_portable.zip
 
 
