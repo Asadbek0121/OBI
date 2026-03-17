@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class OCRService {
   // We'll use raw HTTP to have full control over the API version (v1)
   // This avoids 'model not found' errors common in some library versions
-  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent';
 
   Future<Map<String, dynamic>?> processDocument(File file) async {
     try {
