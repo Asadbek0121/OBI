@@ -38,15 +38,41 @@ class MainFlutterWindow: NSWindow {
 
     let requestHandler = VNImageRequestHandler(cgImage: cgImage, options: [:])
     let request = VNRecognizeTextRequest { (request, error) in
-      guard let observations = request.results as? [VNRecognizedTextObservation], error == null else {
+      guard let observations = request.results as? [VNRecognizedTextObservation], error == nil else {
         result("")
         return
       }
 
-      let recognizedStrings = observations.compactMap { observation in
-        observation.topCandidates(1).first?.string
+      // Sort results by vertical position (top to bottom) and then horizontal (left to right)
+      let sortedObservations = observations.sorted { (obj1, obj2) -> Bool in
+          let box1 = obj1.boundingBox
+          let box2 = obj2.boundingBox
+          
+          // If they are on the same line (allowing some tolerance)
+          if abs(box1.origin.y - box2.origin.y) < 0.015 {
+              return box1.origin.x < box2.origin.x
+          }
+          return box1.origin.y > box2.origin.y
       }
-      result(recognizedStrings.joined(separator: "\n"))
+
+      var resultText = ""
+      var lastY: CGFloat = -1.0
+      
+      for observation in sortedObservations {
+          guard let candidate = observation.topCandidates(1).first else { continue }
+          let currentY = observation.boundingBox.origin.y
+          
+          if lastY != -1.0 && abs(lastY - currentY) > 0.015 {
+              resultText += "\n"
+          } else if !resultText.isEmpty {
+              resultText += " "
+          }
+          
+          resultText += candidate.string
+          lastY = currentY
+      }
+      
+      result(resultText)
     }
 
     request.recognitionLevel = .accurate

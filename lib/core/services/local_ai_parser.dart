@@ -20,6 +20,22 @@ class LocalAIParser {
       double? foundPrice;
 
       // 2. Har bir qatorda bazadagi mahsulot nomini qidiramiz (Intellektual qidiruv)
+      bool isJunkLine = false;
+      final junkKeywords = [
+        'счет', 'номер', 'дата', 'итого', 'сумма', 'акциз', 'всего', 'область', 'город', 'инн',
+        'адрис', 'телефон', 'mfo', 'bank', 'ru-ru', 'en-us', 'поставщик', 'заказчик', '2023', '2024', '2025', '2026',
+        'четыре', 'миллион', 'оплатить', 'наиме', 'без ', 'на опл'
+      ];
+
+      for (var keyword in junkKeywords) {
+        if (line.toLowerCase().contains(keyword)) {
+          isJunkLine = true;
+          break;
+        }
+      }
+
+      if (isJunkLine) continue;
+
       for (var product in dbProducts) {
         final pName = product['name'].toString().toLowerCase();
         final lText = line.toLowerCase();
@@ -40,8 +56,12 @@ class LocalAIParser {
       List<double> numbers = [];
       for (var m in matches) {
         if (m != null) {
-          final n = double.tryParse(m.replaceAll(',', '.'));
-          if (n != null) numbers.add(n);
+          final cleanM = m.replaceAll(',', '.');
+          final n = double.tryParse(cleanM);
+          // Yillarni va kichik idlarni filtrlash (masalan 2024-2026 larni o'tkazib yubormaslik uchun)
+          if (n != null && n > 0 && n != 2024 && n != 2025 && n != 2026) {
+            numbers.add(n);
+          }
         }
       }
 
@@ -53,27 +73,38 @@ class LocalAIParser {
           foundPrice = numbers[numbers.length - 1];
         } else {
           foundQty = numbers[0];
+          foundPrice = 0.0;
         }
       }
 
-      // 4. Capture even if not in DB (if line seems to have data)
-      if (foundProductName == null && numbers.isNotEmpty) {
-        // Simple heuristic: Take the first few words that aren't numbers as the name
-        final nameCandidate = line.replaceAll(RegExp(r'\d+[\.,]?\d*'), '').trim();
-        if (nameCandidate.length > 2) {
+      // 4. Capture hatto bazada yo'q bo'lsa ham
+      if (foundProductName == null && numbers.isNotEmpty && line.length > 5) {
+        // Matndan keraksiz narsalarni tozalaymiz
+        final nameCandidate = line
+            .replaceAll(RegExp(r'\d+[\.,]?\d*'), '') // Raqamlarni o'chiramiz
+            .replaceAll(RegExp(r'[^\w\sа-яА-ЯёЁ\-]'), '') // Maxsus belgilarni o'chiramiz
+            .trim();
+            
+        if (nameCandidate.length > 3) {
           foundProductName = nameCandidate;
         }
       }
 
-      // If we found a name (from DB or raw text) and at least one number, add it
-      if (foundProductName != null) {
+      // 5. Faqat shubhali bo'lmagan ma'lumotlarni qo'shamiz
+      if (foundProductName != null && (foundQty != null || foundPrice != null)) {
+        // Agar miqdor juda katta bo'lsa (masalan 1000000), uni miqdor emas narx deb bilsin
+        if (foundQty != null && foundQty > 10000 && (foundPrice == null || foundPrice == 0)) {
+           foundPrice = foundQty;
+           foundQty = 1.0;
+        }
+
         results.add({
           "name": foundProductName,
-          "id": foundProductId, // Will be null if not in DB
+          "id": foundProductId,
           "unit": foundUnit ?? 'dona',
           "quantity": foundQty ?? 1.0,
           "price": foundPrice ?? 0.0,
-          "is_new": foundProductId == null, // Flag to show it's not in DB
+          "is_new": foundProductId == null,
         });
       }
     }
