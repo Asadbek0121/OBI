@@ -7,7 +7,7 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/services/ocr_service.dart';
+import 'package:clinical_warehouse/core/services/local_ocr_service.dart';
 import 'package:clinical_warehouse/core/services/local_ai_parser.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -35,7 +35,6 @@ class _StockInViewState extends State<StockInView> {
   bool isLoading = false;
   bool isOCRLoading = false;
   bool isGridLoaded = false;
-  final _ocrService = OCRService();
 
   @override
   void initState() {
@@ -286,78 +285,48 @@ class _StockInViewState extends State<StockInView> {
 
       if (result != null && result.files.single.path != null) {
         setState(() => isOCRLoading = true);
+        stateManager.setShowLoading(true);
         final file = File(result.files.single.path!);
         
-        final data = await _ocrService.processDocument(file);
-        
-        if (data != null && data['items'] != null) {
-          final items = data['items'] as List;
-          final metadata = data['metadata'] ?? {};
-          
-          stateManager.setShowLoading(true);
-          stateManager.removeAllRows();
-          
-          final List<PlutoRow> newRows = [];
-          for (int i = 0; i < items.length; i++) {
-            final item = items[i];
-            final row = _createEmptyRow(i + 1);
-            
-            if (metadata['date'] != null) row.cells['date']?.value = metadata['date'];
-            
-            if (metadata['supplier'] != null) {
-               final String supplierName = metadata['supplier'].toString();
-               final foundSupplier = suppliers.any((s) => s.toLowerCase().contains(supplierName.toLowerCase()));
-               if (foundSupplier) {
-                 row.cells['supplier']?.value = suppliers.firstWhere((s) => s.toLowerCase().contains(supplierName.toLowerCase()));
-               }
-            }
-            
-            final String pName = item['name'] ?? '';
-            row.cells['product_name']?.value = pName;
-            
-            // Try to auto-match product ID by name
-            if (pName.isNotEmpty) {
-              final matchedProduct = await DatabaseHelper.instance.getProductByName(pName);
-              if (matchedProduct != null) {
-                row.cells['product_id']?.value = matchedProduct['id'];
-                if (item['unit'] == null) row.cells['unit']?.value = matchedProduct['unit'] ?? '';
-              }
-            }
-            
-            row.cells['unit']?.value = item['unit'] ?? row.cells['unit']?.value ?? '';
-            row.cells['quantity']?.value = item['quantity']?.toString() ?? '';
-            row.cells['price']?.value = item['price']?.toString() ?? '';
-            row.cells['tax_percent']?.value = item['tax_percent']?.toString() ?? '0';
-            
-            // Manual trigger calculations for this row
-            final qty = double.tryParse(item['quantity']?.toString() ?? '0') ?? 0;
-            final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
-            final taxPct = double.tryParse(item['tax_percent']?.toString() ?? '0') ?? 0;
-            
-            final baseTotal = qty * price;
-            final taxSum = baseTotal * (taxPct / 100);
-            final finalTotal = baseTotal + taxSum;
-            
-            row.cells['tax_sum']?.value = taxSum.toStringAsFixed(0);
-            row.cells['total_amount']?.value = finalTotal.toStringAsFixed(0);
+        // 🚀 Using Our NEW Personal Local AI Model (MacOS Native Vision)
+        final localOCR = LocalOCRService();
+        final List<Map<String, dynamic>>? extractedItems = await localOCR.processImageLocally(file);
 
+        if (extractedItems != null && extractedItems.isNotEmpty) {
+          final List<PlutoRow> newRows = [];
+          
+          for (var item in extractedItems) {
+            final row = _createEmptyRow(newRows.length + 1);
+            row.cells['product_name']?.value = item['name'];
+            row.cells['product_id']?.value = item['id'];
+            row.cells['unit']?.value = item['unit'];
+            row.cells['quantity']?.value = item['quantity'].toString();
+            row.cells['price']?.value = item['price'].toString();
+            
+            // Auto Calculation
+            final q = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
+            final p = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
+            row.cells['total_amount']?.value = (q * p).toStringAsFixed(0);
+            
             newRows.add(row);
           }
-          
+
           stateManager.appendRows(newRows);
           stateManager.setShowLoading(false);
           
           if (mounted) {
             final t = Provider.of<AppTranslations>(context, listen: false);
-            AppNotifications.showSuccess(context, "OCR: ${items.length} ${t.text('msg_ocr_found')}");
+            AppNotifications.showSuccess(context, "Local AI: ${extractedItems.length} ta mahsulot tanib olindi!");
           }
         } else {
-          if (mounted) AppNotifications.showError(context, "OCR: Ma'lumot topilmadi");
+          if (mounted) AppNotifications.showError(context, "Rasmdan birorta mahsulot topilmadi.");
+          stateManager.setShowLoading(false);
         }
       }
     } catch (e) {
       debugPrint("OCR Handler Error: $e");
       if (mounted) AppNotifications.showError(context, "OCR Xatosi: $e");
+      stateManager.setShowLoading(false);
     } finally {
       if (mounted) setState(() => isOCRLoading = false);
     }
