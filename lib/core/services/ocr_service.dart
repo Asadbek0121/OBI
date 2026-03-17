@@ -67,8 +67,8 @@ class OCRService {
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        final String? textResponse = decoded['candidates']?[0]?['content']?[parts]?[0]?['text'] ?? 
-                                     decoded['candidates']?[0]?['content']?['parts']?[0]?['text'];
+        final String? textResponse = 
+            decoded['candidates']?[0]?['content']?['parts']?[0]?['text'];
         
         if (textResponse != null) {
           debugPrint("🤖 Gemini Response: $textResponse");
