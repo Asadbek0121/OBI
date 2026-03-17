@@ -66,6 +66,7 @@ dependencies:
   barcode_widget: ^2.0.4
   image: ^4.3.0
   zxing_lib: ^1.1.4
+  google_mlkit_text_recognition: ^0.14.0
   google_generative_ai: ^0.4.5
   pdfx: ^2.6.0
 

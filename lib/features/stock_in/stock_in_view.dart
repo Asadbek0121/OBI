@@ -8,6 +8,7 @@ import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/services/ocr_service.dart';
+import 'package:clinical_warehouse/core/services/local_ai_parser.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -374,65 +375,33 @@ class _StockInViewState extends State<StockInView> {
 
     try {
       stateManager.setShowLoading(true);
-      // Logic to split by lines and then by tabs/spaces
-      final lines = text.split(RegExp(r'\r?\n')).where((line) => line.trim().isNotEmpty).toList();
+      
+      // Use our NEW Local Intelligence Service
+      final parsedData = await LocalAIParser.parseUsingDatabase(text);
+      
       final List<PlutoRow> newRows = [];
-
-      for (var line in lines) {
-        // Simple heuristic: split by tabs or multiple spaces
-        final cols = line.split(RegExp(r'\t|\s{2,}')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-        if (cols.length < 2) continue; // Skip lines that aren't rows
-
+      for (var item in parsedData) {
         final row = _createEmptyRow(newRows.length + 1);
+        row.cells['product_name']?.value = item['name'];
+        row.cells['product_id']?.value = item['id'];
+        row.cells['unit']?.value = item['unit'];
+        row.cells['quantity']?.value = item['quantity'].toString();
+        row.cells['price']?.value = item['price'].toString();
         
-        // Try to identify columns by content
-        String? pName;
-        String? qty;
-        String? price;
-        String? unit;
-
-        for (var col in cols) {
-          if (double.tryParse(col.replaceAll(',', '')) != null) {
-             // It's a number. Heuristic: larger is probably price, smaller is qty
-             final val = double.parse(col.replaceAll(',', ''));
-             if (val > 1000 && price == null) {
-               price = val.toString();
-             } else if (qty == null) {
-               qty = val.toString();
-             }
-          } else if (col.length > 3 && pName == null) {
-            pName = col;
-          } else if (col.length <= 4 && unit == null) {
-            unit = col;
-          }
-        }
-
-        row.cells['product_name']?.value = pName ?? cols[0];
-        row.cells['quantity']?.value = qty ?? '';
-        row.cells['price']?.value = price ?? '';
-        row.cells['unit']?.value = unit ?? '';
-
-        // Auto-match Product ID if name exists
-        if (pName != null) {
-          final matched = await DatabaseHelper.instance.getProductByName(pName);
-          if (matched != null) {
-            row.cells['product_id']?.value = matched['id'];
-            if (row.cells['unit']?.value == '') row.cells['unit']?.value = matched['unit'] ?? '';
-          }
-        }
-
-        // Trigger basic calculation
-        final qVal = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
-        final pVal = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
-        row.cells['total_amount']?.value = (qVal * pVal).toStringAsFixed(0);
-
+        // Calculation
+        final q = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
+        final p = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
+        row.cells['total_amount']?.value = (q * p).toStringAsFixed(0);
+        
         newRows.add(row);
       }
 
       if (newRows.isNotEmpty) {
         stateManager.removeAllRows();
         stateManager.appendRows(newRows);
-        if (mounted) AppNotifications.showSuccess(context, "Xotiradan ${newRows.length} qator o'qib olindi");
+        if (mounted) AppNotifications.showSuccess(context, "Bazangizdan ${newRows.length} ta mahsulot tanib olindi!");
+      } else {
+        if (mounted) AppNotifications.showError(context, "Bazangizdan birorta mahsulot topilmadi.");
       }
       stateManager.setShowLoading(false);
     } catch (e) {
