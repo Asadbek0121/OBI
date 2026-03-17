@@ -1,2 +1,131 @@
 Launching lib/main.dart on macOS in debug mode...
 Building macOS application...                                   
+✓ Built build/macos/Build/Products/Debug/clinical_warehouse.app
+2026-03-17 10:22:29.492 clinical_warehouse[90019:680754] Running with merged UI and platform thread. Experimental.
+Syncing files to device macOS...                                   545ms
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on macOS is available at: http://127.0.0.1:61442/xsxGrJQraJU=/
+The Flutter DevTools debugger and profiler on macOS is available at: http://127.0.0.1:61442/xsxGrJQraJU=/devtools/?uri=ws://127.0.0.1:61442/xsxGrJQraJU=/ws
+flutter: supabase.supabase_flutter: INFO: ***** Supabase init completed ***** 
+flutter: ✅ System: Supabase initialized.
+flutter: 📂 OPENING DATABASE AT: /Users/macbookairm1/OBI/omborxona_data.db
+flutter: ✅ System: Secure Database initialized successfully.
+flutter: 🤖 System: Checking Telegram Backup Schedule...
+flutter: 🔄 SyncService: Starting background synchronization...
+flutter: 🤖 Telegram Bot: Polling started...
+flutter: ⬆️ SyncService: Pushing 2 records from 'products'...
+flutter: ⚠️ SyncService Push Error (products, ID: 01): PostgrestException(message: Could not find the 'deleted_at' column of 'products' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (products, ID: 02): PostgrestException(message: Could not find the 'deleted_at' column of 'products' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 4 records from 'stock_in'...
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176854653757601): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_in' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176857374053901): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_in' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176858540593802): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_in' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176859662286501): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_in' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 3 records from 'stock_out'...
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176854655325701): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_out' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176857585441401): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_out' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176857590201201): PostgrestException(message: Could not find the 'deleted_at' column of 'stock_out' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 3 records from 'assets'...
+flutter: ⚠️ SyncService Push Error (assets, ID: 4): PostgrestException(message: Could not find the 'created_at' column of 'assets' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (assets, ID: 5): PostgrestException(message: Could not find the 'created_at' column of 'assets' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (assets, ID: 6): PostgrestException(message: Could not find the 'created_at' column of 'assets' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 7 records from 'asset_locations'...
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 3): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 4): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 5): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 6): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 7): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 9): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 10): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 5 records from 'asset_categories'...
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 3): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 4): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 5): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 6): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 7): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 3 records from 'asset_movements'...
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 1): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 2): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 3): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⬆️ SyncService: Pushing 11 records from 'branch_orders'...
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 1): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 2): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 3): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 4): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 5): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 6): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 7): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 8): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 9): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 10): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 11): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 4 records from 'branch_order_items'...
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 1): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 2): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 3): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 4): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬇️ SyncService: Pulling changes from cloud since null...
+flutter: ❌ SyncService Error: PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: 🔄 SyncService: Starting background synchronization...
+flutter: ⬆️ SyncService: Pushing 2 records from 'products'...
+flutter: ⚠️ SyncService Push Error (products, ID: 01): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/products
+flutter: ⚠️ SyncService Push Error (products, ID: 02): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/products
+flutter: ⬆️ SyncService: Pushing 4 records from 'stock_in'...
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176854653757601): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_in
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176857374053901): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_in
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176858540593802): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_in
+flutter: ⚠️ SyncService Push Error (stock_in, ID: 176859662286501): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_in
+flutter: ⬆️ SyncService: Pushing 3 records from 'stock_out'...
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176854655325701): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_out
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176857585441401): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_out
+flutter: ⚠️ SyncService Push Error (stock_out, ID: 176857590201201): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/stock_out
+flutter: ⬆️ SyncService: Pushing 3 records from 'assets'...
+flutter: ⚠️ SyncService Push Error (assets, ID: 4): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/assets
+flutter: ⚠️ SyncService Push Error (assets, ID: 5): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/assets
+flutter: ⚠️ SyncService Push Error (assets, ID: 6): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/assets
+flutter: ⬆️ SyncService: Pushing 7 records from 'asset_locations'...
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 3): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 4): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 5): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 6): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 7): ClientException with SocketException: Failed host lookup: 'zrsorgdjmsadqksdykyq.supabase.co' (OS Error: nodename nor servname provided, or not known, errno = 8), uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 9): ClientException: Connection reset by peer, uri=https://zrsorgdjmsadqksdykyq.supabase.co/rest/v1/asset_locations
+flutter: ⚠️ SyncService Push Error (asset_locations, ID: 10): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_locations' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 5 records from 'asset_categories'...
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 3): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 4): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 5): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 6): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (asset_categories, ID: 7): PostgrestException(message: Could not find the 'deleted_at' column of 'asset_categories' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 3 records from 'asset_movements'...
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 1): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 2): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⚠️ SyncService Push Error (asset_movements, ID: 3): PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+flutter: ⬆️ SyncService: Pushing 11 records from 'branch_orders'...
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 1): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 2): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 3): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 4): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 5): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 6): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 7): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 8): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 9): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 10): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_orders, ID: 11): PostgrestException(message: Could not find the 'created_at' column of 'branch_orders' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬆️ SyncService: Pushing 4 records from 'branch_order_items'...
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 1): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 2): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 3): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⚠️ SyncService Push Error (branch_order_items, ID: 4): PostgrestException(message: Could not find the 'deleted_at' column of 'branch_order_items' in the schema cache, code: PGRST204, details: Bad Request, hint: null)
+flutter: ⬇️ SyncService: Pulling changes from cloud since null...
+flutter: ❌ SyncService Error: PostgrestException(message: Could not find the table 'public.asset_movements' in the schema cache, code: PGRST205, details: Not Found, hint: Perhaps you meant the table 'public.asset_locations')
+Lost connection to device.
