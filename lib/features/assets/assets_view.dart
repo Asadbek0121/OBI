@@ -1829,8 +1829,10 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                       PrintService.printAssetPassport(_asset).then((_) {
                         if (context.mounted) Navigator.pop(context);
                       }).catchError((e) {
-                         if (context.mounted) Navigator.pop(context);
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                         if (context.mounted) {
+                           Navigator.pop(context);
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                         }
                       });
                     }, 
                     icon: const Icon(Icons.description_rounded),
@@ -1850,8 +1852,10 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                       PrintService.printAssetBarcode(_asset).then((_) {
                         if (context.mounted) Navigator.pop(context);
                       }).catchError((e) {
-                         if (context.mounted) Navigator.pop(context);
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                         if (context.mounted) {
+                           Navigator.pop(context);
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                         }
                       });
                     }, 
                     icon: const Icon(Icons.qr_code_2_rounded),

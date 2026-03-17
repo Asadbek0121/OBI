@@ -934,8 +934,10 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
               PrintService.printOrderQR(qrData, "#ORD-$orderId").then((_) {
                 if (context.mounted) Navigator.pop(context);
               }).catchError((e) {
-                if (context.mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Print xatosi: $e")));
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Print xatosi: $e")));
+                }
               });
             },
           ),
