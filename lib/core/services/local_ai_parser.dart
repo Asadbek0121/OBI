@@ -19,29 +19,77 @@ class LocalAIParser {
       double? foundQty;
       double? foundPrice;
 
-      // 2. Har bir qatorda bazadagi mahsulot nomini qidiramiz (Intellektual qidiruv)
-      bool isJunkLine = false;
-      final junkKeywords = [
-        'счет', 'номер', 'дата', 'итого', 'сумма', 'акциз', 'всего', 'область', 'город', 'инн',
-        'адрис', 'телефон', 'mfo', 'bank', 'ru-ru', 'en-us', 'поставщик', 'заказчик', '2023', '2024', '2025', '2026',
-        'четыре', 'миллион', 'оплатить', 'наиме', 'без ', 'на опл'
+      // 2. Junk Filters (Strict for Russian Invoices)
+      final lowerLine = line.toLowerCase();
+      final stopWords = [
+        'счет', 'номер', 'дата', 'итого', 'сумма', 'акциз', 'всего', 'поставщик', 'плательщик', 'адрес', 'тел',
+        'инн', 'мфо', 'оплата', 'наиме', 'кол-в', 'цена', 'ед.', 'изм', 'код', 'статус', 'страна', 'гтд', 'ндс',
+        'подпись', 'печать', 'расшифровка', 'лицо', 'директор', 'бухгалтер', 'товар', 'услуг', 'перечень'
       ];
 
-      for (var keyword in junkKeywords) {
-        if (line.toLowerCase().contains(keyword)) {
-          isJunkLine = true;
+      bool isJunk = false;
+      for (var sw in stopWords) {
+        if (lowerLine.contains(sw)) {
+          isJunk = true;
+          break;
+        }
+      }
+      if (isJunk || line.length < 5) continue;
+
+      // 3. Units Recognition (Russian specific)
+      foundUnit = 'dona';
+      final unitMap = {
+        'шт': 'шт', 'шт.': 'шт', 'шт ': 'шт',
+        'кг': 'кг', 'кг.': 'кг',
+        'ед': 'ед', 'ед.': 'ед',
+        'уп': 'уп', 'уп.': 'уп',
+        'фл': 'фл', 'фл.': 'фл',
+        'амп': 'амп', 'амп.': 'амп',
+        'мл': 'мл', 'мл.': 'мл',
+        'гр': 'гр', 'гр.': 'гр',
+        'мг': 'мг', 'мг.': 'мг',
+      };
+
+      for (var entry in unitMap.entries) {
+        if (lowerLine.contains(' ${entry.key} ') || lowerLine.endsWith(entry.key)) {
+          foundUnit = entry.value;
           break;
         }
       }
 
-      if (isJunkLine) continue;
+      // 4. Numbers Extraction (Filtering years and IDs)
+      final numberRegex = RegExp(r'(\d+[\d\s]*[\.,]?[\d\s]*\d+)');
+      final rawMatches = numberRegex.allMatches(line).map((m) => m.group(0)!).toList();
+      
+      List<double> numbers = [];
+      for (var m in rawMatches) {
+        final cleanM = m.replaceAll(' ', '').replaceAll(',', '.');
+        final n = double.tryParse(cleanM);
+        if (n != null && n > 0 && n != 2024 && n != 2025 && n != 2026) {
+          numbers.add(n);
+        }
+      }
 
+      // 5. Pattern Logic: Most Russian invoices are Name -> Qty -> Price -> Total
+      if (numbers.isNotEmpty) {
+        if (numbers.length >= 3) {
+           // Pattern: [Index/Other] [Qty] [Price] [Total]
+           foundQty = numbers[numbers.length - 3];
+           foundPrice = numbers[numbers.length - 2];
+        } else if (numbers.length == 2) {
+           // Pattern: [Qty] [Price]
+           foundQty = numbers[0];
+           foundPrice = numbers[1];
+        } else {
+           foundQty = numbers[0];
+           foundPrice = 0.0;
+        }
+      }
+
+      // 6. Database Matching - Match Product Name
       for (var product in dbProducts) {
         final pName = product['name'].toString().toLowerCase();
-        final lText = line.toLowerCase();
-        
-        // Agar qatorda mahsulot nomi bo'lsa yoki nomi qismat bo'lsa
-        if (lText.contains(pName) || pName.contains(lText)) {
+        if (lowerLine.contains(pName)) {
           foundProductName = product['name'];
           foundProductId = product['id'];
           foundUnit = product['unit'];
@@ -49,59 +97,23 @@ class LocalAIParser {
         }
       }
 
-      // 3. Raqamlarni aniqlaymiz (Miqdor va Narx)
-      final numberRegex = RegExp(r'(\d+[\.,]?\d*)');
-      final matches = numberRegex.allMatches(line).map((m) => m.group(0)).toList();
-      
-      List<double> numbers = [];
-      for (var m in matches) {
-        if (m != null) {
-          final cleanM = m.replaceAll(',', '.');
-          final n = double.tryParse(cleanM);
-          // Yillarni va kichik idlarni filtrlash (masalan 2024-2026 larni o'tkazib yubormaslik uchun)
-          if (n != null && n > 0 && n != 2024 && n != 2025 && n != 2026) {
-            numbers.add(n);
+      // 7. If not in DB, extract name cleanly from the start of the line
+      if (foundProductName == null && numbers.isNotEmpty) {
+          // Take the part before the first number as the name
+          final firstDigitIdx = line.indexOf(RegExp(r'\d'));
+          if (firstDigitIdx > 3) {
+            foundProductName = line.substring(0, firstDigitIdx).trim();
+            // Remove starting junk like "1." or "2)"
+            foundProductName = foundProductName.replaceAll(RegExp(r'^\d+[\s\.\)]+'), '').trim();
           }
-        }
       }
 
-      // Heuristika: Katta raqam - narx, kichikroq raqam - miqdor
-      if (numbers.isNotEmpty) {
-        if (numbers.length >= 2) {
-          numbers.sort(); // Kichigidan kattasiga
-          foundQty = numbers[0];
-          foundPrice = numbers[numbers.length - 1];
-        } else {
-          foundQty = numbers[0];
-          foundPrice = 0.0;
-        }
-      }
-
-      // 4. Capture hatto bazada yo'q bo'lsa ham
-      if (foundProductName == null && numbers.isNotEmpty && line.length > 5) {
-        // Matndan keraksiz narsalarni tozalaymiz
-        final nameCandidate = line
-            .replaceAll(RegExp(r'\d+[\.,]?\d*'), '') // Raqamlarni o'chiramiz
-            .replaceAll(RegExp(r'[^\w\sа-яА-ЯёЁ\-]'), '') // Maxsus belgilarni o'chiramiz
-            .trim();
-            
-        if (nameCandidate.length > 3) {
-          foundProductName = nameCandidate;
-        }
-      }
-
-      // 5. Faqat shubhali bo'lmagan ma'lumotlarni qo'shamiz
-      if (foundProductName != null && (foundQty != null || foundPrice != null)) {
-        // Agar miqdor juda katta bo'lsa (masalan 1000000), uni miqdor emas narx deb bilsin
-        if (foundQty != null && foundQty > 10000 && (foundPrice == null || foundPrice == 0)) {
-           foundPrice = foundQty;
-           foundQty = 1.0;
-        }
-
+      // 8. Resulting Row
+      if (foundProductName != null && foundProductName.length > 2 && (foundQty ?? 0) > 0) {
         results.add({
           "name": foundProductName,
           "id": foundProductId,
-          "unit": foundUnit ?? 'dona',
+          "unit": foundUnit,
           "quantity": foundQty ?? 1.0,
           "price": foundPrice ?? 0.0,
           "is_new": foundProductId == null,
