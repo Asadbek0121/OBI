@@ -316,7 +316,13 @@ class _StockInViewState extends State<StockInView> {
           
           if (mounted) {
             final t = Provider.of<AppTranslations>(context, listen: false);
-            AppNotifications.showSuccess(context, "Local AI: ${extractedItems.length} ta mahsulot tanib olindi!");
+            final newCount = extractedItems.where((i) => i['is_new'] == true).length;
+            
+            if (newCount > 0) {
+              AppNotifications.showWarning(context, "Local AI: ${extractedItems.length} ta mahsulot topildi, lekin ulardan $newCount tasi bazangizda yo'q. Iltimos tekshirib chiqing!");
+            } else {
+              AppNotifications.showSuccess(context, "Local AI: ${extractedItems.length} ta mahsulot tanib olindi!");
+            }
           }
         } else {
           if (mounted) AppNotifications.showError(context, "Rasmdan birorta mahsulot topilmadi.");
@@ -368,7 +374,15 @@ class _StockInViewState extends State<StockInView> {
       if (newRows.isNotEmpty) {
         stateManager.removeAllRows();
         stateManager.appendRows(newRows);
-        if (mounted) AppNotifications.showSuccess(context, "Bazangizdan ${newRows.length} ta mahsulot tanib olindi!");
+        
+        if (mounted) {
+          final newCount = parsedData.where((i) => i['is_new'] == true).length;
+          if (newCount > 0) {
+            AppNotifications.showWarning(context, "Xotiradan ${parsedData.length} ta mahsulot topildi, lekin $newCount tasi bazada topilmadi.");
+          } else {
+            AppNotifications.showSuccess(context, "Bazangizdan ${newRows.length} ta mahsulot tanib olindi!");
+          }
+        }
       } else {
         if (mounted) AppNotifications.showError(context, "Bazangizdan birorta mahsulot topilmadi.");
       }

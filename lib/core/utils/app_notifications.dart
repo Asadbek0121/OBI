@@ -33,6 +33,16 @@ class AppNotifications {
     );
   }
 
+  static void showWarning(BuildContext context, String message) {
+    _showOverlay(
+      context,
+      message,
+      Colors.orange,
+      Icons.warning_amber_rounded,
+      "Diqqat",
+    );
+  }
+
   static void _showOverlay(
     BuildContext context,
     String message,

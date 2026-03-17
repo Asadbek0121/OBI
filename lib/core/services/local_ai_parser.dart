@@ -56,14 +56,24 @@ class LocalAIParser {
         }
       }
 
-      // Faqatgina mahsulot topilsa qo'shamiz
+      // 4. Capture even if not in DB (if line seems to have data)
+      if (foundProductName == null && numbers.isNotEmpty) {
+        // Simple heuristic: Take the first few words that aren't numbers as the name
+        final nameCandidate = line.replaceAll(RegExp(r'\d+[\.,]?\d*'), '').trim();
+        if (nameCandidate.length > 2) {
+          foundProductName = nameCandidate;
+        }
+      }
+
+      // If we found a name (from DB or raw text) and at least one number, add it
       if (foundProductName != null) {
         results.add({
           "name": foundProductName,
-          "id": foundProductId,
+          "id": foundProductId, // Will be null if not in DB
           "unit": foundUnit ?? 'dona',
           "quantity": foundQty ?? 1.0,
           "price": foundPrice ?? 0.0,
+          "is_new": foundProductId == null, // Flag to show it's not in DB
         });
       }
     }
