@@ -31,30 +31,44 @@ jobs:
       - name: Build Windows App
         run: flutter build windows --release
 
+      - name: Create MSIX Installer
+        run: flutter pub run msix:create
+
       - name: Locate Build Output
         id: build_output
         shell: powershell
         run: |
+          $msix = Get-ChildItem -Path "build\windows\runner\Release\*.msix" -ErrorAction SilentlyContinue
+          if ($msix) {
+            echo "MSIX_PATH=$($msix.FullName)" >> $env:GITHUB_ENV
+            echo "HAS_MSIX=true" >> $env:GITHUB_ENV
+          } else {
+            echo "HAS_MSIX=false" >> $env:GITHUB_ENV
+          }
+          
           if (Test-Path "build\windows\x64\runner\Release") {
             echo "RELEASE_PATH=build\windows\x64\runner\Release" >> $env:GITHUB_ENV
           } elseif (Test-Path "build\windows\runner\Release") {
              echo "RELEASE_PATH=build\windows\runner\Release" >> $env:GITHUB_ENV
-          } else {
-            Write-Error "Build output directory not found!"
-            exit 1
           }
 
-      - name: Compress Build Release
+      - name: Compress Build Release (Fallback)
+        if: env.HAS_MSIX != 'true'
         run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_windows.zip
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: clinical_warehouse_windows.zip
+          files: |
+            ${{ env.MSIX_PATH }}
+            clinical_warehouse_windows.zip
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4.3.1
         with:
           name: windows-build
-          path: clinical_warehouse_windows.zip
+          path: |
+            build/windows/runner/Release/*.msix
+            clinical_warehouse_windows.zip
+
