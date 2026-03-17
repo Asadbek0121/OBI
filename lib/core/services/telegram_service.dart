@@ -333,7 +333,7 @@ class TelegramService {
 
   Future<String?> getFileUrl(String fileId) async {
     final token = await getBotToken();
-    if (token == null) return null;
+    if (token == null) throw Exception("Bot Token topilmadi.");
     try {
       final url = Uri.parse('$_baseUrl$token/getFile?file_id=$fileId');
       final response = await http.get(url);
@@ -342,12 +342,19 @@ class TelegramService {
         if (data['ok'] == true) {
           final filePath = data['result']['file_path'];
           return "https://api.telegram.org/file/bot$token/$filePath";
+        } else {
+          final error = data['description'] ?? 'Unknown API Error';
+          throw Exception("Telegram API xatosi: $error");
         }
+      } else {
+        final data = jsonDecode(response.body);
+        final error = data['description'] ?? 'HTTP ${response.statusCode}';
+        throw Exception("Server xatosi: $error");
       }
     } catch (e) {
       debugPrint("getFileUrl Error: $e");
+      throw Exception("Tarmoq yoki tizim xatosi: $e");
     }
-    return null;
   }
 
   // --- Scheduler ---

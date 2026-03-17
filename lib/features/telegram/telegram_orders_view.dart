@@ -741,13 +741,19 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
       builder: (c) => const Center(child: CircularProgressIndicator()),
     );
 
-    final imageUrl = await _telegramService.getFileUrl(fileId);
+    String? imageUrl;
+    String? errorMessage;
+    try {
+      imageUrl = await _telegramService.getFileUrl(fileId);
+    } catch (e) {
+      errorMessage = e.toString().replaceFirst('Exception: ', '');
+    }
     
     if (!mounted) return;
     Navigator.pop(context); // Close loading
 
     if (imageUrl == null) {
-       AppNotifications.showError(context, "Rasmni yuklab bo'lmadi");
+       AppNotifications.showError(context, errorMessage ?? "Rasmni yuklab bo'lmadi");
        return;
     }
 
@@ -771,7 +777,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
             Expanded(
               child: InteractiveViewer(
                 child: Image.network(
-                  imageUrl,
+                  imageUrl!,
                   fit: BoxFit.contain,
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
@@ -810,7 +816,7 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
               onPressed: () async {
                  // Fetch bytes
                  try {
-                   final response = await http.get(Uri.parse(imageUrl));
+                   final response = await http.get(Uri.parse(imageUrl!));
                    if (response.statusCode == 200) {
                       await PrintService.printImage(response.bodyBytes, branchName);
                    } else {
