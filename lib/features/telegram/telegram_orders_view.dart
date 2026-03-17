@@ -206,10 +206,41 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
                         IconButton(
                           icon: const Icon(Icons.print_outlined, color: Colors.blueGrey),
                           onPressed: () {
+                            List<Map<String, dynamic>> itemsList = [];
                             if (order['items'] != null && (order['items'] as List).isNotEmpty) {
-                              PrintService.printWaybill(order, List<Map<String, dynamic>>.from(order['items']));
+                              itemsList = List<Map<String, dynamic>>.from(order['items']);
+                            } else if (order['admin_comment'] != null && order['admin_comment'].toString().trim().isNotEmpty) {
+                              // If no formal items, use the admin comment as a fallback single-item row
+                              String note = order['admin_comment'].toString().replaceAll('\n', ' // ');
+                              if (note.length > 60) note = "${note.substring(0, 57)}...";
+                              
+                              itemsList = [
+                                {
+                                  'product_name': "Buyurtma izohi / Erkin matn: $note",
+                                  'quantity': '1',
+                                  'unit': 'komplekt'
+                                }
+                              ];
+                            }
+                            
+                            if (itemsList.isNotEmpty) {
+                              // Show loading dialog for print generation
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (c) => const Center(child: CircularProgressIndicator()),
+                              );
+                              
+                              PrintService.printWaybill(order, itemsList).then((_) {
+                                if (context.mounted) Navigator.pop(context);
+                              }).catchError((e) {
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Print xatosi: $e")));
+                                }
+                              });
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bu buyurtma ichida tovar yo'q, faqat rasm bo'lishi mumkin.")));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bu buyurtmada mahsulotlar ham, izoh ham yo'q.")));
                             }
                           },
                           tooltip: "Nakladnoy (A4) kvitansiya chiqarish",
@@ -898,8 +929,14 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
           ElevatedButton.icon(
             icon: const Icon(Icons.print),
             label: const Text("Chiqarish"),
-            onPressed: () async {
-              await PrintService.printOrderQR(qrData, "#ORD-$orderId");
+            onPressed: () {
+              showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
+              PrintService.printOrderQR(qrData, "#ORD-$orderId").then((_) {
+                if (context.mounted) Navigator.pop(context);
+              }).catchError((e) {
+                if (context.mounted) Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Print xatosi: $e")));
+              });
             },
           ),
         ],

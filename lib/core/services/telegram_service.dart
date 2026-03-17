@@ -343,17 +343,24 @@ class TelegramService {
           final filePath = data['result']['file_path'];
           return "https://api.telegram.org/file/bot$token/$filePath";
         } else {
-          final error = data['description'] ?? 'Unknown API Error';
+          final error = data['description'] ?? "Noma'lum xatolik";
+          if (error.contains('wrong file_id')) {
+            throw Exception("Fayl (rasm) muddati o'tgan yoki topilmadi.");
+          }
           throw Exception("Telegram API xatosi: $error");
         }
       } else {
         final data = jsonDecode(response.body);
         final error = data['description'] ?? 'HTTP ${response.statusCode}';
+        if (error.contains('wrong file_id')) {
+          throw Exception("Fayl (rasm) muddati o'tgan yoki topilmadi.");
+        }
         throw Exception("Server xatosi: $error");
       }
     } catch (e) {
       debugPrint("getFileUrl Error: $e");
-      throw Exception("Tarmoq yoki tizim xatosi: $e");
+      String msg = e.toString().replaceFirst('Exception: ', '');
+      throw Exception(msg);
     }
   }
 

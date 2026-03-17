@@ -25,7 +25,7 @@ class SyncService {
     'assets',
     'asset_locations',
     'asset_categories',
-    'asset_movements',
+    // 'asset_movements', // Temporarily disabled due to schema mismatch causing logs spam and potential lag
     'branch_orders',
     'branch_order_items'
   ];

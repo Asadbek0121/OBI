@@ -1824,7 +1824,15 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => PrintService.printAssetPassport(_asset), 
+                    onPressed: () {
+                      showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
+                      PrintService.printAssetPassport(_asset).then((_) {
+                        if (context.mounted) Navigator.pop(context);
+                      }).catchError((e) {
+                         if (context.mounted) Navigator.pop(context);
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                      });
+                    }, 
                     icon: const Icon(Icons.description_rounded),
                     label: const Text("PASPORT"),
                     style: ElevatedButton.styleFrom(
@@ -1837,7 +1845,15 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => PrintService.printAssetBarcode(_asset), 
+                    onPressed: () {
+                      showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
+                      PrintService.printAssetBarcode(_asset).then((_) {
+                        if (context.mounted) Navigator.pop(context);
+                      }).catchError((e) {
+                         if (context.mounted) Navigator.pop(context);
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
+                      });
+                    }, 
                     icon: const Icon(Icons.qr_code_2_rounded),
                     label: const Text("ETIKETKA"),
                     style: ElevatedButton.styleFrom(

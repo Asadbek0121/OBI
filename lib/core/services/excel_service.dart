@@ -477,7 +477,7 @@ class ExcelService {
         await file.writeAsBytes(fileBytes);
         
         // Share/Open
-        await Share.shareXFiles([XFile(file.path)], text: 'Jihozlar Exporti');
+        await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Jihozlar Exporti'));
       }
 
     } catch (e) {
