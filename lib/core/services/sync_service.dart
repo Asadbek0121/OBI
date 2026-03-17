@@ -15,6 +15,17 @@ class SyncService {
   Timer? _syncTimer;
   final _supabase = Supabase.instance.client;
 
+  final _syncStatusController = StreamController<String>.broadcast();
+  Stream<String> get syncStatusStream => _syncStatusController.stream;
+  String _currentStatus = "Disconnected";
+  String get currentStatus => _currentStatus;
+  bool get isSyncing => _isSyncing;
+
+  void _updateStatus(String status) {
+    _currentStatus = status;
+    _syncStatusController.add(status);
+  }
+
   static const String _lastSyncKey = 'last_successful_sync';
 
   // Tables that need synchronization
@@ -40,6 +51,7 @@ class SyncService {
   Future<void> startSync() async {
     if (_isSyncing) return;
     _isSyncing = true;
+    _updateStatus("Syncing...");
     debugPrint("🔄 SyncService: Starting background synchronization...");
 
     try {
@@ -49,8 +61,10 @@ class SyncService {
       // 2. Pull Cloud Changes to Local
       await pullCloudChanges();
 
+      _updateStatus("Synced");
       debugPrint("✅ SyncService: Synchronization completed successfully.");
     } catch (e) {
+      _updateStatus("Error");
       debugPrint("❌ SyncService Error: $e");
     } finally {
       _isSyncing = false;

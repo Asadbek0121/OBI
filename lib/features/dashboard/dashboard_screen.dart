@@ -22,6 +22,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
+import '../../core/services/sync_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -66,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+
   void _playVoiceAlert(String text) {
     if (Platform.isMacOS) {
       Process.run('say', [text]);
@@ -76,6 +78,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _refreshAll() async {
+    if (mounted) setState(() => _isLoadingDashboard = true);
+    try {
+      await _loadDashboardData();
+      await SyncService().startSync();
+      if (mounted) {
+        AppNotifications.showInfo(context, "Ma'lumotlar muvaffaqiyatli yangilandi");
+      }
+    } catch (e) {
+      if (mounted) {
+        AppNotifications.showError(context, "Yangilashda xatolik: $e");
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingDashboard = false);
+    }
   }
 
   Future<void> _loadDashboardData() async {
@@ -100,6 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint("Error loading dashboard data: $e");
     }
   }
+
 
 // ... (Inside _DashboardScreenState)
 
@@ -344,11 +364,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
             color: Colors.blue,
           ),
           const SizedBox(width: 24),
-          StatusIndicator(
-            label: "CLOUD",
-            status: "Supabase Synced",
-            icon: Icons.cloud_done_rounded,
-            color: Colors.green,
+          GestureDetector(
+            onTap: () {
+              SyncService().startSync();
+              AppNotifications.showInfo(context, "Cloud sinxronizatsiyasi boshlandi...");
+            },
+            child: StreamBuilder<String>(
+              stream: SyncService().syncStatusStream,
+              initialData: SyncService().currentStatus,
+              builder: (context, snapshot) {
+                final status = snapshot.data ?? "Disconnected";
+                Color color = Colors.grey;
+                IconData icon = Icons.cloud_off_rounded;
+
+                if (status == "Synced") {
+                  color = Colors.green;
+                  icon = Icons.cloud_done_rounded;
+                } else if (status == "Syncing...") {
+                  color = Colors.orange;
+                  icon = Icons.sync;
+                } else if (status == "Error") {
+                  color = Colors.red;
+                  icon = Icons.cloud_off_rounded;
+                }
+
+                return StatusIndicator(
+                  label: "CLOUD",
+                  status: status == "Synced" ? "Supabase Synced" : status,
+                  icon: icon,
+                  color: color,
+                );
+              },
+            ),
           ),
           const Spacer(),
           const Icon(Icons.circle, color: AppColors.success, size: 8),
@@ -418,7 +465,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                        ],
                      ),
                    ),
-                   const SizedBox(width: 16),
+                   const SizedBox(width: 12),
+                   // Refresh Button
+                   GlassContainer(
+                     onTap: _refreshAll,
+                     padding: const EdgeInsets.all(10),
+                     borderRadius: 30,
+                     child: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+                   ),
+                   const SizedBox(width: 12),
                    // Date Badge
                     GlassContainer(
                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -790,6 +845,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
+
 
 class _FancyStatCard extends StatelessWidget {
   final String title;
