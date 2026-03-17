@@ -8,6 +8,11 @@ class LocalOCRService {
 
   Future<List<Map<String, dynamic>>?> processImageLocally(File file) async {
     try {
+      if (!Platform.isMacOS) {
+        debugPrint("📸 Local OCR: Native image recognition is currently only supported on MacOS. Use 'Paste & Parse' on Windows.");
+        return null;
+      }
+
       // 1. Call Native MacOS OCR via Platform Channel
       final String? rawText = await _channel.invokeMethod('performOCR', {
         "path": file.path,
