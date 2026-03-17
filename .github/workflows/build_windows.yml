@@ -1,4 +1,3 @@
-
 name: Build Windows App
 
 on:
@@ -18,10 +17,10 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.12.0
         with:
           channel: 'stable'
           architecture: x64
@@ -49,13 +48,13 @@ jobs:
         run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_windows.zip
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: clinical_warehouse_windows.zip
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.3.1
         with:
           name: windows-build
           path: clinical_warehouse_windows.zip
