@@ -129,6 +129,9 @@ class AppTranslations extends ChangeNotifier {
       'out_desc': 'Bo\'limlarga tarqatish uchun mahsulotlarni tanlang.',
       'btn_create_out': 'Chiqim hujjatini yaratish',
       'msg_items_dist': 'Mahsulotlar tarqatildi.',
+      'btn_ocr': 'OCR O\'qish',
+      'msg_ocr_reading': 'O\'qilmoqda...',
+      'msg_ocr_found': 'mahsulot topildi',
 
       // Dialogs
       'dlg_backup_title': 'Ma\'lumotlarni zaxiralash',
@@ -393,6 +396,9 @@ class AppTranslations extends ChangeNotifier {
       'out_desc': 'Выберите товары для выдачи в отделения.',
       'btn_create_out': 'Создать документ расхода',
       'msg_items_dist': 'Товары выданы.',
+      'btn_ocr': 'OCR Чтение',
+      'msg_ocr_reading': 'Читается...',
+      'msg_ocr_found': 'товаров найдено',
 
       // Dialogs
       'dlg_backup_title': 'Резервное копирование',

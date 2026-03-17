@@ -345,7 +345,10 @@ class _StockInViewState extends State<StockInView> {
           stateManager.appendRows(newRows);
           stateManager.setShowLoading(false);
           
-          if (mounted) AppNotifications.showSuccess(context, "OCR: ${items.length} ta mahsulot topildi");
+          if (mounted) {
+            final t = Provider.of<AppTranslations>(context, listen: false);
+            AppNotifications.showSuccess(context, "OCR: ${items.length} ${t.text('msg_ocr_found')}");
+          }
         } else {
           if (mounted) AppNotifications.showError(context, "OCR: Ma'lumot topilmadi");
         }
@@ -395,8 +398,11 @@ class _StockInViewState extends State<StockInView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,6 +414,7 @@ class _StockInViewState extends State<StockInView> {
             ),
             
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
@@ -430,7 +437,7 @@ class _StockInViewState extends State<StockInView> {
                   icon: isOCRLoading 
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
                     : const Icon(Icons.document_scanner, size: 18), 
-                  label: Text(isOCRLoading ? "O'qilmoqda..." : "OCR O'qish"),
+                  label: Text(isOCRLoading ? t.text('msg_ocr_reading') : t.text('btn_ocr')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     foregroundColor: AppColors.primary,
