@@ -42,7 +42,12 @@ jobs:
         id: build_output
         shell: powershell
         run: |
-          $msixFile = Get-ChildItem -Path "build\windows\runner\Release\*.msix" | Select-Object -First 1
+          # Priority to x64 path
+          $msixFile = Get-ChildItem -Path "build\windows\x64\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $msixFile) {
+            $msixFile = Get-ChildItem -Path "build\windows\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          
           if ($msixFile) {
             echo "MSIX_PATH=$($msixFile.FullName)" >> $env:GITHUB_ENV
             echo "HAS_MSIX=true" >> $env:GITHUB_ENV
@@ -75,6 +80,7 @@ jobs:
         with:
           name: windows-build
           path: |
+            build/windows/x64/runner/Release/*.msix
             build/windows/runner/Release/*.msix
             clinical_warehouse_windows.zip
 
