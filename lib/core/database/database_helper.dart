@@ -518,6 +518,16 @@ class DatabaseHelper {
     final results = await db.query('products', where: 'id = ? AND is_deleted = 0', whereArgs: [id], limit: 1);
     return results.isNotEmpty ? results.first : null;
   }
+  Future<Map<String, dynamic>?> getProductByName(String name) async {
+    final db = await instance.database;
+    final results = await db.query(
+      'products', 
+      where: 'name LIKE ? AND is_deleted = 0', 
+      whereArgs: ['%$name%'], 
+      limit: 1
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
 
   Future<void> insertProduct(Map<String, dynamic> product) async {
     final db = await instance.database;

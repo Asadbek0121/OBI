@@ -7,6 +7,9 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
+import 'package:clinical_warehouse/core/services/ocr_service.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});
@@ -28,7 +31,9 @@ class _StockInViewState extends State<StockInView> {
   List<String> paymentTypes = ['Naqd', 'Qarzga', 'O\'tkazma'];
 
   bool isLoading = false;
+  bool isOCRLoading = false;
   bool isGridLoaded = false;
+  final _ocrService = OCRService();
 
   @override
   void initState() {
@@ -270,6 +275,89 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
+  Future<void> _handleOCR() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        setState(() => isOCRLoading = true);
+        final file = File(result.files.single.path!);
+        
+        final data = await _ocrService.processDocument(file);
+        
+        if (data != null && data['items'] != null) {
+          final items = data['items'] as List;
+          final metadata = data['metadata'] ?? {};
+          
+          stateManager.setShowLoading(true);
+          stateManager.removeAllRows();
+          
+          final List<PlutoRow> newRows = [];
+          for (int i = 0; i < items.length; i++) {
+            final item = items[i];
+            final row = _createEmptyRow(i + 1);
+            
+            if (metadata['date'] != null) row.cells['date']?.value = metadata['date'];
+            
+            if (metadata['supplier'] != null) {
+               final String supplierName = metadata['supplier'].toString();
+               final foundSupplier = suppliers.any((s) => s.toLowerCase().contains(supplierName.toLowerCase()));
+               if (foundSupplier) {
+                 row.cells['supplier']?.value = suppliers.firstWhere((s) => s.toLowerCase().contains(supplierName.toLowerCase()));
+               }
+            }
+            
+            final String pName = item['name'] ?? '';
+            row.cells['product_name']?.value = pName;
+            
+            // Try to auto-match product ID by name
+            if (pName.isNotEmpty) {
+              final matchedProduct = await DatabaseHelper.instance.getProductByName(pName);
+              if (matchedProduct != null) {
+                row.cells['product_id']?.value = matchedProduct['id'];
+                if (item['unit'] == null) row.cells['unit']?.value = matchedProduct['unit'] ?? '';
+              }
+            }
+            
+            row.cells['unit']?.value = item['unit'] ?? row.cells['unit']?.value ?? '';
+            row.cells['quantity']?.value = item['quantity']?.toString() ?? '';
+            row.cells['price']?.value = item['price']?.toString() ?? '';
+            row.cells['tax_percent']?.value = item['tax_percent']?.toString() ?? '0';
+            
+            // Manual trigger calculations for this row
+            final qty = double.tryParse(item['quantity']?.toString() ?? '0') ?? 0;
+            final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0;
+            final taxPct = double.tryParse(item['tax_percent']?.toString() ?? '0') ?? 0;
+            
+            final baseTotal = qty * price;
+            final taxSum = baseTotal * (taxPct / 100);
+            final finalTotal = baseTotal + taxSum;
+            
+            row.cells['tax_sum']?.value = taxSum.toStringAsFixed(0);
+            row.cells['total_amount']?.value = finalTotal.toStringAsFixed(0);
+
+            newRows.add(row);
+          }
+          
+          stateManager.appendRows(newRows);
+          stateManager.setShowLoading(false);
+          
+          if (mounted) AppNotifications.showSuccess(context, "OCR: ${items.length} ta mahsulot topildi");
+        } else {
+          if (mounted) AppNotifications.showError(context, "OCR: Ma'lumot topilmadi");
+        }
+      }
+    } catch (e) {
+      debugPrint("OCR Handler Error: $e");
+      if (mounted) AppNotifications.showError(context, "OCR Xatosi: $e");
+    } finally {
+      if (mounted) setState(() => isOCRLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -333,6 +421,19 @@ class _StockInViewState extends State<StockInView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.withValues(alpha: 0.2),
                     foregroundColor: AppColors.textPrimary,
+                    elevation: 0,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: isOCRLoading ? null : _handleOCR, 
+                  icon: isOCRLoading 
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
+                    : const Icon(Icons.document_scanner, size: 18), 
+                  label: Text(isOCRLoading ? "O'qilmoqda..." : "OCR O'qish"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    foregroundColor: AppColors.primary,
                     elevation: 0,
                   ),
                 ),
