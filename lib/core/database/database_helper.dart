@@ -127,9 +127,11 @@ class DatabaseHelper {
         // Ignore if exists
       }
 
-      // 🛡️ STEP 2 for SECURITY: Soft Delete Columns (Recycle Bin)
+      // Add 'is_deleted' column (default: 0)
       try {
         await db.execute("ALTER TABLE $table ADD COLUMN is_deleted INTEGER DEFAULT 0");
+        // Ensure all existing rows have 0 if they were NULL
+        await db.execute("UPDATE $table SET is_deleted = 0 WHERE is_deleted IS NULL");
       } catch (e) {
         // Ignore if exists
       }
@@ -580,7 +582,7 @@ class DatabaseHelper {
         SELECT product_id, SUM(quantity) as total_out 
         FROM stock_out WHERE is_deleted = 0 GROUP BY product_id
       ) so ON p.id = so.product_id
-      WHERE p.is_deleted = 0
+      WHERE (p.is_deleted = 0 OR p.is_deleted IS NULL)
     ''');
     
     return res.map((row) {
@@ -1007,9 +1009,9 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getLocations({int? parentId}) async {
     final db = await instance.database;
     if (parentId == null) {
-      return await db.query('asset_locations', where: 'parent_id IS NULL AND is_deleted = 0');
+      return await db.query('asset_locations', where: 'parent_id IS NULL AND (is_deleted = 0 OR is_deleted IS NULL)');
     }
-    return await db.query('asset_locations', where: 'parent_id = ? AND is_deleted = 0', whereArgs: [parentId]);
+    return await db.query('asset_locations', where: 'parent_id = ? AND (is_deleted = 0 OR is_deleted IS NULL)', whereArgs: [parentId]);
   }
 
   Future<int> insertLocation(Map<String, dynamic> data) async {
@@ -1079,7 +1081,7 @@ class DatabaseHelper {
       LEFT JOIN asset_locations l ON a.location_id = l.id
       LEFT JOIN asset_locations p ON l.parent_id = p.id
       LEFT JOIN asset_locations g ON p.parent_id = g.id
-      WHERE a.is_deleted = 0
+      WHERE (a.is_deleted = 0 OR a.is_deleted IS NULL)
       ORDER BY a.id DESC
     ''');
   }

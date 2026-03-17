@@ -15,6 +15,16 @@ import 'core/services/profile_provider.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
 import 'features/setup/database_setup_screen.dart';
+import 'dart:ui';
+
+class AppScrollBehavior extends MaterialScrollBehavior {
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+      };
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -133,6 +143,7 @@ class ClinicalWarehouseApp extends StatelessWidget {
     
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      scrollBehavior: AppScrollBehavior(),
       title: 'Omborxona Boshqaruv Tizimi',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
