@@ -10,6 +10,7 @@ import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/services/ocr_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});
@@ -361,6 +362,85 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
+  Future<void> _handlePasteAndParse() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    final String text = clipboardData?.text ?? '';
+
+    if (text.isEmpty) {
+      if (mounted) AppNotifications.showError(context, t.text('msg_paste_empty'));
+      return;
+    }
+
+    try {
+      stateManager.setShowLoading(true);
+      // Logic to split by lines and then by tabs/spaces
+      final lines = text.split(RegExp(r'\r?\n')).where((line) => line.trim().isNotEmpty).toList();
+      final List<PlutoRow> newRows = [];
+
+      for (var line in lines) {
+        // Simple heuristic: split by tabs or multiple spaces
+        final cols = line.split(RegExp(r'\t|\s{2,}')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        if (cols.length < 2) continue; // Skip lines that aren't rows
+
+        final row = _createEmptyRow(newRows.length + 1);
+        
+        // Try to identify columns by content
+        String? pName;
+        String? qty;
+        String? price;
+        String? unit;
+
+        for (var col in cols) {
+          if (double.tryParse(col.replaceAll(',', '')) != null) {
+             // It's a number. Heuristic: larger is probably price, smaller is qty
+             final val = double.parse(col.replaceAll(',', ''));
+             if (val > 1000 && price == null) {
+               price = val.toString();
+             } else if (qty == null) {
+               qty = val.toString();
+             }
+          } else if (col.length > 3 && pName == null) {
+            pName = col;
+          } else if (col.length <= 4 && unit == null) {
+            unit = col;
+          }
+        }
+
+        row.cells['product_name']?.value = pName ?? cols[0];
+        row.cells['quantity']?.value = qty ?? '';
+        row.cells['price']?.value = price ?? '';
+        row.cells['unit']?.value = unit ?? '';
+
+        // Auto-match Product ID if name exists
+        if (pName != null) {
+          final matched = await DatabaseHelper.instance.getProductByName(pName);
+          if (matched != null) {
+            row.cells['product_id']?.value = matched['id'];
+            if (row.cells['unit']?.value == '') row.cells['unit']?.value = matched['unit'] ?? '';
+          }
+        }
+
+        // Trigger basic calculation
+        final qVal = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
+        final pVal = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
+        row.cells['total_amount']?.value = (qVal * pVal).toStringAsFixed(0);
+
+        newRows.add(row);
+      }
+
+      if (newRows.isNotEmpty) {
+        stateManager.removeAllRows();
+        stateManager.appendRows(newRows);
+        if (mounted) AppNotifications.showSuccess(context, "Xotiradan ${newRows.length} qator o'qib olindi");
+      }
+      stateManager.setShowLoading(false);
+    } catch (e) {
+      debugPrint("Paste error: $e");
+      stateManager.setShowLoading(false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -428,6 +508,17 @@ class _StockInViewState extends State<StockInView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.withValues(alpha: 0.2),
                     foregroundColor: AppColors.textPrimary,
+                    elevation: 0,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _handlePasteAndParse, 
+                  icon: const Icon(Icons.paste_rounded, size: 18), 
+                  label: Text(t.text('btn_paste_parse')),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.withValues(alpha: 0.1),
+                    foregroundColor: Colors.orange,
                     elevation: 0,
                   ),
                 ),

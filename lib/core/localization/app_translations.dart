@@ -130,8 +130,10 @@ class AppTranslations extends ChangeNotifier {
       'btn_create_out': 'Chiqim hujjatini yaratish',
       'msg_items_dist': 'Mahsulotlar tarqatildi.',
       'btn_ocr': 'OCR O\'qish',
+      'btn_paste_parse': 'Xotiradan o\'qish',
       'msg_ocr_reading': 'O\'qilmoqda...',
       'msg_ocr_found': 'mahsulot topildi',
+      'msg_paste_empty': 'Vaqtinchalik xotira bo\'sh!',
 
       // Dialogs
       'dlg_backup_title': 'Ma\'lumotlarni zaxiralash',
@@ -397,8 +399,10 @@ class AppTranslations extends ChangeNotifier {
       'btn_create_out': 'Создать документ расхода',
       'msg_items_dist': 'Товары выданы.',
       'btn_ocr': 'OCR Чтение',
+      'btn_paste_parse': 'Вставить и распознать',
       'msg_ocr_reading': 'Читается...',
       'msg_ocr_found': 'товаров найдено',
+      'msg_paste_empty': 'Буфер обмена пуст!',
 
       // Dialogs
       'dlg_backup_title': 'Резервное копирование',
