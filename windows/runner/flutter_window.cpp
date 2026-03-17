@@ -26,14 +26,9 @@ void HandleOCRRequest(const std::string& path,
                      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {
-    // Initializing for multi-threaded access
-    winrt::init_apartment(winrt::apartment_type::multi_threaded);
-}
+    : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {
-    winrt::uninit_apartment();
-}
+FlutterWindow::~FlutterWindow() {}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -122,7 +117,7 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 // Windows Native OCR Implementation
 void HandleOCRRequest(const std::string& path,
                      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-    // Ensure COM is initialized for this background thread
+    // Ensure COM is initialized for this background thread as MTA
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     
     std::wstring wpath(path.begin(), path.end());
