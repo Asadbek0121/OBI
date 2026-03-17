@@ -129,8 +129,10 @@ class _AssetsViewState extends State<AssetsView> {
       if (_selectedRoomId != null) {
         locMatches = asset['location_id'] == _selectedRoomId;
       } else if (_selectedFloorId != null) {
+        // Match if it's in the floor directly or in any room belonging to that floor
         locMatches = asset['location_id'] == _selectedFloorId || asset['parent_id'] == _selectedFloorId;
       } else if (_selectedBuildingId != null) {
+        // Match if it's in the building directly, or any floor/room in that building
         locMatches = asset['location_id'] == _selectedBuildingId || 
                      asset['parent_id'] == _selectedBuildingId || 
                      asset['grandparent_id'] == _selectedBuildingId;

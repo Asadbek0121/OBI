@@ -327,16 +327,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStatusBar() {
+    final t = Provider.of<AppTranslations>(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: AppColors.glassBorder.withValues(alpha: 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: const Border(top: BorderSide(color: AppColors.glassBorder)),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          const Icon(Icons.circle, color: AppColors.success, size: 12),
+          StatusIndicator(
+            label: "DATABASE",
+            status: "Local SQLite",
+            icon: Icons.storage_rounded,
+            color: Colors.blue,
+          ),
+          const SizedBox(width: 24),
+          StatusIndicator(
+            label: "CLOUD",
+            status: "Supabase Synced",
+            icon: Icons.cloud_done_rounded,
+            color: Colors.green,
+          ),
+          const Spacer(),
+          const Icon(Icons.circle, color: AppColors.success, size: 8),
           const SizedBox(width: 8),
-          Text(Provider.of<AppTranslations>(context).text('system_active'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(t.text('system_active'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
         ],
       ),
     );
@@ -1076,6 +1093,38 @@ class _HeaderClockState extends State<_HeaderClock> {
         Text(
           timeStr,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary, fontFeatures: [FontFeature.tabularFigures()]),
+        ),
+      ],
+    );
+  }
+}
+
+class StatusIndicator extends StatelessWidget {
+  final String label;
+  final String status;
+  final IconData icon;
+  final Color color;
+
+  const StatusIndicator({
+    required this.label,
+    required this.status,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.grey[500])),
+            Text(status, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+          ],
         ),
       ],
     );
