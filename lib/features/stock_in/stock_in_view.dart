@@ -315,7 +315,6 @@ class _StockInViewState extends State<StockInView> {
           stateManager.setShowLoading(false);
           
           if (mounted) {
-            final t = Provider.of<AppTranslations>(context, listen: false);
             final newCount = extractedItems.where((i) => i['is_new'] == true).length;
             
             if (newCount > 0) {
