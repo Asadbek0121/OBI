@@ -19,7 +19,7 @@ class LocalOCRService {
       }
 
       debugPrint("📸 Local OCR Raw Text: $rawText");
-      print("DEBUG RAW OCR TEXT START\n$rawText\nDEBUG RAW OCR TEXT END");
+      debugPrint("DEBUG RAW OCR TEXT START\n$rawText\nDEBUG RAW OCR TEXT END");
 
       // 2. Use our Database-driven Parser to structure the text
       // This is the "Ajoyib" part - it matches recognized text with your DB products
