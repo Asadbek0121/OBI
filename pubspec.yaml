@@ -133,3 +133,5 @@ msix_config:
   capabilities: internetClient, internetClientServer, privateNetworkClientServer
   architecture: x64
   install: false
+  publisher: 'CN=OBI'
+  store: false
