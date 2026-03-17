@@ -1,3 +1,7 @@
+#ifdef _WIN32
+#include <thread>
+#include <future>
+#include <optional>
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <winrt/Windows.Media.Ocr.h>
@@ -5,8 +9,6 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Graphics.Imaging.h>
 #include <winrt/base.h>
-#include <thread>
-#include <future>
 
 using namespace winrt;
 using namespace Windows::Media::Ocr;
@@ -151,3 +153,4 @@ void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method
         result->Error("OCR_ERROR", "Unknown native error during Windows OCR");
     }
 }
+#endif
