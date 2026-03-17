@@ -8,10 +8,8 @@ import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/services/local_ocr_service.dart';
-import 'package:clinical_warehouse/core/services/local_ai_parser.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import 'package:flutter/services.dart';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});
@@ -337,60 +335,6 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
-  Future<void> _handlePasteAndParse() async {
-    final t = Provider.of<AppTranslations>(context, listen: false);
-    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-    final String text = clipboardData?.text ?? '';
-
-    if (text.isEmpty) {
-      if (mounted) AppNotifications.showError(context, t.text('msg_paste_empty'));
-      return;
-    }
-
-    try {
-      stateManager.setShowLoading(true);
-      
-      // Use our NEW Local Intelligence Service
-      final parsedData = await LocalAIParser.parseUsingDatabase(text);
-      
-      final List<PlutoRow> newRows = [];
-      for (var item in parsedData) {
-        final row = _createEmptyRow(newRows.length + 1);
-        row.cells['product_name']?.value = item['name'];
-        row.cells['product_id']?.value = item['id'];
-        row.cells['unit']?.value = item['unit'];
-        row.cells['quantity']?.value = item['quantity'].toString();
-        row.cells['price']?.value = item['price'].toString();
-        
-        // Calculation
-        final q = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
-        final p = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
-        row.cells['total_amount']?.value = (q * p).toStringAsFixed(0);
-        
-        newRows.add(row);
-      }
-
-      if (newRows.isNotEmpty) {
-        stateManager.removeAllRows();
-        stateManager.appendRows(newRows);
-        
-        if (mounted) {
-          final newCount = parsedData.where((i) => i['is_new'] == true).length;
-          if (newCount > 0) {
-            AppNotifications.showWarning(context, "Xotiradan ${parsedData.length} ta mahsulot topildi, lekin $newCount tasi bazada topilmadi.");
-          } else {
-            AppNotifications.showSuccess(context, "Bazangizdan ${newRows.length} ta mahsulot tanib olindi!");
-          }
-        }
-      } else {
-        if (mounted) AppNotifications.showError(context, "Bazangizdan birorta mahsulot topilmadi.");
-      }
-      stateManager.setShowLoading(false);
-    } catch (e) {
-      debugPrint("Paste error: $e");
-      stateManager.setShowLoading(false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -459,17 +403,6 @@ class _StockInViewState extends State<StockInView> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.withValues(alpha: 0.2),
                     foregroundColor: AppColors.textPrimary,
-                    elevation: 0,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _handlePasteAndParse, 
-                  icon: const Icon(Icons.paste_rounded, size: 18), 
-                  label: Text(t.text('btn_paste_parse')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.withValues(alpha: 0.1),
-                    foregroundColor: Colors.orange,
                     elevation: 0,
                   ),
                 ),
