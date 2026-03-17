@@ -1,85 +1,96 @@
 import 'dart:io';
 import 'dart:convert';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:http/http.dart' as http;
 import 'package:clinical_warehouse/app_config.dart';
 import 'package:flutter/foundation.dart';
 
 class OCRService {
-  // Use a fallback or AppConfig.geminiApiKey
-  static const String _apiKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
+  // We'll use raw HTTP to have full control over the API version (v1)
+  // This avoids 'model not found' errors common in some library versions
+  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 
   Future<Map<String, dynamic>?> processDocument(File file) async {
     try {
-      final apiKey = AppConfig.geminiApiKey.isEmpty ? _apiKey : AppConfig.geminiApiKey;
+      final apiKey = AppConfig.geminiApiKey;
       if (apiKey.isEmpty) {
-        throw Exception("Gemini API Key is not configured.");
+        throw Exception("Gemini API Key is missing in AppConfig.");
       }
 
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: apiKey,
-      );
-
       final bytes = await file.readAsBytes();
-      final extension = file.path.split('.').last.toLowerCase();
-      String mimeType = 'image/jpeg';
-      if (extension == 'pdf') mimeType = 'application/pdf';
-      if (extension == 'png') mimeType = 'image/png';
+      final base64Image = base64Encode(bytes);
 
-      final content = [
-        Content.multi([
-          DataPart(mimeType, bytes), 
-          TextPart("""
-            You are an expert accounting document parser. 
-            Analyze the provided image/PDF which is a 'Счет на оплату', 'Спецификация', 'Invoice' or 'Nakladnoy' for a medical/laboratory warehouse.
-            
-            EXTRACT DATA INTO THIS JSON FORMAT:
+      final response = await http.post(
+        Uri.parse('$_baseUrl?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "contents": [
             {
-              "metadata": {
-                "date": "YYYY-MM-DD",
-                "supplier": "Full name of the Поставщик/Supplier",
-                "document_number": "Number from the title"
-              },
-              "items": [
+              "parts": [
                 {
-                  "name": "Mahsulot nomi (Product name from the table)",
-                  "unit": "Birlik (e.g. шт, уп, флак, мл)",
-                  "quantity": 0.0,
-                  "price": 0.0,
-                  "tax_percent": 0.0,
-                  "tax_sum": 0.0,
-                  "total": 0.0
+                  "text": """
+                    You are a professional accounting assistant. 
+                    Observe the attached image/document and extract the items list into a JSON format.
+                    The document is a 'Shet na oplatu', 'Nakladnaya', or 'Invoice'.
+                    
+                    Return ONLY this JSON:
+                    {
+                      "metadata": { "date": "YYYY-MM-DD", "supplier": "Name", "doc_no": "Number" },
+                      "items": [
+                        { "name": "Item Name", "unit": "шт/уп", "quantity": 0.0, "price": 0.0, "tax_percent": 0.0 }
+                      ]
+                    }
+                    
+                    Rules:
+                    1. Focus on the main items table.
+                    2. If the language is Russian or Uzbek, map the column names to the JSON keys correctly.
+                    3. Return ONLY the JSON block, no markdown or text.
+                  """
+                },
+                {
+                  "inline_data": {
+                    "mime_type": _getMimeType(file.path),
+                    "data": base64Image
+                  }
                 }
               ]
             }
+          ],
+          "generationConfig": {
+            "temperature": 0.1,
+            "topP": 0.95,
+            "topK": 64,
+            "maxOutputTokens": 8192,
+            "responseMimeType": "application/json"
+          }
+        }),
+      );
 
-            CRITICAL RULES:
-            1. Look for a central table. The columns are usually: №, Наименование товара, Ед. изм., Кол-во, Цена, НДС, Сумма.
-            2. If 'НДС' (Tax) is included in the price, calculate the tax_sum accordingly.
-            3. Clean the product names from technical symbols if possible.
-            4. If the field is missing, return null or 0.0.
-            5. RETURN ONLY THE JSON BLOCK.
-          """),
-        ]),
-      ];
-
-      final response = await model.generateContent(content);
-      final rawText = response.text;
-      debugPrint("🤖 Gemini Raw Response: $rawText");
-
-      if (rawText != null) {
-        // Use regex to find the first JSON-like block to be more robust
-        final jsonRegex = RegExp(r'\{[\s\S]*\}');
-        final match = jsonRegex.firstMatch(rawText);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final String? textResponse = decoded['candidates']?[0]?['content']?[parts]?[0]?['text'] ?? 
+                                     decoded['candidates']?[0]?['content']?['parts']?[0]?['text'];
         
-        if (match != null) {
-          final jsonStr = match.group(0)!;
-          return jsonDecode(jsonStr);
+        if (textResponse != null) {
+          debugPrint("🤖 Gemini Response: $textResponse");
+          return jsonDecode(textResponse);
         }
+      } else {
+        debugPrint("❌ OCR API Error (${response.statusCode}): ${response.body}");
       }
     } catch (e) {
-      debugPrint("OCR Error: $e");
+      debugPrint("OCR Critical Error: $e");
     }
     return null;
+  }
+
+  String _getMimeType(String path) {
+    final ext = path.split('.').last.toLowerCase();
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'png': return 'image/png';
+      case 'jpg':
+      case 'jpeg': return 'image/jpeg';
+      default: return 'image/jpeg';
+    }
   }
 }
