@@ -1106,6 +1106,7 @@ class StatusIndicator extends StatelessWidget {
   final Color color;
 
   const StatusIndicator({
+    super.key,
     required this.label,
     required this.status,
     required this.icon,

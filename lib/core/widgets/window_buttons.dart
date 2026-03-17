@@ -97,8 +97,8 @@ class _CircleButtonState extends State<_CircleButton> {
   }
 
   IconData _getIconForColor(Color color) {
-    if (color.value == 0xFFFF5F57) return Icons.close;
-    if (color.value == 0xFFFFBD2E) return Icons.remove;
+    if (color.toARGB32() == 0xFFFF5F57) return Icons.close;
+    if (color.toARGB32() == 0xFFFFBD2E) return Icons.remove;
     return Icons.add;
   }
 }
