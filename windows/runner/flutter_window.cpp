@@ -8,6 +8,8 @@
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Graphics.Imaging.h>
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/base.h>
 
 using namespace winrt;
@@ -20,7 +22,7 @@ using namespace Windows::Graphics::Imaging;
 #include "flutter/generated_plugin_registrant.h"
 
 // Forward declaration
-void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method_call,
+void HandleOCRRequest(const std::string& path,
                      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -52,11 +54,25 @@ bool FlutterWindow::OnCreate() {
       &flutter::StandardMethodCodec::GetInstance());
 
   channel->SetMethodCallHandler(
-      [](const auto& call, auto result) {
+      [this](const auto& call, auto result) {
         if (call.method_name() == "performOCR") {
+          const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
+          if (!arguments) {
+            result->Error("INVALID_ARGS", "Arguments missing");
+            return;
+          }
+
+          auto path_it = arguments->find(flutter::EncodableValue("path"));
+          if (path_it == arguments->end()) {
+            result->Error("INVALID_ARGS", "Path missing");
+            return;
+          }
+
+          std::string path = std::get<std::string>(path_it->second);
+          
           // Offload OCR to a background thread to keep UI smooth
-          std::thread([c = call, r = std::move(result)]() mutable {
-              HandleOCRRequest(c, std::move(r));
+          std::thread([path, result = std::move(result)]() mutable {
+              HandleOCRRequest(path, std::move(result));
           }).detach();
         } else {
           result->NotImplemented();
@@ -104,24 +120,11 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 }
 
 // Windows Native OCR Implementation
-void HandleOCRRequest(const flutter::MethodCall<flutter::EncodableValue>& method_call,
+void HandleOCRRequest(const std::string& path,
                      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
     // Ensure COM is initialized for this background thread
     winrt::init_apartment(winrt::apartment_type::multi_threaded);
     
-    const auto* arguments = std::get_if<flutter::EncodableMap>(method_call.arguments());
-    if (!arguments) {
-        result->Error("INVALID_ARGS", "Arguments missing");
-        return;
-    }
-
-    auto path_it = arguments->find(flutter::EncodableValue("path"));
-    if (path_it == arguments->end()) {
-        result->Error("INVALID_ARGS", "Path missing");
-        return;
-    }
-
-    std::string path = std::get<std::string>(path_it->second);
     std::wstring wpath(path.begin(), path.end());
 
     try {
