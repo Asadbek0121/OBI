@@ -36,7 +36,7 @@ jobs:
         run: flutter build windows --release
 
       - name: Create MSIX Installer
-        run: flutter pub run msix:create --install false
+        run: flutter pub run msix:create
 
       - name: Locate Build Output
         id: build_output
