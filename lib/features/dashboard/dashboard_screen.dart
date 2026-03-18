@@ -597,23 +597,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
               margin: const EdgeInsets.only(bottom: 24),
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6A11CB), Color(0xFF2575FC)]), borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: Theme.of(context).brightness == Brightness.dark 
+                    ? [const Color(0xFF2C3E50), const Color(0xFF000000)]
+                    : [const Color(0xFF6A11CB), const Color(0xFF2575FC)]
+                ), 
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))
+                ]
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: [const Icon(Icons.auto_awesome, color: Colors.white, size: 20), const SizedBox(width: 12), Text(t.text('ai_predictor_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), const Spacer(), Text("${_aiPredictions.length} ${t.text('ai_risk_count')}", style: const TextStyle(color: Colors.white, fontSize: 12))],
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Colors.white, size: 20), 
+                      const SizedBox(width: 12), 
+                      Text(t.text('ai_predictor_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), 
+                      const Spacer(), 
+                      Text("${_aiPredictions.length} ${t.text('ai_risk_count')}", style: const TextStyle(color: Colors.white70, fontSize: 12))
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   SizedBox(
-                    height: 90,
+                    height: 100,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _aiPredictions.length,
                       separatorBuilder: (c,i) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                          final item = _aiPredictions[index];
-                         return Container(width: 160, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis), Text("${item['days_left'] ?? 0} ${t.text('ai_days_left')}", style: const TextStyle(color: Colors.orangeAccent, fontSize: 12))]));
+                         final isStatic = item['reason'] == 'low_stock_static';
+                         final color = isStatic ? Colors.orangeAccent : Colors.redAccent;
+
+                         return Container(
+                           width: 180, 
+                           padding: const EdgeInsets.all(12), 
+                           decoration: BoxDecoration(
+                             color: Colors.white.withValues(alpha: 0.1), 
+                             borderRadius: BorderRadius.circular(16),
+                             border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                           ), 
+                           child: Column(
+                             crossAxisAlignment: CrossAxisAlignment.start, 
+                             mainAxisAlignment: MainAxisAlignment.center, 
+                             children: [
+                               Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis), 
+                               const SizedBox(height: 4),
+                               Row(
+                                 children: [
+                                   Icon(isStatic ? Icons.warning_amber_rounded : Icons.trending_down_rounded, size: 14, color: color),
+                                   const SizedBox(width: 6),
+                                   Text(
+                                     isStatic ? "${item['current_stock']} ${item['unit']}" : "${item['days_left']} ${t.text('ai_days_left')}", 
+                                     style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)
+                                   ),
+                                 ],
+                               ),
+                               Text(
+                                 isStatic ? t.text('status_critical') : t.text('ai_daily_use').replaceAll('{}', item['daily_use']), 
+                                 style: const TextStyle(color: Colors.white60, fontSize: 10)
+                               ),
+                             ],
+                           ),
+                         );
                       },
                     ),
                   ),

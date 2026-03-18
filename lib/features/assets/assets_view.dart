@@ -119,6 +119,31 @@ class _AssetsViewState extends State<AssetsView> {
     }
   }
 
+  Future<void> _clearAllAssets() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.text('btn_delete')),
+        content: const Text("Haqiqatan ham barcha jihozlarni o'chirib tashlamoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi!"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(t.text('btn_cancel'))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: Text(t.text('btn_delete').toUpperCase()),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DatabaseHelper.instance.clearAllAssets();
+      await _loadAssets();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Barcha jihozlar o'chirildi")));
+    }
+  }
+
   void _applyFilters() {
     final query = _searchCtrl.text.toLowerCase();
     
@@ -571,7 +596,16 @@ class _AssetsViewState extends State<AssetsView> {
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 12),
+            _HeaderBtn(
+              onPressed: _clearAllAssets,
+              icon: Icons.delete_sweep_rounded,
+              label: "TOZALASH",
+              color: Colors.red.withValues(alpha: 0.1),
+              textColor: Colors.red,
+              isPrimary: false,
+            ),
+            const SizedBox(width: 12),
             _HeaderBtn(
               onPressed: () => _showAddAssetModal(),
               icon: Icons.add_rounded,

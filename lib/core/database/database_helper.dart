@@ -908,19 +908,17 @@ class DatabaseHelper {
       final date7d = now.subtract(const Duration(days: 7)).toIso8601String();
       
       // 2. Get Usage Data for both periods
-      // We pull all stock_out data for last 30 days to process in memory (cleaner than complex SQL for SQLite)
-      final rawData = await db.rawQuery('''
+      final rawUsage = await db.rawQuery('''
         SELECT 
           p.id, p.name, p.unit, so.quantity, so.date_time
         FROM products p
         JOIN stock_out so ON p.id = so.product_id
-        WHERE so.date_time >= ?
+        WHERE so.date_time >= ? AND so.is_deleted = 0
       ''', [date30d]);
 
       // Group by Product
       final productUsage = <String, Map<String, dynamic>>{};
-      
-      for (var row in rawData) {
+      for (var row in rawUsage) {
         final pid = row['id'].toString();
         final qty = row['quantity'] as num;
         final date = row['date_time'] as String;
@@ -933,57 +931,83 @@ class DatabaseHelper {
              'total7': 0.0,
            };
         }
-        
         productUsage[pid]!['total30'] += qty;
         if (date.compareTo(date7d) >= 0) {
            productUsage[pid]!['total7'] += qty;
         }
       }
 
-      // 3. Analyze Each Product
-      for (var pid in productUsage.keys) {
-         final data = productUsage[pid]!;
-         final rate30 = data['total30'] / 30.0;
-         final rate7 = data['total7'] / 7.0;
-         
-         // WEIGHTED FORMULA: 60% Recent Trend, 40% History
-         // This makes it "smarter" - reacting faster to recent spikes
-         double predictedDailyRate = (rate7 * 0.6) + (rate30 * 0.4);
-         
-         if (predictedDailyRate <= 0.1) continue; // Ignore very slow items
+      // 3. Get ALL active products to check current stock
+      final inventory = await getInventorySummary();
+      
+      for (var item in inventory) {
+        final pid = item['id'].toString();
+        final currentStock = (item['stock'] as num?) ?? 0;
+        final minStock = (item['min_stock_alert'] as num?) ?? 10;
+        
+        double predictedDailyRate = 0.0;
+        if (productUsage.containsKey(pid)) {
+          final usage = productUsage[pid]!;
+          final rate30 = usage['total30'] / 30.0;
+          final rate7 = usage['total7'] / 7.0;
+          predictedDailyRate = (rate7 * 0.6) + (rate30 * 0.4);
+        }
 
-         // Get Current Stock
-         final stockRes = await db.rawQuery('''
-           SELECT 
-            ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = ?) - 
-             (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = ?)) as stock
-         ''', [pid, pid]);
-         
-         final currentStock = (stockRes.first['stock'] as num?) ?? 0;
-         if (currentStock <= 0) continue;
+        bool shouldAdd = false;
+        String reason = "";
 
-         final daysLeft = currentStock / predictedDailyRate;
+        // Case A: High usage, running out soon
+        if (predictedDailyRate > 0.05) {
+          final daysLeft = currentStock / predictedDailyRate;
+          if (daysLeft < 15) {
+            shouldAdd = true;
+            reason = "predicted_out";
+          }
+        }
+        
+        // Case B: Low stock vs Min Alert (Even if no history)
+        if (currentStock <= minStock && !shouldAdd) {
+          shouldAdd = true;
+          reason = "low_stock_static";
+        }
 
-         // Threshold: < 10 Days
-         if (daysLeft < 10) {
-            stats.add({
-              'name': data['name'],
-              'days_left': daysLeft.floor(),
-              'daily_use': predictedDailyRate.toStringAsFixed(1),
-              'current_stock': currentStock,
-              'unit': data['unit'],
-              'trend': rate7 > rate30 ? 'up' : 'stable' // Visualization bonus
-            });
-         }
+        if (shouldAdd) {
+           final daysLeft = predictedDailyRate > 0 ? (currentStock / predictedDailyRate).floor() : 999;
+           stats.add({
+             'name': item['name'],
+             'id': pid,
+             'days_left': daysLeft,
+             'daily_use': predictedDailyRate > 0 ? predictedDailyRate.toStringAsFixed(1) : '0',
+             'current_stock': currentStock,
+             'min_stock': minStock,
+             'unit': item['unit'],
+             'reason': reason,
+             'trend': predictedDailyRate > 0 ? 'active' : 'static'
+           });
+        }
       }
       
-      stats.sort((a, b) => (a['days_left'] as int).compareTo(b['days_left'] as int));
+      // Sort by urgency
+      stats.sort((a, b) {
+        if (a['reason'] == 'low_stock_static' && b['reason'] != 'low_stock_static') return -1;
+        if (a['reason'] != 'low_stock_static' && b['reason'] == 'low_stock_static') return 1;
+        return (a['days_left'] as int).compareTo(b['days_left'] as int);
+      });
 
     } catch (e) {
       debugPrint("🤖 AI Prediction Error: $e");
     }
 
     return stats;
+  }
+
+  Future<void> clearAllAssets() async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('assets');
+      await txn.delete('asset_movements');
+      // We don't delete asset_locations or asset_categories as they are master data
+    });
   }
 
   Future<List<Map<String, dynamic>>> searchGlobal(String query) async {
