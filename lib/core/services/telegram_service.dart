@@ -218,6 +218,34 @@ class TelegramService {
     }
   }
 
+  Future<String?> _sendHtmlMessage(
+    String chatId,
+    String text, {
+    Map<String, dynamic>? replyMarkup,
+  }) async {
+    final token = await getBotToken();
+    if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
+
+    try {
+      final url = Uri.parse('$_baseUrl$token/sendMessage');
+      final body = {'chat_id': chatId, 'text': text, 'parse_mode': 'HTML'};
+      if (replyMarkup != null) {
+        body['reply_markup'] = jsonEncode(replyMarkup);
+      }
+
+      final response = await http.post(url, body: body);
+
+      if (response.statusCode == 200) {
+        return null;
+      } else {
+        return "Xato: ${response.statusCode} - ${response.body}";
+      }
+    } catch (e) {
+      debugPrint('Telegram HTML Error: $e');
+      return "Internet xatosi: $e";
+    }
+  }
+
   Future<String?> sendPhotoByUrl(
     String chatId,
     String photoUrl, {
@@ -1692,60 +1720,83 @@ class TelegramService {
 
   Future<void> _handleAIAnalytics(String chatId) async {
     try {
+      debugPrint("🤖 [UltraAI] Starting analysis for $chatId");
       await sendMessage(chatId, "🧠 *ULTRA AI: Mahalliy tahlil tizimi ishga tushirildi...*");
       
       final db = await DatabaseHelper.instance.database;
       
       // 1. Financial Analytics
-      final totalStockValue = await DatabaseHelper.instance.calculateTotalStockValue();
+      debugPrint("🤖 [UltraAI] Calculating Financials...");
+      double totalStockValue = 0;
+      try {
+        totalStockValue = await DatabaseHelper.instance.calculateTotalStockValue();
+      } catch (e) {
+        debugPrint("🤖 [UltraAI] Financials Error: $e");
+      }
       
       // 2. Velocity Analytics (Top 3 fast movers)
-      final topOut = await db.rawQuery(
-        '''SELECT p.name, SUM(so.quantity) as qty 
-           FROM stock_out so 
-           JOIN products p ON so.product_id = p.id 
-           WHERE so.date_time >= date('now', '-30 days') AND so.is_deleted = 0
-           GROUP BY p.id ORDER BY qty DESC LIMIT 3'''
-      );
+      debugPrint("🤖 [UltraAI] Fetching topOut...");
+      List<Map<String, dynamic>> topOut = [];
+      try {
+        topOut = await db.rawQuery(
+          '''SELECT p.name, SUM(so.quantity) as qty 
+             FROM stock_out so 
+             JOIN products p ON so.product_id = p.id 
+             WHERE so.date_time >= date('now', '-30 days') AND so.is_deleted = 0
+             GROUP BY p.id ORDER BY qty DESC LIMIT 3'''
+        );
+      } catch (e) {
+        debugPrint("🤖 [UltraAI] topOut Error: $e");
+      }
 
       // 3. Shortage Forecasting (Ultra Algorithm)
-      final shortageRisks = await db.rawQuery(
-        '''
-        WITH stats AS (
-          SELECT p.name, p.unit,
-            ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
-             (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
-            (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
-          FROM products p
-          WHERE p.is_deleted = 0
-        )
-        SELECT * FROM stats WHERE stock > 0 AND out_30d > 0
-        ORDER BY (stock * 1.0 / out_30d) ASC
-        LIMIT 5
-        '''
-      );
+      debugPrint("🤖 [UltraAI] Fetching shortageRisks...");
+      List<Map<String, dynamic>> shortageRisks = [];
+      try {
+        shortageRisks = await db.rawQuery(
+          '''
+          WITH stats AS (
+            SELECT p.name, p.unit,
+              ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+               (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
+              (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
+            FROM products p
+            WHERE p.is_deleted = 0
+          )
+          SELECT * FROM stats WHERE stock > 0 AND out_30d > 0
+          ORDER BY (stock * 1.0 / out_30d) ASC
+          LIMIT 5
+          '''
+        );
+      } catch (e) {
+        debugPrint("🤖 [UltraAI] shortageRisks Error: $e");
+      }
 
-      String report = "🦁 *LOCAL ULTRA AI TAHLILI*\n";
-      report += "----------------------------\n\n";
+      StringBuffer sb = StringBuffer();
+      sb.writeln("<b>🦁 LOCAL ULTRA AI TAHLILI</b>");
+      sb.writeln("----------------------------");
+      sb.writeln("");
 
       // Section 1: Financials
-      report += "💰 *MOLIYAVIY KO'RSATKICHLAR:*\n";
-      report += "   • Omborning jami qiymati: *${_formatMoney(totalStockValue)}* so'm\n";
-      report += "   • Holat: *Barqaror* ✅\n\n";
+      sb.writeln("💰 <b>MOLIYAVIY KO'RSATKICHLAR:</b>");
+      sb.writeln("   • Omborning jami qiymati: <b>${_formatMoney(totalStockValue)}</b> so'm");
+      sb.writeln("   • Holat: <b>Barqaror</b> ✅");
+      sb.writeln("");
 
       // Section 2: Consumption Dynamic
-      report += "🔥 *DINAMIK HARAKATLAR (Top-3):*\n";
+      sb.writeln("🔥 <b>DINAMIK HARAKATLAR (Top-3):</b>");
       if (topOut.isEmpty) {
-        report += "   ➖ Chiqimlar hozircha mavjud emas.\n";
+        sb.writeln("   ➖ Chiqimlar hozircha mavjud emas.");
       } else {
         for (var row in topOut) {
-          report += "   🔺 ${row['name']} - *${row['qty']} ta* sarflandi\n";
+          String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+          sb.writeln("   🔺 $name - <b>${row['qty']} ta</b> sarflandi");
         }
       }
-      report += "\n";
+      sb.writeln("");
 
       // Section 3: Proactive Forecasting
-      report += "🚨 *SMART BASHORAT (Tugash xavfi):*\n";
+      sb.writeln("🚨 <b>SMART BASHORAT (Tugash xavfi):</b>");
       bool foundRisk = false;
       if (shortageRisks.isNotEmpty) {
         for (var row in shortageRisks) {
@@ -1755,35 +1806,46 @@ class TelegramService {
             final daysLeft = (stock / (runRate / 30.0)).round();
             if (daysLeft < 30) {
               foundRisk = true;
-              report += "   ❗ *${row['name']}* - taxminan *$daysLeft kunga* yetadi\n";
+              String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+              sb.writeln("   ❗ <b>$name</b> - taxminan <b>$daysLeft kunga</b> yetadi");
             }
           }
         }
       }
       
       if (!foundRisk) {
-        report += "   ✅ Yaqin 30 kun uchun zaxiralar yetarli.\n";
+        sb.writeln("   ✅ Yaqin 30 kun uchun zaxiralar yetarli.");
       }
-      report += "\n";
+      sb.writeln("");
 
       // Section 4: Strategic Recommendations
-      report += "💡 *ULTRA TAVSIYALAR:*\n";
+      sb.writeln("💡 <b>ULTRA TAVSIYALAR:</b>");
       if (foundRisk) {
-        report += "   1. Tezpishar (❗) tovarlar uchun *shoshilinch buyurtma* bering.\n";
-        report += "   2. Ushbu oyda logistika xarajatlarini optimallashtiring.\n";
+        sb.writeln("   1. Tezpishar (❗) tovarlar uchun <b>shoshilinch buyurtma</b> bering.");
+        sb.writeln("   2. Ushbu oyda logistika xarajatlarini optimallashtiring.");
       } else {
-        report += "   1. Hozirgi zaxira strategiyasini davom ettiring.\n";
-        report += "   2. Inventarizatsiya hisobotini tekshirib chiqing.\n";
+        sb.writeln("   1. Hozirgi zaxira strategiyasini davom ettiring.");
+        sb.writeln("   2. Inventarizatsiya hisobotini tekshirib chiqing.");
       }
       
-      report += "\n----------------------------\n";
-      report += "#ultra_ai #strategiya";
+      sb.writeln("");
+      sb.writeln("----------------------------");
+      sb.writeln("#ultra_ai #strategiya");
 
-      await sendMessage(chatId, report);
+      final finalReport = sb.toString();
+      debugPrint("🤖 [UltraAI] Sending report to $chatId...");
+      
+      // Use HTML parse mode for better safety with product names
+      final error = await _sendHtmlMessage(chatId, finalReport);
+      if (error != null) {
+        debugPrint("🤖 [UltraAI] Final Send Error: $error");
+        // Try fallback to text if HTML fails
+        await sendMessage(chatId, "⚠️ Report generation error. Please contact admin.");
+      }
       
     } catch (e) {
-      debugPrint("Local Ultra AI Error: $e");
-      await sendMessage(chatId, "❌ Mahalliy Ultra AI tizimida xatolik: $e");
+      debugPrint("🤖 [UltraAI] Global Error: $e");
+      await sendMessage(chatId, "❌ Mahalliy Ultra AI tizimida kutilmagan xatolik yuz berdi.");
     }
   }
 
