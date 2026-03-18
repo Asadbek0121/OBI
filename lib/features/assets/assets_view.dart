@@ -1485,8 +1485,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
   }
 
   Future<void> _save() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     if (_selectedRoomId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Iltimos, xonani tanlang")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t.text('assets_msg_pick_room'))));
       return;
     }
 
@@ -1528,7 +1529,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
       } catch (e) {
         debugPrint("❌ Save Asset Error: $e");
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xatolik: $e")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${t.text('msg_error')}: $e")));
         }
       }
     }
@@ -1589,33 +1590,38 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                 
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _modelCtrl, decoration: _deco("Model"))),
+                    Expanded(child: TextFormField(controller: _modelCtrl, decoration: _deco(t.text('asset_inp_model')))),
                     const SizedBox(width: 16),
-                    Expanded(child: TextFormField(controller: _serialCtrl, decoration: _deco("Seriya raqami"))),
+                    Expanded(child: TextFormField(controller: _serialCtrl, decoration: _deco(t.text('asset_inp_serial')))),
                   ],
                 ),
                 const SizedBox(height: 20),
                 
                 Row(
                   children: [
-                    Expanded(child: TextFormField(controller: _catCtrl, decoration: _deco("Kategoriya (Mebel, Texnika...)"))),
+                    Expanded(child: TextFormField(controller: _catCtrl, decoration: _deco(t.text('asset_inp_cat_hint')))),
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _selectedStatus,
+                        value: _selectedStatus,
                         isExpanded: true,
-                        decoration: _deco("Holati"),
-                        items: ['Yangi', 'Ishlatilgan', 'Tamirtalab', 'Eskirgan'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                        decoration: _deco(t.text('col_status')),
+                        items: [
+                          t.text('status_new'), 
+                          t.text('status_used'), 
+                          t.text('status_repair'), 
+                          t.text('status_old')
+                        ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) => setState(() => _selectedStatus = v),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
-                TextFormField(controller: _colorCtrl, decoration: _deco("Rangi")),
+                TextFormField(controller: _colorCtrl, decoration: _deco(t.text('asset_inp_color'))),
                 
                 const SizedBox(height: 32),
-                const Text("Joylashuv", style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(t.text('menu_location'), style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 12,
@@ -1624,9 +1630,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        initialValue: _selectedBuildId,
+                        value: _selectedBuildId,
                         isExpanded: true,
-                        decoration: _deco("Bino"),
+                        decoration: _deco(t.text('assets_building')),
                         items: _buildings.map((b) => DropdownMenuItem<int>(value: b['id'], child: Text(b['name']))).toList(),
                         onChanged: (v) { setState(() => _selectedBuildId = v); if(v!=null) _loadFloors(v); },
                       ),
@@ -1634,9 +1640,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        initialValue: _selectedFloorId,
+                        value: _selectedFloorId,
                         isExpanded: true,
-                        decoration: _deco("Qavat"),
+                        decoration: _deco(t.text('assets_floor')),
                         items: _floors.map((f) => DropdownMenuItem<int>(value: f['id'], child: Text(f['name']))).toList(),
                         onChanged: (v) { setState(() => _selectedFloorId = v); if(v!=null) _loadRooms(v); },
                       ),
@@ -1644,12 +1650,12 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        initialValue: _selectedRoomId,
+                        value: _selectedRoomId,
                         isExpanded: true,
-                        decoration: _deco("Xona"),
+                        decoration: _deco(t.text('assets_room')),
                         items: _rooms.map((r) => DropdownMenuItem<int>(value: r['id'], child: Text(r['name']))).toList(),
                         onChanged: (v) => setState(() => _selectedRoomId = v),
-                        validator: (v) => v == null ? "?" : null,
+                        validator: (v) => v == null ? t.text('msg_not_found') : null,
                       ),
                     ),
                   ],
@@ -1929,6 +1935,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
 }
 
   Widget _buildHistoryTimeline() {
+    final t = Provider.of<AppTranslations>(context);
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1953,11 +1960,11 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      index == 0 ? "Hozirgi joyiga ko'chirildi" : "Ko'chirilgan", 
+                      index == 0 ? t.text('asset_history_current') : t.text('asset_history_moved'), 
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)
                     ),
                     Text(
-                      "${move['from_location_name'] ?? 'Boshlang\'ich'} -> ${move['to_location_name']}",
+                      "${move['from_location_name'] ?? t.text('asset_history_start')} -> ${move['to_location_name']}",
                       style: TextStyle(color: Colors.grey[400], fontSize: 12),
                     ),
                     Text(
@@ -1974,7 +1981,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                           border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                         ),
                         child: Text(
-                          "Izoh: ${move['notes']}",
+                          " ${t.text('label_note_prefix')}: ${move['notes']}",
                           style: const TextStyle(fontSize: 11, color: Colors.orangeAccent, fontStyle: FontStyle.italic),
                         ),
                       ),
@@ -2049,13 +2056,14 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
   }
 
   Future<void> _transfer() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     if (_selectedRoomId == null) return;
     try {
       await DatabaseHelper.instance.transferAsset(widget.asset['id'], _selectedRoomId!, notes: _notesCtrl.text);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xatolik: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${t.text('msg_error')}: $e")));
       }
     }
   }

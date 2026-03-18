@@ -101,14 +101,15 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     }
   }
 
-  void _onDeleteRow(PlutoColumnRendererContext context, bool isIn) async {
-    if (context.row.key is! ValueKey) return;
-    final dynamic id = (context.row.key as ValueKey).value;
+  void _onDeleteRow(PlutoColumnRendererContext rendererContext, bool isIn) async {
+    final t = Provider.of<AppTranslations>(this.context, listen: false);
+    if (rendererContext.row.key is! ValueKey) return;
+    final dynamic id = (rendererContext.row.key as ValueKey).value;
 
     final confirmed = await AppDialogs.showConfirmDialog(
       context: this.context,
-      title: "O'chirishni tasdiqlang",
-      content: "Ushbu yozuvni o'chirib yubormoqchimisiz? Bu ombor qoldig'iga ta'sir qilishi mumkin.",
+      title: t.text('btn_delete'),
+      content: t.text('rep_delete_confirm'),
     );
 
     if (confirmed == true) {
@@ -119,19 +120,20 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
            await DatabaseHelper.instance.deleteStockOut(id);
         }
         if (mounted) {
-          context.stateManager.removeRows([context.row]);
-          AppNotifications.showSuccess(this.context, "Muvaffaqiyatli o'chirildi");
+          rendererContext.stateManager.removeRows([rendererContext.row]);
+          AppNotifications.showSuccess(this.context, t.text('msg_deleted'));
         }
       } catch (e) {
-        if (mounted) AppNotifications.showError(this.context, "Xatolik: $e");
+        if (mounted) AppNotifications.showError(this.context, "${t.text('msg_error')}: $e");
       }
     }
   }
 
-  void _onEditRow(PlutoColumnRendererContext context, bool isIn) {
-    if (context.row.key is! ValueKey) return;
-    final dynamic id = (context.row.key as ValueKey).value;
-    final cells = context.row.cells;
+  void _onEditRow(PlutoColumnRendererContext rendererContext, bool isIn) {
+    final t = Provider.of<AppTranslations>(this.context, listen: false);
+    if (rendererContext.row.key is! ValueKey) return;
+    final dynamic id = (rendererContext.row.key as ValueKey).value;
+    final cells = rendererContext.row.cells;
 
     // Controllers
     final nameController = TextEditingController(text: cells['product']?.value.toString());
@@ -154,18 +156,20 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     
     String? paymentStatus = isIn ? (cells['payment_status']?.value?.toString()) : null;
     if (paymentStatus == '-') paymentStatus = null;
-    final paymentOptions = ['Naqd', 'Qarzga', "O'tkazma"];
+    final paymentOptions = [t.text('pay_cash'), t.text('pay_debt'), t.text('pay_transfer')];
 
     // Helper for styled input
     InputDecoration fieldDecor(String label, IconData icon) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       return InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 20, color: Colors.grey[600]),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+        labelStyle: TextStyle(color: isDark ? Colors.white70 : Colors.grey[600]),
+        prefixIcon: Icon(icon, size: 20, color: isDark ? Colors.white70 : Colors.grey[600]),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey[300]!)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white12 : Colors.grey[300]!)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
         filled: true,
-        fillColor: Colors.grey[50], // Very light grey
+        fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[50], 
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       );
     }
@@ -175,7 +179,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       builder: (c) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
-            title: Text("Tahrirlash (${isIn ? 'Kirim' : 'Chiqim'})", style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text("${t.text('rep_edit_title')} (${isIn ? t.text('menu_in') : t.text('menu_out')})", style: const TextStyle(fontWeight: FontWeight.bold)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             scrollable: true,
             contentPadding: const EdgeInsets.all(24),
@@ -184,12 +188,12 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   TextField(
-                     controller: nameController, 
-                     decoration: fieldDecor('Mahsulot', Icons.inventory_2),
-                     enabled: false,
-                     style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
-                   ),
+                    TextField(
+                      controller: nameController, 
+                      decoration: fieldDecor(t.text('label_reagent'), Icons.inventory_2),
+                      enabled: false,
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
+                    ),
                    const SizedBox(height: 16),
                   
                   // Date & Time Picker Row
@@ -248,30 +252,30 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                   ),
                   const SizedBox(height: 16),
 
-                  TextField(controller: qtyController, decoration: fieldDecor('Miqdor', Icons.numbers), keyboardType: TextInputType.number),
+                  TextField(controller: qtyController, decoration: fieldDecor(t.text('col_qty'), Icons.numbers), keyboardType: TextInputType.number),
                   const SizedBox(height: 16),
                   
                   TextField(
                     controller: partyController, 
-                    decoration: fieldDecor(isIn ? 'Yetkazib beruvchi (Kimdan)' : 'Qabul qiluvchi (Kimga)', isIn ? Icons.business : Icons.person)
+                    decoration: fieldDecor(isIn ? t.text('col_from') : t.text('col_to'), isIn ? Icons.business : Icons.person)
                   ),
                   
                   if (isIn) ...[
                     const SizedBox(height: 16),
-                    TextField(controller: priceController, decoration: fieldDecor('Narx (Dona)', Icons.attach_money), keyboardType: TextInputType.number),
+                    TextField(controller: priceController, decoration: fieldDecor(t.text('col_price'), Icons.attach_money), keyboardType: TextInputType.number),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
-                      decoration: fieldDecor("To'lov turi", Icons.payment),
-                      dropdownColor: Colors.white,
-                      items: paymentOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
+                      decoration: fieldDecor(t.text('col_payment_status'), Icons.payment),
+                      dropdownColor: Theme.of(context).cardColor,
+                      items: paymentOptions.map<DropdownMenuItem<String>>((e) => DropdownMenuItem<String>(value: e, child: Text(e))).toList(),
                       onChanged: (v) => paymentStatus = v,
                     ),
                   ],
 
                   if (!isIn) ...[
                      const SizedBox(height: 16),
-                     TextField(controller: notesController, decoration: fieldDecor('Izoh', Icons.edit_note), maxLines: 2),
+                     TextField(controller: notesController, decoration: fieldDecor(t.text('col_notes'), Icons.edit_note), maxLines: 2),
                   ],
                 ],
               ),
@@ -281,14 +285,14 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
               TextButton(
                 onPressed: () => Navigator.pop(c), 
                 style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
-                child: const Text("Bekor qilish")
+                child: Text(t.text('btn_cancel'))
               ),
               ElevatedButton(
                 onPressed: () async {
                   try {
                     final qty = double.tryParse(qtyController.text) ?? 0;
                     if (qty <= 0) {
-                      AppNotifications.showError(this.context, "Miqdor noto'g'ri");
+                      AppNotifications.showError(this.context, t.text('msg_error'));
                       return;
                     }
                     
@@ -326,10 +330,10 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                     if (!context.mounted) return;
                     Navigator.pop(c);
                     _loadData(); // Reload to refresh grid
-                    AppNotifications.showSuccess(context, "Yangilandi");
+                    AppNotifications.showSuccess(context, t.text('msg_updated'));
                   } catch (e) {
                     if (!context.mounted) return;
-                    AppNotifications.showError(context, "Xatolik: $e");
+                    AppNotifications.showError(context, "${t.text('msg_error')}: $e");
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -338,7 +342,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                 ), 
-                child: const Text("Saqlash")
+                child: Text(t.text('btn_save'))
               ),
             ],
           );
@@ -378,6 +382,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
 
   Future<List<int>?> _generateComprehensiveExcel() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     try {
       var excel = excel_pkg.Excel.createExcel();
       
@@ -440,8 +445,22 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       }
 
       // 1. KIRIM (IN)
-      excel_pkg.Sheet sheetIn = excel['Kirim'];
-      addHeader(sheetIn, ['Sana', 'ID', 'Mahsulot', 'Narxi', 'Birlik', 'Miqdori', 'QQS %', 'QQS Summa', 'Ustama %', 'Ustama Summa', 'Kimdan', 'To\'lov Holati', 'Jami Summa']);
+      excel_pkg.Sheet sheetIn = excel[t.text('menu_in')];
+      addHeader(sheetIn, [
+        t.text('col_date'), 
+        t.text('col_id'), 
+        t.text('col_product'), 
+        t.text('col_price'), 
+        t.text('col_unit'), 
+        t.text('col_qty'), 
+        t.text('col_tax_percent'), 
+        t.text('col_tax_sum'), 
+        t.text('col_surcharge_percent'), 
+        t.text('col_surcharge_sum'), 
+        t.text('col_from'), 
+        t.text('col_payment_status'), 
+        t.text('col_total_amount')
+      ]);
 
       double grandTotal = 0.0;
       for (var row in _inRows) {
@@ -488,8 +507,15 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       totalCell.cellStyle = totalStyle;
 
       // 2. CHIQIM (OUT)
-      excel_pkg.Sheet sheetOut = excel['Chiqim'];
-      addHeader(sheetOut, ['Sana', 'Mahsulot', 'Miqdori', 'Birlik', 'Kimga (Qabul qiluvchi)', 'Izoh']);
+      excel_pkg.Sheet sheetOut = excel[t.text('menu_out')];
+      addHeader(sheetOut, [
+        t.text('col_date'), 
+        t.text('col_product'), 
+        t.text('col_qty'), 
+        t.text('col_unit'), 
+        t.text('col_to'), 
+        t.text('col_notes')
+      ]);
 
       for (var row in _outRows) {
         appendRowWithStyle(sheetOut, [
@@ -503,8 +529,8 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       }
 
       // 3. QOLDIQ (STOCK)
-      excel_pkg.Sheet sheetStock = excel['Qoldiq'];
-      addHeader(sheetStock, ['Mahsulot Nomi', 'Birlik', 'Qoldiq Miqdori']);
+      excel_pkg.Sheet sheetStock = excel[t.text('menu_inventory')];
+      addHeader(sheetStock, [t.text('col_product'), t.text('col_unit'), t.text('col_stock')]);
 
       final stockData = await DatabaseHelper.instance.getInventorySummary();
       for (var item in stockData) {
@@ -623,20 +649,21 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   final _telegramService = TelegramService();
 
   Future<void> _sendToTelegram() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     final allUsers = await _telegramService.getUsers();
     final users = allUsers.where((u) => u['role'] == 'admin').toList();
     
     if (!mounted) return;
     
     if (users.isEmpty) {
-      AppNotifications.showError(context, "Oldin sozlamalardan Telegram userni qo'shing");
+      AppNotifications.showError(context, t.text('rep_msg_add_telegram'));
       return;
     }
 
     final fileBytes = await _generateComprehensiveExcel();
     if (fileBytes == null) {
       if (!mounted) return;
-      AppNotifications.showInfo(context, "Ma'lumot topilmadi");
+      AppNotifications.showInfo(context, t.text('msg_no_data'));
       return;
     }
 
@@ -645,7 +672,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     final selectedUser = await showDialog<Map<String, dynamic>>(
       context: context, 
       builder: (c) => SimpleDialog(
-        title: const Text("Kimga yuborilsin?"),
+        title: Text(t.text('rep_transfer_to')),
         children: users.map((u) => SimpleDialogOption(
           child: ListTile(
             leading: const Icon(Icons.person),
@@ -662,7 +689,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     if (!mounted) return;
     
     // Show Loading Dialog
-    AppDialogs.showBlurDialog(context: context, title: "Yuborilmoqda...", content: const CircularProgressIndicator());
+    AppDialogs.showBlurDialog(context: context, title: t.text('rep_sending'), content: const CircularProgressIndicator());
     
     try {
       // Save Temp File
@@ -678,21 +705,20 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       final error = await _telegramService.sendDocument(
         selectedUser['chatId'], 
         file, 
-        caption: "📊 ${selectedUser['name']} uchun hisobot.\nSana: ${_startDate.toString().substring(0,10)} - ${_endDate.toString().substring(0,10)}"
+        caption: "📊 ${selectedUser['name']} ${t.text('rep_in_report').toLowerCase()}.\n${t.text('col_date')}: ${_startDate.toString().substring(0,10)} - ${_endDate.toString().substring(0,10)}"
       ).timeout(const Duration(seconds: 30)); // 30s timeout
 
       if (!mounted) return;
       Navigator.pop(context); // Close loading dialog
 
-      if (error == null) {
-        AppNotifications.showSuccess(context, "Yuborildi!");
-      } else {
-        AppNotifications.showError(context, "Xatolik: $error");
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog on error
+        AppNotifications.showError(context, "${t.text('msg_error')}: $error");
       }
     } catch (e) {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog on error
-        AppNotifications.showError(context, "Kutilmagan xatolik: $e");
+        AppNotifications.showError(context, "${t.text('msg_error')}: $e");
       }
     }
   }
