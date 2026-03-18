@@ -83,16 +83,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refreshAll() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     if (mounted) setState(() => _isLoadingDashboard = true);
     try {
       await _loadDashboardData();
       await SyncService().startSync();
       if (mounted) {
-        AppNotifications.showInfo(context, "Ma'lumotlar muvaffaqiyatli yangilandi");
+        AppNotifications.showInfo(context, t.text('msg_saved'));
       }
     } catch (e) {
       if (mounted) {
-        AppNotifications.showError(context, "Yangilashda xatolik: $e");
+        AppNotifications.showError(context, "${t.text('msg_error')}: $e");
       }
     } finally {
       if (mounted) setState(() => _isLoadingDashboard = false);
@@ -318,6 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           minChildSize: 0.4,
           maxChildSize: 0.9,
           builder: (context, myscrollController) {
+             final t = Provider.of<AppTranslations>(context);
              return GlassContainer(
                padding: const EdgeInsets.all(20),
                child: Column(
@@ -329,7 +331,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: 16),
                     Expanded(
                       child: items.isEmpty 
-                        ? const Center(child: Text("Ma'lumot topilmadi"))
+                      ? Center(child: Text(t.text('msg_no_data')))
                         : ListView.separated(
                             controller: myscrollController,
                             itemCount: items.length,
@@ -376,8 +378,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         children: [
           StatusIndicator(
-            label: "DATABASE",
-            status: "Local SQLite",
+            label: t.text('menu_database').toUpperCase(),
+            status: "SQLite",
             icon: Icons.storage_rounded,
             color: Colors.blue,
           ),
@@ -385,7 +387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           GestureDetector(
             onTap: () {
               SyncService().startSync();
-              AppNotifications.showInfo(context, "Cloud sinxronizatsiyasi boshlandi...");
+              AppNotifications.showInfo(context, t.text('msg_loading'));
             },
             child: StreamBuilder<String>(
               stream: SyncService().syncStatusStream,

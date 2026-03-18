@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:clinical_warehouse/core/services/auth_provider.dart';
 import 'package:clinical_warehouse/features/dashboard/dashboard_screen.dart';
+import '../../core/localization/app_translations.dart';
 import '../../core/widgets/window_buttons.dart';
 import 'dart:io';
 
@@ -109,6 +110,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final t = Provider.of<AppTranslations>(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
@@ -186,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  "Tizim yuklanmoqda...",
+                                  t.text('msg_loading'),
                                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                                 ),
                               ]
@@ -224,19 +226,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
-                              "Xush Kelibsiz!",
-                              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
+                            Text(
+                              t.text('text_welcome'), // Xush Kelibsiz!
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A)),
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              "Iltimos, tizimga kirish uchun ma'lumotlaringizni kiriting.",
+                              t.text('set_auth'), // Iltimos...
                               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                             ),
                             const SizedBox(height: 48),
 
                             // Inputs
-                            _buildInputLabel("Foydalanuvchi (Login)"),
+                            _buildInputLabel(t.text('login')), // Foydalanuvchi (Login)
                             const SizedBox(height: 8),
                             _buildInput(
                               controller: _userController, 
@@ -246,7 +248,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             
                             const SizedBox(height: 24),
                             
-                            _buildInputLabel("Parol"),
+                            _buildInputLabel(t.text('password')), // Parol
                             const SizedBox(height: 8),
                             _buildInput(
                               controller: _passController, 
@@ -302,10 +304,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                                  : Row(
                                    mainAxisAlignment: MainAxisAlignment.center,
-                                   children: const [
-                                     Text("TIZIMGA KIRISH", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                                     SizedBox(width: 8),
-                                     Icon(Icons.login_rounded),
+                                   children: [
+                                     Text(t.text('set_lang_title').contains('Til') ? "KIRISH" : (t.text('set_lang_title').contains('Настройки') ? "ВОЙТИ" : "GİRİŞ"), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                     const SizedBox(width: 8),
+                                     const Icon(Icons.login_rounded),
                                    ],
                                  ),
                               ),
