@@ -306,6 +306,21 @@ class AppTranslations extends ChangeNotifier {
       'dash_pending': 'Kutilmoqda',
       'dash_delivered': 'Yetkazildi',
       'dash_last_update': 'Oxirgi',
+
+      // Settings Detailed
+      'set_theme_on': 'Tun rejimi faol',
+      'set_theme_off': 'Kun rejimi faol',
+      'set_backup_restore': 'Backupdan Tiklash',
+      'set_backup_restore_desc': 'Tizim ma\'lumotlarini nusxadan tiklash',
+      'set_excel_import': 'Excel Import',
+      'set_excel_import_desc': 'Tayyor ma\'lumotlarni yuklash',
+      'set_danger_zone': 'XODISA VA XAVFLAR',
+      'set_clear_data': 'Ma\'lumotlarni Tozalash',
+      'set_clear_data_desc': 'Kirim, Chiqim va Hisobotlarni o\'chirib tashlash',
+      'set_factory_reset_desc': 'Barcha ma\'lumotlarni o\'chirib yangidek qilish',
+      'set_lang_title': 'Til Sozlamalari',
+      'set_lang_desc': 'Interfeys tilini tanlang',
+      'msg_restart_required': 'Dastur qayta ishga tushirilmoqda...',
     },
     'ru': {
       // Sidebar
@@ -319,6 +334,9 @@ class AppTranslations extends ChangeNotifier {
       'menu_backup': 'Резерв',
       'menu_settings': 'Настройки',
       'menu_logout': 'Выход',
+      'dlg_factory_reset_title': 'Сброс до завода',
+      'dlg_factory_reset_content': 'ВНИМАНИЕ! Это действие удалит все данные (товары, приходы, расходы, имущество). Приложение вернется к начальному состоянию. Продолжить?',
+      'btn_factory_reset': 'Сброс до заводских настроек',
 
       // Actions
       'btn_save': 'Сохранить',
@@ -573,6 +591,21 @@ class AppTranslations extends ChangeNotifier {
       'dash_pending': 'В ожидании',
       'dash_delivered': 'Доставлено',
       'dash_last_update': 'Последнее',
+
+      // Settings Detailed
+      'set_theme_on': 'Ночной режим активен',
+      'set_theme_off': 'Дневной режим активен',
+      'set_backup_restore': 'Восстановление',
+      'set_backup_restore_desc': 'Восстановление данных из резервной копии',
+      'set_excel_import': 'Импорт Excel',
+      'set_excel_import_desc': 'Загрузка готовых данных из таблицы',
+      'set_danger_zone': 'ЗОНА РИСКА',
+      'set_clear_data': 'Очистка Данных',
+      'set_clear_data_desc': 'Удаление истории Приходов и Расходов',
+      'set_factory_reset_desc': 'Полный сброс всей системы до нуля',
+      'set_lang_title': 'Настройки Языка',
+      'set_lang_desc': 'Выберите язык интерфейса',
+      'msg_restart_required': 'Перезапуск приложения...',
     },
     'tr': {
       // Sidebar
@@ -586,6 +619,9 @@ class AppTranslations extends ChangeNotifier {
       'menu_backup': 'Yedek',
       'menu_settings': 'Ayarlar',
       'menu_logout': 'Çıkış',
+      'dlg_factory_reset_title': 'Fabrika Ayarlarına Sıfırla',
+      'dlg_factory_reset_content': 'DİKKAT! Bu işlem tüm verileri (ürünler, giriş-çıkışlar, varlıklar) tamamen silecektir. Uygulama ilk günkü haline dönecektir. Devam etmek istiyor musunuz?',
+      'btn_factory_reset': 'Fabrika Ayarlarına Dön',
 
        // Actions
       'btn_save': 'Kaydet',
@@ -835,6 +871,21 @@ class AppTranslations extends ChangeNotifier {
       'dash_pending': 'Bekliyor',
       'dash_delivered': 'Teslim Edildi',
       'dash_last_update': 'Son Gönderim',
+
+      // Settings Detailed
+      'set_theme_on': 'Gece modu aktif',
+      'set_theme_off': 'Gündüz modu aktif',
+      'set_backup_restore': 'Yedekten Geri Yükle',
+      'set_backup_restore_desc': 'Sistem verilerini yedekten beri yükle',
+      'set_excel_import': 'Excel İçe Aktar',
+      'set_excel_import_desc': 'Hazır verileri tablodan yükle',
+      'set_danger_zone': 'TEHLİKE BÖLGESİ',
+      'set_clear_data': 'Verileri Temizle',
+      'set_clear_data_desc': 'Giriş ve Çıkış geçmişini sil',
+      'set_factory_reset_desc': 'Tüm sistemi sıfırla ve temizle',
+      'set_lang_title': 'Dil Ayarları',
+      'set_lang_desc': 'Arayüz dilini seçin',
+      'msg_restart_required': 'Uygulama yeniden başlatılıyor...',
     },
   };
 }

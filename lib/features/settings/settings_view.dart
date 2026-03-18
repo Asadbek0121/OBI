@@ -173,8 +173,8 @@ class _SettingsViewState extends State<SettingsView> {
       
       AppDialogs.showBlurDialog(
         context: context,
-        title: "Tasdiqlash", 
-        content: const Text("Bu amal joriy ma'lumotlarni to'liq o'chirib yuboradi va tanlangan nusxani tiklaydi. Davom etasizmi?"),
+        title: t.text('btn_confirm'), 
+        content: Text(t.text('dlg_backup_content')), 
         actions: [
             TextButton(
               onPressed: () => Navigator.pop(context), 
@@ -188,7 +188,7 @@ class _SettingsViewState extends State<SettingsView> {
                 bool success = await DatabaseHelper.instance.restoreBackup(path);
                 if (context.mounted) {
                   if (success) {
-                    AppNotifications.showSuccess(context, "Ma'lumotlar tiklandi! Dastur qayta ishga tushirilmoqda...");
+                    AppNotifications.showSuccess(context, t.text('msg_restart_required'));
                     
                     // Restart App Flow
                     Future.delayed(const Duration(seconds: 2), () {
@@ -386,7 +386,7 @@ class _SettingsViewState extends State<SettingsView> {
                 width: 350,
                 icon: Icons.dark_mode,
                 title: t.text('set_theme'),
-                subtitle: isDark ? "Tun rejimi faol" : "Kun rejimi faol",
+                subtitle: isDark ? t.text('set_theme_on') : t.text('set_theme_off'),
                 color: Colors.blue,
                 trailing: Switch(
                   value: isDark,
@@ -429,16 +429,16 @@ class _SettingsViewState extends State<SettingsView> {
               _SettingCard(
                 width: 350,
                 icon: Icons.restore_page_rounded,
-                title: "Backupdan Tiklash",
-                subtitle: "Tizim ma'lumotlarini nusxadan tiklash",
+                title: t.text('set_backup_restore'),
+                subtitle: t.text('set_backup_restore_desc'),
                 color: AppColors.primary,
                 onTap: () => _restoreBackup(context),
               ),
               _SettingCard(
                 width: 350,
                 icon: Icons.file_upload,
-                title: "Excel Import",
-                subtitle: "Tayyor ma'lumotlarni yuklash",
+                title: t.text('set_excel_import'),
+                subtitle: t.text('set_excel_import_desc'),
                 color: Colors.teal,
                 onTap: () => _importExcel(context),
               ),
@@ -451,7 +451,7 @@ class _SettingsViewState extends State<SettingsView> {
           const SizedBox(height: 32),
 
           // Danger Zone
-          _SectionHeader(title: "Xavflilar", color: AppColors.error),
+          _SectionHeader(title: t.text('set_danger_zone'), color: AppColors.error),
           const SizedBox(height: 12),
           Wrap(
             spacing: 16,
@@ -460,8 +460,8 @@ class _SettingsViewState extends State<SettingsView> {
               _SettingCard(
                 width: 350,
                 icon: Icons.delete_forever,
-                title: "Ma'lumotlarni Tozalash",
-                subtitle: "Kirim, Chiqim va Hisobotlarni o'chirish",
+                title: t.text('set_clear_data'),
+                subtitle: t.text('set_clear_data_desc'),
                 color: AppColors.warning, 
                 onTap: () => _clearAllData(context),
               ),
@@ -469,7 +469,7 @@ class _SettingsViewState extends State<SettingsView> {
                 width: 350,
                 icon: Icons.factory_rounded,
                 title: t.text('btn_factory_reset'),
-                subtitle: "Barchasini o'chirib yangidek qilish",
+                subtitle: t.text('set_factory_reset_desc'),
                 color: AppColors.error, 
                 onTap: () => _factoryReset(context),
               ),
@@ -600,9 +600,9 @@ class _LanguageCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Til Sozlamalari", style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(t.text('set_lang_title'), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
-                    Text("Interfeys tilini tanlang", style: Theme.of(context).textTheme.bodySmall),
+                    Text(t.text('set_lang_desc'), style: Theme.of(context).textTheme.bodySmall),
                   ],
                 ),
               ),

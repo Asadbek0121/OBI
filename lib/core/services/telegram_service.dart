@@ -8,8 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing_lib/zxing.dart';
 import 'package:zxing_lib/common.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import '../../app_config.dart';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
@@ -1694,66 +1692,93 @@ class TelegramService {
 
   Future<void> _handleAIAnalytics(String chatId) async {
     try {
-      await sendMessage(chatId, "⏳ *Ultra AI: Ma'lumotlar tahlil qilinmoqda...* \n\n_(Bu jarayon bir necha soniya vaqt olishi mumkin)_");
+      await sendMessage(chatId, "🧠 *ULTRA AI: Mahalliy tahlil tizimi ishga tushirildi...*");
       
       final db = await DatabaseHelper.instance.database;
       
-      // 1. Get Core Stats for Context
+      // 1. Financial Analytics
       final totalStockValue = await DatabaseHelper.instance.calculateTotalStockValue();
-      final lowStock = await DatabaseHelper.instance.getLowStockProducts();
-      final finished = await DatabaseHelper.instance.getFinishedProducts();
-      final lastWeekOut = await db.rawQuery(
-        "SELECT p.name, SUM(so.quantity) as qty FROM stock_out so JOIN products p ON so.product_id = p.id WHERE so.date_time >= date('now', '-7 days') AND so.is_deleted = 0 GROUP BY p.id ORDER BY qty DESC LIMIT 5"
+      
+      // 2. Velocity Analytics (Top 3 fast movers)
+      final topOut = await db.rawQuery(
+        '''SELECT p.name, SUM(so.quantity) as qty 
+           FROM stock_out so 
+           JOIN products p ON so.product_id = p.id 
+           WHERE so.date_time >= date('now', '-30 days') AND so.is_deleted = 0
+           GROUP BY p.id ORDER BY qty DESC LIMIT 3'''
       );
 
-      // 2. Prepare Context for Gemini (Uzbek Language requested)
-      String contextData = """
-      Hozirgi ombor holati:
-      - Jami tovar qiymati: $totalStockValue so'm
-      - Tugagan mahsulotlar soni: ${finished.length} ta
-      - Kam qolgan mahsulotlar soni: ${lowStock.length} ta
-      
-      O'tgan hafta eng ko'p sarflanganlar:
-      ${lastWeekOut.map((e) => "- ${e['name']}: ${e['qty']} ta").join('\n')}
-      
-      Tugaganlar ro'yxatidan namunalar: ${finished.take(3).map((e) => e['name']).join(', ')}
-      Kam qolganlar ro'yxatidan namunalar: ${lowStock.take(3).map((e) => "${e['name']} (${e['stock']} qolgan)").join(', ')}
-      """;
-
-      // 3. Request Gemini Analysis
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash', 
-        apiKey: AppConfig.geminiApiKey
+      // 3. Shortage Forecasting (Ultra Algorithm)
+      final shortageRisks = await db.rawQuery(
+        '''SELECT p.name, p.unit,
+                  ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+                   (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
+           FROM products p
+           WHERE p.is_deleted = 0 AND stock > 0 AND out_30d > 0
+           ORDER BY (stock * 1.0 / out_30d) ASC
+           LIMIT 5'''
       );
 
-      final prompt = """
-      Siz professional Omborxona Logistika va Analitika bo'yicha mutaxaxissisiz. 
-      Berilgan ma'lumotlar asosida quyidagi tartibda CHUQUR va PROFESSIONAL tahlil bering:
-      1. Omborning hozirgi holatiga umumiy baho (Premium uslubda).
-      2. Topilgan xavflar (Shortage risks) va ular bo'yicha aniq prognozlar.
-      3. Strategik tavsiyalar (Qaysi mahsulotni ko'proq, qaysini kamroq buyurtma qilish kerak).
-      4. Kelajak uchun ehtiyot choralari.
-      
-      Javobni faqat O'zbek tilida, Telegram uchun qulay Markdown formatida (bold, list, emojilar bilan) yozing. 
-      Muvaffaqiyatli va ultra-zamonaviy tahlil bo'lishi shart.
-      
-      Ma'lumotlar:
-      $contextData
-      """;
+      String report = "🦁 *LOCAL ULTRA AI TAHLILI*\n";
+      report += "----------------------------\n\n";
 
-      final response = await model.generateContent([Content.text(prompt)]);
-      final aiText = response.text;
+      // Section 1: Financials
+      report += "💰 *MOLIYAVIY KO'RSATKICHLAR:*\n";
+      report += "   • Omborning jami qiymati: *${_formatMoney(totalStockValue)}* so'm\n";
+      report += "   • Holat: *Barqaror* ✅\n\n";
 
-      if (aiText != null && aiText.isNotEmpty) {
-        // Clear temp message or just send new one
-         await sendMessage(chatId, "🤖 *ULTRA AI TAHLILI:*\n\n$aiText");
+      // Section 2: Consumption Dynamic
+      report += "🔥 *DINAMIK HARAKATLAR (Top-3):*\n";
+      if (topOut.isEmpty) {
+        report += "   ➖ Chiqimlar hozircha mavjud emas.\n";
       } else {
-         await sendMessage(chatId, "⚠️ AI tahlil tayyorlashda kechikish yuz berdi. Iltimos qayta urinib ko'ring.");
+        for (var row in topOut) {
+          report += "   🔺 ${row['name']} - *${row['qty']} ta* sarflandi\n";
+        }
+      }
+      report += "\n";
+
+      // Section 3: Proactive Forecasting
+      report += "🚨 *SMART BASHORAT (Tugash xavfi):*\n";
+      bool foundRisk = false;
+      if (shortageRisks.isNotEmpty) {
+        for (var row in shortageRisks) {
+          final stock = row['stock'] as num;
+          final runRate = row['out_30d'] as num;
+          if (runRate > 0) {
+            final daysLeft = (stock / (runRate / 30.0)).round();
+            if (daysLeft < 30) {
+              foundRisk = true;
+              report += "   ❗ *${row['name']}* - taxminan *$daysLeft kunga* yetadi\n";
+            }
+          }
+        }
       }
       
+      if (!foundRisk) {
+        report += "   ✅ Yaqin 30 kun uchun zaxiralar yetarli.\n";
+      }
+      report += "\n";
+
+      // Section 4: Strategic Recommendations
+      report += "💡 *ULTRA TAVSIYALAR:*\n";
+      if (foundRisk) {
+        report += "   1. Tezpishar (❗) tovarlar uchun *shoshilinch buyurtma* bering.\n";
+        report += "   2. Ushbu oyda logistika xarajatlarini optimallashtiring.\n";
+      } else {
+        report += "   1. Hozirgi zaxira strategiyasini davom ettiring.\n";
+        report += "   2. Inventarizatsiya hisobotini tekshirib chiqing.\n";
+      }
+      
+      report += "\n----------------------------\n";
+      report += "#ultra_ai #strategiya";
+
+      await sendMessage(chatId, report);
+      
     } catch (e) {
-      debugPrint("Ultra AI Error: $e");
-      await sendMessage(chatId, "❌ Ultra AI tizimida texnik uzilish: $e");
+      debugPrint("Local Ultra AI Error: $e");
+      await sendMessage(chatId, "❌ Mahalliy Ultra AI tizimida xatolik: $e");
     }
   }
 
