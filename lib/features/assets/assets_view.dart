@@ -1603,7 +1603,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedStatus,
+                        initialValue: _selectedStatus,
                         isExpanded: true,
                         decoration: _deco(t.text('col_status')),
                         items: [
@@ -1630,7 +1630,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedBuildId,
+                        initialValue: _selectedBuildId,
                         isExpanded: true,
                         decoration: _deco(t.text('assets_building')),
                         items: _buildings.map((b) => DropdownMenuItem<int>(value: b['id'], child: Text(b['name']))).toList(),
@@ -1640,7 +1640,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedFloorId,
+                        initialValue: _selectedFloorId,
                         isExpanded: true,
                         decoration: _deco(t.text('assets_floor')),
                         items: _floors.map((f) => DropdownMenuItem<int>(value: f['id'], child: Text(f['name']))).toList(),
@@ -1650,7 +1650,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                     SizedBox(
                       width: 195,
                       child: DropdownButtonFormField<int>(
-                        value: _selectedRoomId,
+                        initialValue: _selectedRoomId,
                         isExpanded: true,
                         decoration: _deco(t.text('assets_room')),
                         items: _rooms.map((r) => DropdownMenuItem<int>(value: r['id'], child: Text(r['name']))).toList(),

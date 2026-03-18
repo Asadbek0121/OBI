@@ -107,7 +107,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     final dynamic id = (rendererContext.row.key as ValueKey).value;
 
     final confirmed = await AppDialogs.showConfirmDialog(
-      context: this.context,
+      context: context,
       title: t.text('btn_delete'),
       content: t.text('rep_delete_confirm'),
     );
@@ -121,10 +121,10 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
         }
         if (mounted) {
           rendererContext.stateManager.removeRows([rendererContext.row]);
-          AppNotifications.showSuccess(this.context, t.text('msg_deleted'));
+          AppNotifications.showSuccess(context, t.text('msg_deleted'));
         }
       } catch (e) {
-        if (mounted) AppNotifications.showError(this.context, "${t.text('msg_error')}: $e");
+        if (mounted) AppNotifications.showError(context, "${t.text('msg_error')}: $e");
       }
     }
   }
@@ -175,7 +175,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
     }
 
     showDialog(
-      context: this.context,
+      context: context,
       builder: (c) => StatefulBuilder(
         builder: (context, setStateDialog) {
           return AlertDialog(
@@ -265,7 +265,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                     TextField(controller: priceController, decoration: fieldDecor(t.text('col_price'), Icons.attach_money), keyboardType: TextInputType.number),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
+                      initialValue: paymentOptions.contains(paymentStatus) ? paymentStatus : null,
                       decoration: fieldDecor(t.text('col_payment_status'), Icons.payment),
                       dropdownColor: Theme.of(context).cardColor,
                       items: paymentOptions.map<DropdownMenuItem<String>>((e) => DropdownMenuItem<String>(value: e, child: Text(e))).toList(),
