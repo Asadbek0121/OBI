@@ -102,7 +102,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   }
 
   void _onDeleteRow(PlutoColumnRendererContext rendererContext, bool isIn) async {
-    final t = Provider.of<AppTranslations>(this.context, listen: false);
+    final t = Provider.of<AppTranslations>(context, listen: false);
     if (rendererContext.row.key is! ValueKey) return;
     final dynamic id = (rendererContext.row.key as ValueKey).value;
 
@@ -130,7 +130,7 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   }
 
   void _onEditRow(PlutoColumnRendererContext rendererContext, bool isIn) {
-    final t = Provider.of<AppTranslations>(this.context, listen: false);
+    final t = Provider.of<AppTranslations>(context, listen: false);
     if (rendererContext.row.key is! ValueKey) return;
     final dynamic id = (rendererContext.row.key as ValueKey).value;
     final cells = rendererContext.row.cells;
