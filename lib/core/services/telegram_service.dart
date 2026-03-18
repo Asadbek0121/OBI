@@ -1710,14 +1710,19 @@ class TelegramService {
 
       // 3. Shortage Forecasting (Ultra Algorithm)
       final shortageRisks = await db.rawQuery(
-        '''SELECT p.name, p.unit,
-                  ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
-                   (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
-                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
-           FROM products p
-           WHERE p.is_deleted = 0 AND stock > 0 AND out_30d > 0
-           ORDER BY (stock * 1.0 / out_30d) ASC
-           LIMIT 5'''
+        '''
+        WITH stats AS (
+          SELECT p.name, p.unit,
+            ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+             (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
+            (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
+          FROM products p
+          WHERE p.is_deleted = 0
+        )
+        SELECT * FROM stats WHERE stock > 0 AND out_30d > 0
+        ORDER BY (stock * 1.0 / out_30d) ASC
+        LIMIT 5
+        '''
       );
 
       String report = "🦁 *LOCAL ULTRA AI TAHLILI*\n";
