@@ -90,6 +90,17 @@ class SyncService {
           // Don't send local sync_status to server
           data.remove('sync_status');
           
+          // CRITICAL: Supabase tables might not have all local debugging/migration columns
+          // Filter to only include columns that are expected in the cloud schema
+          if (table == 'assets') {
+             // Avoid sending 'location' (if it exists locally) as Supabase uses 'location_id'
+             data.remove('location'); 
+          }
+          if (table == 'asset_locations') {
+             // Avoid sending 'short_code' if Supabase hasn't been updated yet
+             data.remove('short_code');
+          }
+          
           await _supabase.from(table).upsert(data);
           
           // Mark as synced locally

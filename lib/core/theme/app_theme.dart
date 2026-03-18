@@ -55,8 +55,17 @@ class AppTheme {
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
         ),
-        bodyLarge: TextStyle(color: AppColors.textPrimary),
-        bodyMedium: TextStyle(color: AppColors.textSecondary),
+        bodyLarge: TextStyle(color: AppColors.textPrimary, fontSize: 15),
+        bodyMedium: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      ),
+      
+      // TabBar Theme
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textSecondary,
+        labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        indicatorSize: TabBarIndicatorSize.label,
+        indicatorColor: AppColors.primary,
       ),
       
       // Button Theme
@@ -66,10 +75,10 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: 0.3),
         ),
       ),
     );

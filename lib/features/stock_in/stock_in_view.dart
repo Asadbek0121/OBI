@@ -128,6 +128,7 @@ class _StockInViewState extends State<StockInView> {
         field: 'price',
         type: PlutoColumnType.text(),
         width: 140,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_unit'),
@@ -141,6 +142,7 @@ class _StockInViewState extends State<StockInView> {
         field: 'quantity',
         type: PlutoColumnType.text(),
         width: 100,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_tax_percent'),
@@ -154,6 +156,7 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_surcharge_percent'),
@@ -167,18 +170,71 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 140,
         enableEditingMode: false,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_from'),
         field: 'supplier',
-        type: PlutoColumnType.select(suppliers), 
+        type: PlutoColumnType.text(), 
         width: 150,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          return InkWell(
+            onTap: () => _showChoiceDialog(
+              title: t.text('col_from'), 
+              options: suppliers, 
+              onSelected: (val) {
+                rendererContext.cell.value = val;
+                stateManager.notifyListeners();
+              }
+            ),
+            child: Row(
+              children: [
+                Expanded(child: Text(rendererContext.cell.value.toString())),
+                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+              ],
+            ),
+          );
+        },
       ),
       PlutoColumn(
         title: t.text('col_payment_status'),
         field: 'payment_status',
-        type: PlutoColumnType.select(paymentTypes), 
+        type: PlutoColumnType.text(), 
         width: 150,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          final val = rendererContext.cell.value.toString();
+          final isNaqd = val.toLowerCase().contains('naqd');
+          return InkWell(
+            onTap: () => _showChoiceDialog(
+              title: t.text('col_payment_status'), 
+              options: paymentTypes, 
+              onSelected: (val) {
+                rendererContext.cell.value = val;
+                stateManager.notifyListeners();
+              }
+            ),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isNaqd ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isNaqd ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2)),
+                ),
+                child: Text(
+                  val,
+                  style: TextStyle(
+                    color: isNaqd ? Colors.green : Colors.orange,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
       PlutoColumn(
         title: t.text('col_total_amount'),
@@ -186,6 +242,31 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 160,
         enableEditingMode: false,
+        textAlign: PlutoColumnTextAlign.right,
+        renderer: (rendererContext) {
+          return Text(
+            rendererContext.cell.value.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+          );
+        },
+      ),
+      PlutoColumn(
+        title: "",
+        field: "action",
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        enableFilterMenuItem: false,
+        enableSorting: false,
+        enableSetColumnsMenuItem: false,
+        width: 60,
+        renderer: (rendererContext) {
+          return IconButton(
+            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 18),
+            onPressed: () {
+               stateManager.removeRows([rendererContext.row]);
+            },
+          );
+        },
       ),
     ];
   }
@@ -207,6 +288,7 @@ class _StockInViewState extends State<StockInView> {
           'supplier': PlutoCell(value: suppliers.isNotEmpty ? suppliers.first : ''),
           'payment_status': PlutoCell(value: paymentTypes.isNotEmpty ? paymentTypes.first : 'Naqd'),
           'total_amount': PlutoCell(value: ''),
+          'action': PlutoCell(value: ''),
         },
       );
   }
@@ -366,6 +448,11 @@ class _StockInViewState extends State<StockInView> {
       columnSize: const PlutoGridColumnSizeConfig(
         autoSizeMode: PlutoAutoSizeMode.scale,
       ),
+        scrollbar: const PlutoGridScrollbarConfig(
+          isAlwaysShown: true,
+          scrollbarThickness: 10,
+          scrollbarRadius: Radius.circular(5),
+        ),
         style: GridTheme.getStyle(context),
     );
 
@@ -515,6 +602,67 @@ class _StockInViewState extends State<StockInView> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showChoiceDialog({
+    required String title, 
+    required List<String> options, 
+    required Function(String) onSelected
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String filter = "";
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final filteredOptions = options.where((o) => o.toLowerCase().contains(filter.toLowerCase())).toList();
+            return AlertDialog(
+              title: Text(title),
+              content: SizedBox(
+                width: 400,
+                height: 500,
+                child: Column(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: "Qidirish...",
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onChanged: (v) => setDialogState(() => filter = v),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        thickness: 8,
+                        child: ListView.builder(
+                          itemCount: filteredOptions.length,
+                          itemBuilder: (context, i) {
+                            return ListTile(
+                              title: Text(filteredOptions[i]),
+                              onTap: () {
+                                onSelected(filteredOptions[i]);
+                                Navigator.pop(context);
+                              },
+                              hoverColor: AppColors.primary.withValues(alpha: 0.1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(Provider.of<AppTranslations>(context, listen: false).text('btn_cancel'))),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'core/localization/app_translations.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/services/profile_provider.dart';
+import 'core/services/notification_provider.dart';
 
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
@@ -110,6 +111,7 @@ void main() async {
 
        // 🎧 START INTERACTIVE BOT LISTENER
        tgService.startBotListener();
+       tgService.setupAutoBackupListener();
 
         // 🔄 SYNC SERVICE INIT
         final syncService = SyncService();
@@ -127,6 +129,7 @@ void main() async {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: profileProvider),
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: ClinicalWarehouseApp(home: startScreen),
     )

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/notification_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_container.dart';
+import 'dart:async';
 
 class AppNotifications {
   static void showSuccess(BuildContext context, String message) {
@@ -50,6 +53,19 @@ class AppNotifications {
     IconData icon,
     String title,
   ) {
+    // 1. Add to Provider for History
+    try {
+      context.read<NotificationProvider>().addNotification(
+        title: title,
+        message: message,
+        icon: icon,
+        color: color,
+      );
+    } catch (e) {
+      debugPrint("Notification Provider Error: $e");
+    }
+
+    // 2. Show Active Toast
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
 
@@ -90,6 +106,8 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _fadeAnimation;
+  Timer? _timer;
+  bool _isClosing = false;
 
   @override
   void initState() {
@@ -112,10 +130,24 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
     );
 
     _controller.forward();
+
+    // 🕒 10 Seconds Auto-Dismiss
+    _timer = Timer(const Duration(seconds: 10), () {
+      _close();
+    });
+  }
+
+  void _close() {
+    if (!mounted || _isClosing) return;
+    _isClosing = true;
+    _controller.reverse().then((_) {
+      if (mounted) widget.onDismiss();
+    });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -143,7 +175,7 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
                 ],
               ),
               child: GlassContainer(
-                onTap: () => _controller.reverse().then((_) => widget.onDismiss()),
+                onTap: _close,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 borderRadius: 16,
                 child: Row(
@@ -182,9 +214,7 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                      onPressed: () {
-                        _controller.reverse().then((_) => widget.onDismiss());
-                      },
+                      onPressed: _close,
                     ),
                   ],
                 ),

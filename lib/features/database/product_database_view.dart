@@ -161,6 +161,7 @@ class _ProductGridState extends State<_ProductGrid> {
         field: 'id',
         type: PlutoColumnType.text(),
         width: 150,
+        textAlign: PlutoColumnTextAlign.center,
       ),
       PlutoColumn(
         title: t.text('col_product'),
@@ -182,13 +183,20 @@ class _ProductGridState extends State<_ProductGrid> {
         enableFilterMenuItem: false,
         enableSorting: false,
         enableSetColumnsMenuItem: false,
-        width: 80,
+        width: 60,
+        textAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
+          final id = rendererContext.row.cells['id']?.value.toString() ?? '';
+          if (id.isEmpty && rendererContext.rowIdx == stateManager.rows.length - 1) return const SizedBox.shrink();
           return IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
+            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
             onPressed: () {
                _confirmDelete(rendererContext.row);
             },
+            style: IconButton.styleFrom(
+              hoverColor: Colors.red.withValues(alpha: 0.05),
+              padding: EdgeInsets.zero,
+            ),
           );
         },
       ),
@@ -249,6 +257,11 @@ class _ProductGridState extends State<_ProductGrid> {
                     filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
                     style: GridTheme.getStyle(context),
+                    scrollbar: const PlutoGridScrollbarConfig(
+                      isAlwaysShown: true,
+                      scrollbarThickness: 10,
+                      scrollbarRadius: Radius.circular(5),
+                    ),
                 ),
               ),
             ),
@@ -387,15 +400,20 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
         enableFilterMenuItem: false,
         enableSorting: false,
         enableSetColumnsMenuItem: false,
-        width: 80,
+        width: 60,
+        textAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
            // Don't show delete on the empty 'add new' row
            if (rendererContext.rowIdx == stateManager.rows.length - 1) return const SizedBox.shrink();
            return IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
+            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
             onPressed: () {
                _confirmDelete(rendererContext.row);
             },
+            style: IconButton.styleFrom(
+              hoverColor: Colors.red.withValues(alpha: 0.05),
+              padding: EdgeInsets.zero,
+            ),
           );
         },
       ),
@@ -456,6 +474,11 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
                     filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
                     style: GridTheme.getStyle(context),
+                    scrollbar: const PlutoGridScrollbarConfig(
+                      isAlwaysShown: true,
+                      scrollbarThickness: 10,
+                      scrollbarRadius: Radius.circular(5),
+                    ),
                 ),
               ),
             ),

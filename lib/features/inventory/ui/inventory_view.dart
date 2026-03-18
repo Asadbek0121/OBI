@@ -39,8 +39,9 @@ class _InventoryViewState extends State<InventoryView> {
         title: t.text('col_id'),
         field: 'id',
         type: PlutoColumnType.text(),
-        width: 100,
+        width: 120,
         enableRowChecked: false,
+        textAlign: PlutoColumnTextAlign.center,
       ),
       PlutoColumn(
         title: t.text('col_product'),
@@ -53,6 +54,13 @@ class _InventoryViewState extends State<InventoryView> {
         field: 'stock',
         type: PlutoColumnType.number(format: '#,###.##'),
         width: 150,
+        textAlign: PlutoColumnTextAlign.right,
+        renderer: (rendererContext) {
+          return Text(
+            rendererContext.cell.value.toString(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          );
+        },
       ),
       PlutoColumn(
         title: t.text('col_unit'),
@@ -61,10 +69,11 @@ class _InventoryViewState extends State<InventoryView> {
         width: 100,
       ),
       PlutoColumn(
-        title: t.text('col_status'), // Status
+        title: t.text('col_status'),
         field: 'status',
         type: PlutoColumnType.text(),
-        width: 150,
+        width: 140,
+        textAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final stock = double.tryParse(rendererContext.row.cells['stock']?.value.toString() ?? '0') ?? 0;
           String label = t.text('status_healthy');
@@ -78,16 +87,29 @@ class _InventoryViewState extends State<InventoryView> {
             color = AppColors.warning;
           }
 
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withValues(alpha: 0.5)),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+          return Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withValues(alpha: 0.15), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    label,
+                    style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 11),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -96,15 +118,20 @@ class _InventoryViewState extends State<InventoryView> {
         title: "",
         field: 'actions',
         type: PlutoColumnType.text(),
-        width: 80,
+        width: 70,
         enableSorting: false,
         enableFilterMenuItem: false,
+        textAlign: PlutoColumnTextAlign.center,
         renderer: (rendererContext) {
           final id = rendererContext.row.cells['id']?.value.toString() ?? '';
+          if (id.isEmpty) return const SizedBox.shrink();
           return IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
             onPressed: () => _deleteProduct(id),
-            tooltip: "O'chirish",
+            style: IconButton.styleFrom(
+              hoverColor: Colors.red.withValues(alpha: 0.05),
+              padding: EdgeInsets.zero,
+            ),
           );
         },
       ),

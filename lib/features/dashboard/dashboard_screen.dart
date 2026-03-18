@@ -23,6 +23,8 @@ import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/services/notification_provider.dart';
+import 'package:intl/intl.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -346,6 +348,150 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showNotificationCenter(BuildContext context) {
+    final provider = context.read<NotificationProvider>();
+    provider.markAllAsRead(); // Mark as read when opened
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black.withValues(alpha: 0.2),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(anim1),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Container(
+                width: 380,
+                height: double.infinity,
+                margin: const EdgeInsets.all(20),
+                child: GlassContainer(
+                  borderRadius: 24,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Bildirishnomalar", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+                          Container(
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.05), shape: BoxShape.circle),
+                            child: IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: Consumer<NotificationProvider>(
+                          builder: (context, provider, _) {
+                            if (provider.notifications.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.05), shape: BoxShape.circle),
+                                      child: Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey[300]),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text("Hozircha bildirishnomalar yo'q", style: TextStyle(color: Colors.grey[400], fontSize: 15, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              );
+                            }
+                            return ListView.separated(
+                              itemCount: provider.notifications.length,
+                              separatorBuilder: (c, i) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final n = provider.notifications[index];
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: n.color.withValues(alpha: 0.04),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: n.color.withValues(alpha: 0.1)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: n.color.withValues(alpha: 0.08),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: Icon(n.icon, color: n.color, size: 20),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(n.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: -0.2)),
+                                                ),
+                                                Text(
+                                                  DateFormat('HH:mm').format(n.timestamp),
+                                                  style: TextStyle(color: Colors.grey[400], fontSize: 11, fontWeight: FontWeight.w600),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              n.message, 
+                                              style: TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 13, height: 1.3),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Consumer<NotificationProvider>(
+                        builder: (context, provider, _) {
+                          if (provider.notifications.isEmpty) return const SizedBox.shrink();
+                          return SizedBox(
+                            width: double.infinity,
+                            child: TextButton.icon(
+                              onPressed: () => provider.clearAll(),
+                              icon: const Icon(Icons.delete_sweep_outlined, size: 20, color: Colors.red),
+                              label: const Text("Hammasini tozalash", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                backgroundColor: Colors.red.withValues(alpha: 0.05),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildStatusBar() {
     final t = Provider.of<AppTranslations>(context);
     return Container(
@@ -472,6 +618,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                      padding: const EdgeInsets.all(10),
                      borderRadius: 30,
                      child: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
+                   ),
+                   const SizedBox(width: 12),
+                   // Notification Button
+                   Consumer<NotificationProvider>(
+                     builder: (context, notifications, _) {
+                       return Badge(
+                         label: Text("${notifications.unreadCount}"),
+                         isLabelVisible: notifications.unreadCount > 0,
+                         child: GlassContainer(
+                           onTap: () => _showNotificationCenter(context),
+                           padding: const EdgeInsets.all(10),
+                           borderRadius: 30,
+                           child: const Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
+                         ),
+                       );
+                     },
                    ),
                    const SizedBox(width: 12),
                    // Date Badge

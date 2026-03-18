@@ -94,12 +94,32 @@ class _StockOutViewState extends State<StockOutView> {
         field: 'quantity',
         type: PlutoColumnType.text(),
         width: 120,
+        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_to_receiver'),
         field: 'receiver',
-        type: PlutoColumnType.select(receivers.isNotEmpty ? receivers : [t.text('msg_loading')]), 
+        type: PlutoColumnType.text(), 
         width: 200,
+        enableEditingMode: false,
+        renderer: (rendererContext) {
+          return InkWell(
+            onTap: () => _showChoiceDialog(
+              title: t.text('col_to_receiver'),
+              options: receivers,
+              onSelected: (val) {
+                rendererContext.cell.value = val;
+                stateManager.notifyListeners();
+              }
+            ),
+            child: Row(
+              children: [
+                Expanded(child: Text(rendererContext.cell.value.toString())),
+                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+              ],
+            ),
+          );
+        },
       ),
       // Hidden column for validation
       PlutoColumn(
@@ -108,6 +128,29 @@ class _StockOutViewState extends State<StockOutView> {
         type: PlutoColumnType.number(),
         width: 0,
         hide: true,
+      ),
+      PlutoColumn(
+        title: "",
+        field: "action",
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        enableFilterMenuItem: false,
+        enableSorting: false,
+        enableSetColumnsMenuItem: false,
+        width: 60,
+        textAlign: PlutoColumnTextAlign.center,
+        renderer: (rendererContext) {
+          return IconButton(
+            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
+            onPressed: () {
+               stateManager.removeRows([rendererContext.row]);
+            },
+            style: IconButton.styleFrom(
+              hoverColor: Colors.red.withValues(alpha: 0.05),
+              padding: EdgeInsets.zero,
+            ),
+          );
+        },
       ),
     ];
 
@@ -172,6 +215,7 @@ class _StockOutViewState extends State<StockOutView> {
           'quantity': PlutoCell(value: ''),
           'receiver': PlutoCell(value: receivers.isNotEmpty ? receivers.first : ''),
           'current_stock': PlutoCell(value: ''),
+          'action': PlutoCell(value: ''),
         },
       );
   }
@@ -205,6 +249,11 @@ class _StockOutViewState extends State<StockOutView> {
       ),
       columnSize: const PlutoGridColumnSizeConfig(
         autoSizeMode: PlutoAutoSizeMode.scale,
+      ),
+      scrollbar: const PlutoGridScrollbarConfig(
+        isAlwaysShown: true,
+        scrollbarThickness: 10,
+        scrollbarRadius: Radius.circular(5),
       ),
       style: GridTheme.getStyle(context),
     );
@@ -324,6 +373,67 @@ class _StockOutViewState extends State<StockOutView> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showChoiceDialog({
+    required String title, 
+    required List<String> options, 
+    required Function(String) onSelected
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String filter = "";
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final filteredOptions = options.where((o) => o.toLowerCase().contains(filter.toLowerCase())).toList();
+            return AlertDialog(
+              title: Text(title),
+              content: SizedBox(
+                width: 400,
+                height: 500,
+                child: Column(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: "Qidirish...",
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onChanged: (v) => setDialogState(() => filter = v),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: Scrollbar(
+                        thumbVisibility: true,
+                        thickness: 8,
+                        child: ListView.builder(
+                          itemCount: filteredOptions.length,
+                          itemBuilder: (context, i) {
+                            return ListTile(
+                              title: Text(filteredOptions[i]),
+                              onTap: () {
+                                onSelected(filteredOptions[i]);
+                                Navigator.pop(context);
+                              },
+                              hoverColor: AppColors.primary.withValues(alpha: 0.1),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: Text(Provider.of<AppTranslations>(context, listen: false).text('btn_cancel'))),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 }

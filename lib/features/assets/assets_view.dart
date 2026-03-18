@@ -35,10 +35,25 @@ class _AssetsViewState extends State<AssetsView> {
   String _sidebarTitle = "Binolar";
   List<Map<String, dynamic>> _sidebarItems = [];
 
+  late ScrollController _hierarchyScrollController;
+  late ScrollController _assetScrollController;
+  late ScrollController _sidebarScrollController;
+
   @override
   void initState() {
     super.initState();
+    _hierarchyScrollController = ScrollController();
+    _assetScrollController = ScrollController();
+    _sidebarScrollController = ScrollController();
     _initData();
+  }
+
+  @override
+  void dispose() {
+    _hierarchyScrollController.dispose();
+    _assetScrollController.dispose();
+    _sidebarScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _initData() async {
@@ -101,6 +116,7 @@ class _AssetsViewState extends State<AssetsView> {
       if (mounted) {
         setState(() {
           _allAssets = data;
+          debugPrint("📦 Asset Search: Found ${data.length} total assets.");
           _applyFilters();
           _isLoading = false;
         });
@@ -124,18 +140,20 @@ class _AssetsViewState extends State<AssetsView> {
       // Category filter
       final catMatches = _selectedCategoryId == null || asset['category_id'] == _selectedCategoryId;
       
-       // Location filter logic (Deep hierarchy check)
+      // Location filter logic (Deep hierarchy check)
       bool locMatches = true;
       if (_selectedRoomId != null) {
-        locMatches = asset['location_id'] == _selectedRoomId;
+        locMatches = asset['location_id'].toString() == _selectedRoomId.toString();
+        if (locMatches) debugPrint("DEBUG: Asset in room match check: ${asset['name']} (loc_id: ${asset['location_id']} vs target: $_selectedRoomId)");
       } else if (_selectedFloorId != null) {
         // Match if it's in the floor directly or in any room belonging to that floor
-        locMatches = asset['location_id'] == _selectedFloorId || asset['parent_id'] == _selectedFloorId;
+        locMatches = asset['location_id'].toString() == _selectedFloorId.toString() || 
+                     asset['parent_id'].toString() == _selectedFloorId.toString();
       } else if (_selectedBuildingId != null) {
         // Match if it's in the building directly, or any floor/room in that building
-        locMatches = asset['location_id'] == _selectedBuildingId || 
-                     asset['parent_id'] == _selectedBuildingId || 
-                     asset['grandparent_id'] == _selectedBuildingId;
+        locMatches = asset['location_id'].toString() == _selectedBuildingId.toString() || 
+                     asset['parent_id'].toString() == _selectedBuildingId.toString() || 
+                     asset['grandparent_id'].toString() == _selectedBuildingId.toString();
       }
 
       // Status filter
@@ -144,6 +162,7 @@ class _AssetsViewState extends State<AssetsView> {
       return nameMatches && catMatches && locMatches && statusMatches;
     }).toList();
     
+    debugPrint("🔍 Filters Applied: Shown ${_filteredAssets.length} assets.");
     setState(() {});
   }
 
@@ -234,18 +253,24 @@ class _AssetsViewState extends State<AssetsView> {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 300,
-              mainAxisExtent: 260,
-              crossAxisSpacing: 20,
-              mainAxisSpacing: 20,
+          child: Scrollbar(
+            controller: _hierarchyScrollController,
+            thumbVisibility: true,
+            child: GridView.builder(
+              controller: _hierarchyScrollController,
+              padding: const EdgeInsets.only(right: 12),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 300,
+                mainAxisExtent: 260,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+              ),
+              itemCount: _sidebarItems.length,
+              itemBuilder: (context, index) {
+                final item = _sidebarItems[index];
+                return _buildLocationCard(item, t);
+              },
             ),
-            itemCount: _sidebarItems.length,
-            itemBuilder: (context, index) {
-              final item = _sidebarItems[index];
-              return _buildLocationCard(item, t);
-            },
           ),
         ),
       ],
@@ -363,7 +388,6 @@ class _AssetsViewState extends State<AssetsView> {
 
     return Container(
       width: 280,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(24),
@@ -372,135 +396,142 @@ class _AssetsViewState extends State<AssetsView> {
         ],
         border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(t.text('menu_location'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
+      child: Scrollbar(
+        controller: _sidebarScrollController,
+        thumbVisibility: true,
+        thickness: 8,
+        child: SingleChildScrollView(
+          controller: _sidebarScrollController,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(t.text('menu_location'), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: isDark ? Colors.white : Colors.black87)),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    _QuickAddBtn(icon: Icons.business_rounded, label: t.text('assets_building'), onTap: _showLocationManager),
+                    _QuickAddBtn(icon: Icons.layers_rounded, label: t.text('assets_floor'), onTap: _showLocationManager),
+                    _QuickAddBtn(icon: Icons.meeting_room_rounded, label: t.text('assets_room'), onTap: _showLocationManager),
+                  ],
+                ),
               ),
-              child: Row(
+              const SizedBox(height: 24),
+              Row(
                 children: [
-                  _QuickAddBtn(icon: Icons.business_rounded, label: t.text('assets_building'), onTap: _showLocationManager),
-                  _QuickAddBtn(icon: Icons.layers_rounded, label: t.text('assets_floor'), onTap: _showLocationManager),
-                  _QuickAddBtn(icon: Icons.meeting_room_rounded, label: t.text('assets_room'), onTap: _showLocationManager),
+                  if (_sidebarParentId != null)
+                    IconButton(
+                      onPressed: () async {
+                        final p = await DatabaseHelper.instance.getLocationById(_sidebarParentId!);
+                        setState(() { 
+                          _sidebarParentId = p?['parent_id'];
+                          if (_sidebarParentId == null) {
+                            _sidebarTitle = t.text('assets_building');
+                            _selectedBuildingId = null;
+                          } else {
+                            if (p?['type'] == 'floor') {
+                              _sidebarTitle = t.text('assets_floor');
+                            } else if (p?['type'] == 'building') {
+                              _sidebarTitle = t.text('assets_building');
+                            }
+                          }
+                        });
+                        _loadMetadata();
+                        _applyFilters();
+                      }, 
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.only(right: 8),
+                      color: Colors.blueAccent,
+                    ),
+                  Text(_sidebarTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueAccent)),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                if (_sidebarParentId != null)
-                  IconButton(
-                    onPressed: () async {
-                      final p = await DatabaseHelper.instance.getLocationById(_sidebarParentId!);
-                      setState(() { 
-                        _sidebarParentId = p?['parent_id'];
-                        if (_sidebarParentId == null) {
-                          _sidebarTitle = t.text('assets_building');
-                          _selectedBuildingId = null;
-                        } else {
-                          if (p?['type'] == 'floor') {
-                            _sidebarTitle = t.text('assets_floor');
-                          } else if (p?['type'] == 'building') {
-                            _sidebarTitle = t.text('assets_building');
-                          }
-                        }
-                      });
-                      _loadMetadata();
-                      _applyFilters();
-                    }, 
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.only(right: 8),
-                    color: Colors.blueAccent,
-                  ),
-                Text(_sidebarTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueAccent)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _FilterItem(
-              label: _sidebarParentId == null ? t.text('filter_all_places') : t.text('filter_all_here'),
-              icon: Icons.grid_view_rounded,
-              isSelected: _selectedBuildingId == null && _selectedFloorId == null && _selectedRoomId == null,
-              onTap: () => setState(() { 
-                _selectedBuildingId = _selectedFloorId = _selectedRoomId = null;
-                _applyFilters(); 
-              }),
-            ),
-            const SizedBox(height: 8),
-            
-            // Location List Items
-            ..._sidebarItems.map((item) {
-              final type = item['type'] ?? 'building';
-              bool isSelected = (type == 'building' && _selectedBuildingId == item['id']) ||
-                               (type == 'floor' && _selectedFloorId == item['id']) ||
-                               (type == 'room' && _selectedRoomId == item['id']);
-
-              return _FilterItem(
-                label: item['name'],
-                icon: type == 'building' ? Icons.business_rounded :
-                      type == 'floor' ? Icons.layers_rounded : Icons.meeting_room_rounded,
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() {
-                    if (type == 'building') {
-                      _selectedBuildingId = item['id']; _selectedFloorId = _selectedRoomId = null;
-                      _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_floor');
-                    } else if (type == 'floor') {
-                      _selectedFloorId = item['id']; _selectedRoomId = null;
-                      _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_room');
-                    } else {
-                      _selectedRoomId = item['id'];
-                    }
-                    _loadMetadata();
-                    _applyFilters();
-                  });
-                },
-                onExport: () => ExcelService.exportAssetsHierarchy(
-                  buildingId: type == 'building' ? item['id'] : null,
-                  floorId: type == 'floor' ? item['id'] : null,
-                  roomId: type == 'room' ? item['id'] : null,
-                ),
-              );
-            }),
-
-            const Divider(height: 32, color: Colors.black12),
-            Text(t.text('col_status'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
-            const SizedBox(height: 12),
-            ...['status_new', 'status_used', 'status_repair', 'status_old'].map((key) => 
+              const SizedBox(height: 8),
               _FilterItem(
-                label: t.text(key),
-                icon: Icons.circle,
-                iconSize: 10,
-                iconColor: _getStatusColor(t.text(key)),
-                isSelected: _selectedStatus == t.text(key),
+                label: _sidebarParentId == null ? t.text('filter_all_places') : t.text('filter_all_here'),
+                icon: Icons.grid_view_rounded,
+                isSelected: _selectedBuildingId == null && _selectedFloorId == null && _selectedRoomId == null,
                 onTap: () => setState(() { 
-                  final val = t.text(key);
-                  _selectedStatus = (_selectedStatus == val) ? null : val; 
+                  _selectedBuildingId = _selectedFloorId = _selectedRoomId = null;
                   _applyFilters(); 
                 }),
               ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _showLocationManager,
-              icon: Icon(Icons.settings_suggest_rounded, size: 18, color: isDark ? Colors.white70 : Colors.black54),
-              label: Text(t.text('assets_manage_loc'), style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
-                elevation: 0,
-                minimumSize: const Size(double.infinity, 45),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              const SizedBox(height: 8),
+              
+              // Location List Items
+              ..._sidebarItems.map((item) {
+                final type = item['type'] ?? 'building';
+                bool isSelected = (type == 'building' && _selectedBuildingId == item['id']) ||
+                                 (type == 'floor' && _selectedFloorId == item['id']) ||
+                                 (type == 'room' && _selectedRoomId == item['id']);
+
+                return _FilterItem(
+                  label: item['name'],
+                  icon: type == 'building' ? Icons.business_rounded :
+                        type == 'floor' ? Icons.layers_rounded : Icons.meeting_room_rounded,
+                  isSelected: isSelected,
+                  onTap: () {
+                    setState(() {
+                      if (type == 'building') {
+                        _selectedBuildingId = item['id']; _selectedFloorId = _selectedRoomId = null;
+                        _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_floor');
+                      } else if (type == 'floor') {
+                        _selectedFloorId = item['id']; _selectedRoomId = null;
+                        _sidebarParentId = item['id']; _sidebarTitle = t.text('assets_room');
+                      } else {
+                        _selectedRoomId = item['id'];
+                      }
+                      _loadMetadata();
+                      _applyFilters();
+                    });
+                  },
+                  onExport: () => ExcelService.exportAssetsHierarchy(
+                    buildingId: type == 'building' ? item['id'] : null,
+                    floorId: type == 'floor' ? item['id'] : null,
+                    roomId: type == 'room' ? item['id'] : null,
+                  ),
+                );
+              }),
+
+              const Divider(height: 32, color: Colors.black12),
+              Text(t.text('col_status'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : Colors.black87)),
+              const SizedBox(height: 12),
+              ...['status_new', 'status_used', 'status_repair', 'status_old'].map((key) => 
+                _FilterItem(
+                  label: t.text(key),
+                  icon: Icons.circle,
+                  iconSize: 10,
+                  iconColor: _getStatusColor(t.text(key)),
+                  isSelected: _selectedStatus == t.text(key),
+                  onTap: () => setState(() { 
+                    final val = t.text(key);
+                    _selectedStatus = (_selectedStatus == val) ? null : val; 
+                    _applyFilters(); 
+                  }),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _showLocationManager,
+                icon: Icon(Icons.settings_suggest_rounded, size: 18, color: isDark ? Colors.white70 : Colors.black54),
+                label: Text(t.text('assets_manage_loc'), style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
+                  elevation: 0,
+                  minimumSize: const Size(double.infinity, 45),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -536,7 +567,11 @@ class _AssetsViewState extends State<AssetsView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(t.text('assets_title'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: -0.5, color: isDark ? Colors.white : Colors.black87)),
-                Text(t.text('assets_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                if (_selectedBuildingId != null) ...[
+                   const SizedBox(height: 4),
+                   _buildBreadcrumbs(t),
+                ] else
+                   Text(t.text('assets_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
           ],
@@ -604,26 +639,61 @@ class _AssetsViewState extends State<AssetsView> {
     );
   }
 
+  Widget _buildBreadcrumbs(AppTranslations t) {
+    final List<Widget> crumbs = [];
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final color = dark ? Colors.white60 : Colors.black54;
+
+    if (_selectedBuildingId != null) {
+      final b = _allAssets.firstWhere((a) => a['grandparent_id'] == _selectedBuildingId, orElse: () => {});
+      final bName = b['grandparent_location_name'] ?? 'Bino';
+      crumbs.add(Text(bName, style: TextStyle(color: color, fontSize: 13)));
+    }
+
+    if (_selectedFloorId != null) {
+      crumbs.add(Icon(Icons.chevron_right, size: 14, color: color));
+      final f = _allAssets.firstWhere((a) => a['parent_id'] == _selectedFloorId, orElse: () => {});
+      final fName = f['parent_location_name'] ?? 'Qavat';
+      crumbs.add(Text(fName, style: TextStyle(color: color, fontSize: 13)));
+    }
+
+    if (_selectedRoomId != null) {
+      crumbs.add(Icon(Icons.chevron_right, size: 14, color: color));
+      final r = _allAssets.firstWhere((a) => a['location_id'] == _selectedRoomId, orElse: () => {});
+      final rName = r['location_name'] ?? 'Xona';
+      crumbs.add(Text(rName, style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.bold)));
+    }
+
+    return Row(mainAxisSize: MainAxisSize.min, children: crumbs);
+  }
+
 
   Widget _buildGrid(AppTranslations t) {
-    return GridView.builder(
-      padding: const EdgeInsets.only(bottom: 100),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 350,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 20,
-        mainAxisSpacing: 20,
+    return Scrollbar(
+      controller: _assetScrollController,
+      thumbVisibility: true,
+      thickness: 10,
+      radius: const Radius.circular(5),
+      child: GridView.builder(
+        controller: _assetScrollController,
+        padding: const EdgeInsets.only(bottom: 100, right: 12),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 350,
+          childAspectRatio: 0.85,
+          crossAxisSpacing: 20,
+          mainAxisSpacing: 20,
+        ),
+        itemCount: _filteredAssets.length,
+        itemBuilder: (context, index) {
+          final asset = _filteredAssets[index];
+          return _AnimatedAssetCard(
+            index: index,
+            asset: asset, 
+            onTap: () => _showAssetPassport(asset),
+            onDelete: () => _confirmDelete(asset),
+          );
+        },
       ),
-      itemCount: _filteredAssets.length,
-      itemBuilder: (context, index) {
-        final asset = _filteredAssets[index];
-        return _AnimatedAssetCard(
-          index: index,
-          asset: asset, 
-          onTap: () => _showAssetPassport(asset),
-          onDelete: () => _confirmDelete(asset),
-        );
-      },
     );
   }
 
@@ -830,6 +900,7 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = _getStatusColor(widget.asset['status']);
     final hasImage = widget.asset['photo_path'] != null;
 
@@ -851,11 +922,20 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
               transform: Matrix4.diagonal3Values(_isHovered ? 1.02 : 1.0, _isHovered ? 1.02 : 1.0, 1.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                color: Colors.white.withValues(alpha: 0.03), // Subtle glass 
-                border: Border.all(color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.05), width: 1.5),
-                boxShadow: _isHovered ? [
-                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))
-                ] : [],
+                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white, 
+                border: Border.all(
+                  color: isDark 
+                    ? Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.05)
+                    : Colors.grey.withValues(alpha: _isHovered ? 0.4 : 0.15),
+                  width: 1.5
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: _isHovered ? 0.1 : 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10)
+                  )
+                ],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -1685,14 +1765,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
   }
 
   Future<void> _reloadAsset() async {
-    final barcode = _asset['barcode'];
-    final refreshed = await DatabaseHelper.instance.getAssetByBarcode(barcode); // Using barcode lookup or we need getById
-    // Actually we need getAssetById logic, but we only have getAssetByBarcode public or getAll. 
-    // Let's assume barcode is stable. Or I should add getAssetById
-    
-    // Fallback: reload history and just set didUpdate = true. 
-    // Ideally we want to see the new Name/Model immediately.
-    // Let's implement fresh fetch.
+    final refreshed = await DatabaseHelper.instance.getAssetById(_asset['id']);
     if (refreshed != null) {
       setState(() {
          _asset = refreshed;

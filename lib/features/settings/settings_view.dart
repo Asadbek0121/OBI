@@ -283,6 +283,52 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  Future<void> _factoryReset(BuildContext context) async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    
+    final confirm = await AppDialogs.showConfirmDialog(
+      context: context,
+      title: t.text('dlg_factory_reset_title'),
+      content: t.text('dlg_factory_reset_content'),
+    );
+
+    if (confirm == true) {
+      if (!context.mounted) return;
+      
+      // Secondary Warning
+      final confirm2 = await AppDialogs.showConfirmDialog(
+        context: context,
+        title: "QAT'IY TASDIQLASH",
+        content: "Barcha mahsulotlar ro'yxati ham o'chib ketadi! Davom etasizmi?",
+      );
+
+      if (confirm2 == true) {
+        if (!context.mounted) return;
+        AppDialogs.showBlurDialog(context: context, title: "Tozalanmoqda...", content: const CircularProgressIndicator());
+        
+        try {
+          await DatabaseHelper.instance.factoryReset();
+          if (!context.mounted) return;
+          Navigator.pop(context); // Close loader
+          AppNotifications.showSuccess(context, "Tizim butunlay tozalandi!");
+          
+          // Restart app to clear all providers in memory
+          Future.delayed(const Duration(seconds: 2), () {
+            if (!context.mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (c) => const SplashScreen()),
+              (route) => false,
+            );
+          });
+        } catch (e) {
+          if (!context.mounted) return;
+          Navigator.pop(context); // Close loader
+          AppNotifications.showError(context, "Xatolik: $e");
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
@@ -398,6 +444,14 @@ class _SettingsViewState extends State<SettingsView> {
                 color: Colors.teal,
                 onTap: () => _importExcel(context),
               ),
+              _SettingCard(
+                width: 350,
+                icon: Icons.restore_page_rounded,
+                title: "Backupdan Tiklash",
+                subtitle: "Eski ma'lumotlarni qayta tiklash",
+                color: AppColors.warning, 
+                onTap: () => _restoreBackup(context),
+              ),
             ],
           ),
 
@@ -409,22 +463,27 @@ class _SettingsViewState extends State<SettingsView> {
           // Danger Zone
           _SectionHeader(title: "Xavflilar", color: AppColors.error),
           const SizedBox(height: 12),
-          _SettingCard(
-            width: 350,
-            icon: Icons.restore_page_rounded,
-            title: "Backupdan Tiklash",
-            subtitle: "Eski ma'lumotlarni qayta tiklash",
-            color: AppColors.warning, // Yellow/Orange for caution
-            onTap: () => _restoreBackup(context),
-          ),
-          const SizedBox(height: 16),
-           _SettingCard(
-            width: 350,
-            icon: Icons.delete_forever,
-            title: "Ma'lumotlarni Tozalash",
-            subtitle: "Kirim, Chiqim va Hisobotlarni o'chirish",
-            color: AppColors.error, 
-            onTap: () => _clearAllData(context),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              _SettingCard(
+                width: 350,
+                icon: Icons.factory_rounded,
+                title: t.text('set_factory_reset'),
+                subtitle: t.text('set_factory_reset_desc'),
+                color: Colors.deepOrange, 
+                onTap: () => _factoryReset(context),
+              ),
+              _SettingCard(
+                width: 350,
+                icon: Icons.delete_forever,
+                title: "Ma'lumotlarni Tozalash",
+                subtitle: "Kirim, Chiqim va Hisobotlarni o'chirish",
+                color: AppColors.error, 
+                onTap: () => _clearAllData(context),
+              ),
+            ],
           ),
 
           const SizedBox(height: 40),

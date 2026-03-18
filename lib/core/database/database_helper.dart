@@ -14,6 +14,9 @@ class DatabaseHelper {
   String? _customDbPath;
 
   DatabaseHelper._init();
+  
+  // Callback for automatic actions on data change
+  void Function()? onDataChanged;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -534,6 +537,7 @@ class DatabaseHelper {
   Future<void> insertProduct(Map<String, dynamic> product) async {
     final db = await instance.database;
     await db.insert('products', _prepareInsert(product), conflictAlgorithm: ConflictAlgorithm.replace);
+    onDataChanged?.call();
   }
   
    Future<List<Map<String, dynamic>>> getAllProducts() async {
@@ -547,17 +551,20 @@ class DatabaseHelper {
     await db.update('stock_in', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
     await db.update('stock_out', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
     await db.update('products', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   // --- Transactions ---
   Future<void> insertStockIn(Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.insert('stock_in', _prepareInsert(data));
+    onDataChanged?.call();
   }
 
   Future<void> insertStockOut(Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.insert('stock_out', _prepareInsert(data));
+    onDataChanged?.call();
   }
 
   // --- Inventory Logic ---
@@ -1026,6 +1033,7 @@ class DatabaseHelper {
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<Map<String, dynamic>?> getLocationById(int id) async {
@@ -1042,7 +1050,9 @@ class DatabaseHelper {
 
   Future<int> insertAssetCategory(String name) async {
     final db = await instance.database;
-    return await db.insert('asset_categories', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
+    final id = await db.insert('asset_categories', {'name': name}, conflictAlgorithm: ConflictAlgorithm.ignore);
+    onDataChanged?.call();
+    return id;
   }
 
   Future<int> getOrCreateAssetCategory(String name) async {
@@ -1055,13 +1065,16 @@ class DatabaseHelper {
     if (maps.isNotEmpty) {
       return maps.first['id'] as int;
     } else {
-      return await db.insert('asset_categories', {'name': name});
+      final id = await db.insert('asset_categories', {'name': name});
+      onDataChanged?.call();
+      return id;
     }
   }
 
   Future<void> deleteAssetCategory(int id) async {
     final db = await instance.database;
     await db.delete('asset_categories', where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   // Assets (Updated)
@@ -1089,6 +1102,7 @@ class DatabaseHelper {
   Future<void> insertAsset(Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.insert('assets', _prepareInsert(data), conflictAlgorithm: ConflictAlgorithm.replace);
+    onDataChanged?.call();
   }
 
   Future<void> deleteAsset(int id) async {
@@ -1098,11 +1112,13 @@ class DatabaseHelper {
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<void> updateAsset(int id, Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.update('assets', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<Map<String, dynamic>?> getAssetByBarcode(String barcode) async {
@@ -1112,9 +1128,22 @@ class DatabaseHelper {
       FROM assets a
       LEFT JOIN asset_locations l ON a.location_id = l.id
       LEFT JOIN asset_categories c ON a.category_id = c.id
-      WHERE a.barcode = ? AND a.is_deleted = 0
+      WHERE a.barcode = ? AND (a.is_deleted = 0 OR a.is_deleted IS NULL)
       LIMIT 1
     ''', [barcode]);
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  Future<Map<String, dynamic>?> getAssetById(int id) async {
+    final db = await instance.database;
+    final res = await db.rawQuery('''
+      SELECT a.*, l.name as location_name, c.name as category_name
+      FROM assets a
+      LEFT JOIN asset_locations l ON a.location_id = l.id
+      LEFT JOIN asset_categories c ON a.category_id = c.id
+      WHERE a.id = ? AND (a.is_deleted = 0 OR a.is_deleted IS NULL)
+      LIMIT 1
+    ''', [id]);
     return res.isNotEmpty ? res.first : null;
   }
 
@@ -1212,7 +1241,7 @@ class DatabaseHelper {
 
   Future<int> getPendingBranchOrdersCount() async {
     final db = await instance.database;
-    final res = await db.rawQuery('SELECT COUNT(*) as count FROM branch_orders WHERE status = "pending"');
+    final res = await db.rawQuery("SELECT COUNT(*) as count FROM branch_orders WHERE status = 'pending'");
     return (res.first['count'] as int?) ?? 0;
   }
 
@@ -1235,6 +1264,42 @@ class DatabaseHelper {
     await db.delete('branch_order_items');
   }
 
+  Future<void> factoryReset() async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('stock_in');
+      await txn.delete('stock_out');
+      await txn.delete('assets');
+      await txn.delete('asset_movements');
+      await txn.delete('branch_orders');
+      await txn.delete('branch_order_items');
+      await txn.delete('products');
+      await txn.delete('suppliers');
+      await txn.delete('receivers');
+      await txn.delete('units');
+      await txn.delete('asset_locations');
+      await txn.delete('asset_categories');
+      await txn.delete('payment_types');
+      
+      // Re-seed default data as if it were a fresh DB
+      final assetCats = ['Mebel', 'Kompyuter texnikasi', 'Maishiy texnika', 'Asbob-uskunalar', 'Boshqa'];
+      for (var c in assetCats) {
+        await txn.insert('asset_categories', {'name': c});
+      }
+      await txn.insert('asset_locations', {'name': 'Bosh OFIS', 'type': 'building'});
+      
+      final units = ['QADOQ', 'KG', 'L', 'DONA', 'GR', 'QUTI', 'PACHKA'];
+      for (var u in units) {
+        await txn.insert('units', {'name': u});
+      }
+      
+      final pts = ['Naqd', 'Qarzga', "O'tkazma"];
+      for (var p in pts) {
+         await txn.insert('payment_types', {'name': p});
+      }
+    });
+  }
+
   // Transaction Management (Edit/Delete)
   Future<void> deleteStockIn(dynamic id) async {
     final db = await instance.database;
@@ -1243,6 +1308,7 @@ class DatabaseHelper {
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<void> deleteStockOut(dynamic id) async {
@@ -1252,15 +1318,18 @@ class DatabaseHelper {
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<void> updateStockIn(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.update('stock_in', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 
   Future<void> updateStockOut(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
     await db.update('stock_out', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
+    onDataChanged?.call();
   }
 }
