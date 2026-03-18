@@ -1280,4 +1280,17 @@ class DatabaseHelper {
     final db = await instance.database;
     await db.update('stock_out', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<double> calculateTotalStockValue() async {
+    final db = await instance.database;
+    final res = await db.rawQuery('''
+      SELECT SUM(
+        ((SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+         (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) * p.price
+      ) as total_value
+      FROM products p
+      WHERE p.is_deleted = 0
+    ''');
+    return (double.tryParse(res.first['total_value']?.toString() ?? '0')) ?? 0.0;
+  }
 }

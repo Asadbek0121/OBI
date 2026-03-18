@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing_lib/zxing.dart';
 import 'package:zxing_lib/common.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import '../../app_config.dart';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
@@ -1692,68 +1694,66 @@ class TelegramService {
 
   Future<void> _handleAIAnalytics(String chatId) async {
     try {
-      await sendMessage(chatId, "⏳ *AI Analiz qilinmoqda...* Iltimos, kuting.");
+      await sendMessage(chatId, "⏳ *Ultra AI: Ma'lumotlar tahlil qilinmoqda...* \n\n_(Bu jarayon bir necha soniya vaqt olishi mumkin)_");
+      
       final db = await DatabaseHelper.instance.database;
       
-      // 1. Most active product
-      final topOut = await db.rawQuery(
-        '''SELECT p.name, SUM(so.quantity) as total_out
-           FROM stock_out so
-           JOIN products p ON so.product_id = p.id
-           WHERE so.date_time >= date('now', '-30 days') 
-             AND so.is_deleted = 0 AND p.is_deleted = 0
-           GROUP BY p.id
-           ORDER BY total_out DESC
-           LIMIT 3'''
+      // 1. Get Core Stats for Context
+      final totalStockValue = await DatabaseHelper.instance.calculateTotalStockValue();
+      final lowStock = await DatabaseHelper.instance.getLowStockProducts();
+      final finished = await DatabaseHelper.instance.getFinishedProducts();
+      final lastWeekOut = await db.rawQuery(
+        "SELECT p.name, SUM(so.quantity) as qty FROM stock_out so JOIN products p ON so.product_id = p.id WHERE so.date_time >= date('now', '-7 days') AND so.is_deleted = 0 GROUP BY p.id ORDER BY qty DESC LIMIT 5"
       );
 
-      // 2. Shortage risk (current stock / velocity)
-      final shortage = await db.rawQuery(
-        '''SELECT p.name, 
-                  ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
-                   (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as current_stock,
-                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
-           FROM products p
-           WHERE p.is_deleted = 0 AND current_stock > 0 AND out_30d > 0
-           ORDER BY (current_stock * 1.0 / out_30d) ASC
-           LIMIT 3'''
+      // 2. Prepare Context for Gemini (Uzbek Language requested)
+      String contextData = """
+      Hozirgi ombor holati:
+      - Jami tovar qiymati: $totalStockValue so'm
+      - Tugagan mahsulotlar soni: ${finished.length} ta
+      - Kam qolgan mahsulotlar soni: ${lowStock.length} ta
+      
+      O'tgan hafta eng ko'p sarflanganlar:
+      ${lastWeekOut.map((e) => "- ${e['name']}: ${e['qty']} ta").join('\n')}
+      
+      Tugaganlar ro'yxatidan namunalar: ${finished.take(3).map((e) => e['name']).join(', ')}
+      Kam qolganlar ro'yxatidan namunalar: ${lowStock.take(3).map((e) => "${e['name']} (${e['stock']} qolgan)").join(', ')}
+      """;
+
+      // 3. Request Gemini Analysis
+      final model = GenerativeModel(
+        model: 'gemini-1.5-flash', 
+        apiKey: AppConfig.geminiApiKey
       );
 
-      String report = "🧠 *SUN'IY INTELLEKT ANALITIKASI*\n";
-      report += "_(So'nggi 30 kunlik dinamika tahlili)_\n\n";
+      final prompt = """
+      Siz professional Omborxona Logistika va Analitika bo'yicha mutaxaxissisiz. 
+      Berilgan ma'lumotlar asosida quyidagi tartibda CHUQUR va PROFESSIONAL tahlil bering:
+      1. Omborning hozirgi holatiga umumiy baho (Premium uslubda).
+      2. Topilgan xavflar (Shortage risks) va ular bo'yicha aniq prognozlar.
+      3. Strategik tavsiyalar (Qaysi mahsulotni ko'proq, qaysini kamroq buyurtma qilish kerak).
+      4. Kelajak uchun ehtiyot choralari.
+      
+      Javobni faqat O'zbek tilida, Telegram uchun qulay Markdown formatida (bold, list, emojilar bilan) yozing. 
+      Muvaffaqiyatli va ultra-zamonaviy tahlil bo'lishi shart.
+      
+      Ma'lumotlar:
+      $contextData
+      """;
 
-      report += "🔥 *Eng tez sarflanayotganlar (Top-3):*\n";
-      if (topOut.isEmpty) {
-         report += " ➖ Hozircha chiqim yozuvlari yo'q\n";
+      final response = await model.generateContent([Content.text(prompt)]);
+      final aiText = response.text;
+
+      if (aiText != null && aiText.isNotEmpty) {
+        // Clear temp message or just send new one
+         await sendMessage(chatId, "🤖 *ULTRA AI TAHLILI:*\n\n$aiText");
       } else {
-        for (var row in topOut) {
-          report += " 🔺 ${row['name']} - ${row['total_out']} ta sotildi\n";
-        }
+         await sendMessage(chatId, "⚠️ AI tahlil tayyorlashda kechikish yuz berdi. Iltimos qayta urinib ko'ring.");
       }
-      report += "\n";
-
-      report += "⚠️ *Tugash xavfi ostidagilar (Prognoz):*\n";
-      if (shortage.isEmpty) {
-         report += " ✅ Zaxira barqaror holatda \n";
-      } else {
-        for (var row in shortage) {
-          final stock = row['current_stock'] as num;
-          final runRate = row['out_30d'] as num;
-          if (runRate > 0) {
-            final daysLeft = (stock / (runRate / 30.0)).round();
-            if (daysLeft < 30) {
-               report += " ❗ *${row['name']}* - taxminan *$daysLeft kunga* yetadi ($stock ta qolgan)\n";
-            } else {
-               report += " 🟢 *${row['name']}* - $daysLeft kunga yetadi ($stock ta qolgan)\n";
-            }
-          }
-        }
-      }
-      report += "\n💡 _AI Tavsiyasi:_ Tepada '❗' belgili tovarlarga zudlik bilan qo'shimcha buyurtma shakllantiring.";
-
-      await sendMessage(chatId, report);
+      
     } catch (e) {
-      await sendMessage(chatId, "❌ AI ulanishida xatolik yuz berdi: $e");
+      debugPrint("Ultra AI Error: $e");
+      await sendMessage(chatId, "❌ Ultra AI tizimida texnik uzilish: $e");
     }
   }
 
