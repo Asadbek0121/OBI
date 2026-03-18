@@ -14,6 +14,7 @@ import 'core/services/profile_provider.dart';
 
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
+import 'core/services/notification_provider.dart';
 import 'features/setup/database_setup_screen.dart';
 import 'dart:ui';
 
@@ -129,6 +130,7 @@ void main() async {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: profileProvider),
         ChangeNotifierProvider.value(value: authProvider),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: ClinicalWarehouseApp(home: startScreen),
     )

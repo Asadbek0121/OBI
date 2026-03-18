@@ -1,46 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/glass_container.dart';
+import '../services/notification_provider.dart';
+import 'dart:async'; // Import for Timer
 
 class AppNotifications {
   static void showSuccess(BuildContext context, String message) {
-    _showOverlay(
-      context,
-      message,
-      AppColors.success,
-      Icons.check_circle_rounded,
-      "Muvaffaqiyatli",
-    );
+    _process(context, message, AppColors.success, Icons.check_circle_rounded, "Muvaffaqiyatli", "success");
   }
 
   static void showError(BuildContext context, String message) {
-    _showOverlay(
-      context,
-      message,
-      AppColors.error,
-      Icons.warning_rounded,
-      "Tizim xatoligi",
-    );
+    _process(context, message, AppColors.error, Icons.warning_rounded, "Tizim xatoligi", "error");
   }
 
   static void showInfo(BuildContext context, String message) {
-    _showOverlay(
-      context,
-      message,
-      Colors.blue,
-      Icons.info_rounded,
-      "Ma'lumot",
-    );
+    _process(context, message, Colors.blue, Icons.info_rounded, "Ma'lumot", "info");
   }
 
   static void showWarning(BuildContext context, String message) {
-    _showOverlay(
-      context,
-      message,
-      Colors.orange,
-      Icons.warning_amber_rounded,
-      "Diqqat",
-    );
+    _process(context, message, Colors.orange, Icons.warning_amber_rounded, "Diqqat", "warning");
+  }
+
+  static void _process(BuildContext context, String message, Color color, IconData icon, String title, String type) {
+    // 1. Add to Database via Provider
+    try {
+      final provider = Provider.of<NotificationProvider>(context, listen: false);
+      provider.addNotification(title: title, message: message, type: type);
+    } catch (e) {
+      debugPrint("Notif Provider Error: $e");
+    }
+
+    // 2. Show Overlay
+    _showOverlay(context, message, color, icon, title);
   }
 
   static void _showOverlay(
@@ -112,6 +104,15 @@ class _NotificationWidgetState extends State<_NotificationWidget> with SingleTic
     );
 
     _controller.forward();
+
+    // Auto-dismiss after 5 seconds
+    Timer(const Duration(seconds: 5), () {
+      if (mounted) {
+        _controller.reverse().then((_) {
+            if (mounted) widget.onDismiss();
+        });
+      }
+    });
   }
 
   @override

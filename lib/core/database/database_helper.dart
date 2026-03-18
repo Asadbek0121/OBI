@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite_common/sqlite_api.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path_provider/path_provider.dart';
@@ -261,6 +262,18 @@ class DatabaseHelper {
         FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE,
         FOREIGN KEY (from_location_id) REFERENCES asset_locations (id),
         FOREIGN KEY (to_location_id) REFERENCES asset_locations (id)
+      )
+    ''');
+
+    // 2.4 Notifications Table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        type TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        is_read INTEGER DEFAULT 0
       )
     ''');
     
@@ -722,6 +735,45 @@ class DatabaseHelper {
     ''', args);
   }
 
+  // --- Notifications Logic ---
+  Future<void> insertNotification(Map<String, dynamic> data) async {
+    final db = await instance.database;
+    await db.insert('notifications', {
+       'title': data['title'],
+       'message': data['message'],
+       'type': data['type'],
+       'created_at': DateTime.now().toLocal().toIso8601String(),
+       'is_read': 0,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> getNotifications({int limit = 50}) async {
+    final db = await instance.database;
+    return await db.query('notifications', orderBy: 'created_at DESC', limit: limit);
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    final db = await instance.database;
+    final res = await db.rawQuery('SELECT COUNT(*) FROM notifications WHERE is_read = 0');
+    if (res.isEmpty) return 0;
+    return (res.first.values.first as num?)?.toInt() ?? 0;
+  }
+
+  Future<void> markNotificationAsRead(int id) async {
+    final db = await instance.database;
+    await db.update('notifications', {'is_read': 1}, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    final db = await instance.database;
+    await db.update('notifications', {'is_read': 1}, where: 'is_read = 0');
+  }
+
+  Future<void> clearAllNotifications() async {
+    final db = await instance.database;
+    await db.delete('notifications');
+  }
+
   Future<void> close() async {
     final db = _database;
     if (db != null) await db.close();
@@ -730,23 +782,36 @@ class DatabaseHelper {
 
   Future<bool> restoreBackup(String backupPath) async {
     try {
-      await close();
-      
-      final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
-      
-      final backupFile = File(backupPath);
+      final prefs = await SharedPreferences.getInstance();
+      String? dbPath = prefs.getString(_prefKeyDbPath);
 
-      if (await backupFile.exists()) {
-        await backupFile.copy(path);
-        // Force re-init
-        _database = await _initDB('clinical_warehouse_v3_connected.db');
-        return true;
+      // Fallback if no custom path set
+      if (dbPath == null || dbPath.isEmpty) {
+        final internalDir = await getDatabasesPath();
+        dbPath = join(internalDir, 'clinical_warehouse_v3_connected.db');
       }
-      return false;
+
+      final sourceFile = File(backupPath);
+      final destFile = File(dbPath);
+
+      if (!await sourceFile.exists()) {
+        debugPrint("❌ Restore Error: Source backup file missing at $backupPath");
+        return false;
+      }
+
+      // Close current DB before overwrite
+      await close();
+
+      // Perform Copy
+      await sourceFile.copy(destFile.path);
+      debugPrint("✅ Restore Success: Copy $backupPath -> ${destFile.path}");
+
+      // Re-initialize (this will open the newly copied file)
+      _database = await _initDB(destFile.path);
+      return true;
     } catch (e) {
-      debugPrint("Restore Failed: $e");
-      // Attempt to re-open anyway
+      debugPrint("❌ Restore CRITICAL Failed: $e");
+      // Fallback
       _database = await _initDB('clinical_warehouse_v3_connected.db');
       return false;
     }

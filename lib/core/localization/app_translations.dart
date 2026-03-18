@@ -59,6 +59,7 @@ class AppTranslations extends ChangeNotifier {
       'btn_search': 'Qidirish',
       'btn_scan': 'Skanerlash',
       'btn_confirm': 'Tasdiqlash',
+      'btn_out': 'Chiqim qilish',
       'btn_export_pdf': 'PDF yuklash',
       'btn_undo': 'Ortga qaytarish',
 
@@ -321,6 +322,13 @@ class AppTranslations extends ChangeNotifier {
       'set_lang_title': 'Til Sozlamalari',
       'set_lang_desc': 'Interfeys tilini tanlang',
       'msg_restart_required': 'Dastur qayta ishga tushirilmoqda...',
+      'notif_title': 'Bildirishnomalar',
+      'notif_mark_all': 'Hammasini o\'qish',
+      'notif_no_data': 'Hozircha bildirishnomalar yo\'q',
+      'search_hint': 'Qidirish (Cmd+K)',
+      'ai_predictor_title': 'AI BASHORATCHI',
+      'ai_risk_count': 'ta xavf',
+      'ai_days_left': 'kun qoldi',
     },
     'ru': {
       // Sidebar
@@ -347,6 +355,7 @@ class AppTranslations extends ChangeNotifier {
       'btn_search': 'Поиск',
       'btn_scan': 'Сканировать',
       'btn_confirm': 'Подтвердить',
+      'btn_out': 'Выполнить расход',
       'btn_export_pdf': 'Скачать PDF',
       'btn_undo': 'Вернуть назад',
 
@@ -606,6 +615,13 @@ class AppTranslations extends ChangeNotifier {
       'set_lang_title': 'Настройки Языка',
       'set_lang_desc': 'Выберите язык интерфейса',
       'msg_restart_required': 'Перезапуск приложения...',
+      'notif_title': 'Уведомления',
+      'notif_mark_all': 'Прочитать все',
+      'notif_no_data': 'Пока нет уведомлений',
+      'search_hint': 'Поиск (Cmd+K)',
+      'ai_predictor_title': 'AI ПРОГНОЗ',
+      'ai_risk_count': 'рисков',
+      'ai_days_left': 'дней осталось',
     },
     'tr': {
       // Sidebar
@@ -632,6 +648,7 @@ class AppTranslations extends ChangeNotifier {
       'btn_search': 'Ara',
       'btn_scan': 'Tara',
       'btn_confirm': 'Onayla',
+      'btn_out': 'Çıkış yap',
       'btn_export_pdf': 'PDF İndir',
       'btn_undo': 'Geri Al',
 
@@ -886,6 +903,13 @@ class AppTranslations extends ChangeNotifier {
       'set_lang_title': 'Dil Ayarları',
       'set_lang_desc': 'Arayüz dilini seçin',
       'msg_restart_required': 'Uygulama yeniden başlatılıyor...',
+      'notif_title': 'Bildirimler',
+      'notif_mark_all': 'Hepsini oku',
+      'notif_no_data': 'Henüz bildirim yok',
+      'search_hint': 'Arama (Cmd+K)',
+      'ai_predictor_title': 'AI TAHMİNİ',
+      'ai_risk_count': 'risk var',
+      'ai_days_left': 'gün kaldı',
     },
   };
 }
