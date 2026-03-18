@@ -8,6 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing_lib/zxing.dart';
 import 'package:zxing_lib/common.dart';
+import 'package:excel/excel.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
@@ -194,13 +197,14 @@ class TelegramService {
     String chatId,
     String text, {
     Map<String, dynamic>? replyMarkup,
+    String parseMode = 'Markdown',
   }) async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
 
     try {
       final url = Uri.parse('$_baseUrl$token/sendMessage');
-      final body = {'chat_id': chatId, 'text': text, 'parse_mode': 'Markdown'};
+      final body = {'chat_id': chatId, 'text': text, 'parse_mode': parseMode};
       if (replyMarkup != null) {
         body['reply_markup'] = jsonEncode(replyMarkup);
       }
@@ -250,6 +254,7 @@ class TelegramService {
     String chatId,
     String photoUrl, {
     String? caption,
+    String parseMode = 'Markdown',
   }) async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return null;
@@ -261,7 +266,7 @@ class TelegramService {
           'chat_id': chatId,
           'photo': photoUrl,
           'caption': caption ?? "",
-          'parse_mode': 'Markdown',
+          'parse_mode': parseMode,
         },
       );
       return null;
@@ -277,28 +282,35 @@ class TelegramService {
     await http.post(url, body: {'callback_query_id': callbackQueryId});
   }
 
-  Future<void> editMessageText(
+  Future<String?> editMessageText(
     String chatId,
     int messageId,
     String text, {
     Map<String, dynamic>? replyMarkup,
+    String parseMode = 'Markdown',
   }) async {
     final token = await getBotToken();
-    if (token == null) return;
+    if (token == null) return "Token xatosi";
     try {
       final url = Uri.parse('$_baseUrl$token/editMessageText');
       final body = {
         'chat_id': chatId,
         'message_id': messageId.toString(),
         'text': text,
-        'parse_mode': 'Markdown',
+        'parse_mode': parseMode,
       };
       if (replyMarkup != null) {
         body['reply_markup'] = jsonEncode(replyMarkup);
       }
-      await http.post(url, body: body);
+
+      final response = await http.post(url, body: body);
+      if (response.statusCode == 200) {
+        return null;
+      } else {
+        return "Xato: ${response.body}";
+      }
     } catch (e) {
-      debugPrint('EditMsg Error: $e');
+      return e.toString();
     }
   }
 
@@ -306,6 +318,7 @@ class TelegramService {
     String chatId,
     File file, {
     String? caption,
+    String? parseMode,
   }) async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
@@ -318,6 +331,9 @@ class TelegramService {
 
       if (caption != null) {
         request.fields['caption'] = caption;
+      }
+      if (parseMode != null) {
+        request.fields['parse_mode'] = parseMode;
       }
 
       final response = await request.send();
@@ -514,7 +530,201 @@ class TelegramService {
       }
     }
   }
+  Future<void> checkHourlyExcelBackup(DatabaseHelper dbh) async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
 
+    final lastRunStr = prefs.getString('last_hourly_excel_backup_check');
+    if (lastRunStr != null) {
+      final lastRun = DateTime.tryParse(lastRunStr);
+      if (lastRun != null && now.difference(lastRun).inHours < 1) {
+        debugPrint("📊 Hourly Excel: Next check in ${60 - now.difference(lastRun).inMinutes} minutes.");
+        return;
+      }
+    }
+
+    debugPrint("📊 Hourly Excel: Checking for data changes...");
+    final lastDataUpdateRaw = await dbh.getLastUpdateTimestamp();
+    final lastBackupDataTs = prefs.getString('last_excel_backup_data_timestamp');
+    
+    if (lastDataUpdateRaw == null) return;
+    if (lastBackupDataTs == lastDataUpdateRaw) {
+      debugPrint("📊 Hourly Excel: No changes detected.");
+      await prefs.setString('last_hourly_excel_backup_check', now.toIso8601String());
+      return;
+    }
+
+    debugPrint("📊 Hourly Excel: Changes detected! Generating report...");
+    final users = await getUsers();
+    final admins = users.where((u) => u['role'] == 'admin').toList();
+    debugPrint("📊 Hourly Excel: Found ${admins.length} admins.");
+    if (admins.isEmpty) return;
+
+    try {
+      // 1. Generate Excel
+      final excelPath = await _generateFullExcelReport(dbh);
+      
+      // 2. Generate DB Backup
+      final dbBackupPath = await dbh.createBackup(null);
+
+      final timeStr = DateFormat('dd.MM.yyyy HH:mm').format(now);
+      final caption = [
+        "📊 *AVTOMATIK HISOBOT* — $timeStr",
+        "",
+        "📋 Tarkib:",
+        "  • Omborxona holati (rangli)",
+        "  • Mahsulotlar ro'yxati",
+        "  • Kirim/Chiqim to'liq tarixi",
+        "",
+        "💾 DB zaxira fayli ham yuborildi."
+      ].join('\n');
+
+      for (var admin in admins) {
+        // Send Excel
+        if (excelPath != null) {
+          final err = await sendDocument(
+            admin['chatId'], File(excelPath),
+            caption: caption,
+            parseMode: 'Markdown'
+          );
+          if (err != null) debugPrint("❌ Excel send error: $err");
+        }
+        // Send DB Backup
+        if (dbBackupPath != null) {
+          final err2 = await sendDocument(
+            admin['chatId'], File(dbBackupPath),
+            caption: "💾 *DB ZAXIRA* — $timeStr\n(SQLite to'liq bazasi)",
+            parseMode: 'Markdown'
+          );
+          if (err2 != null) debugPrint("❌ DB backup send error: $err2");
+        }
+      }
+      
+      await prefs.setString('last_hourly_excel_backup_check', now.toIso8601String());
+      await prefs.setString('last_excel_backup_data_timestamp', lastDataUpdateRaw);
+      debugPrint("✅ Hourly Excel + DB Backup: Sent successfully.");
+    } catch (e) {
+      debugPrint("❌ Hourly Excel Error: $e");
+    }
+  }
+
+  // Helper: style a header row with bold + background color
+  void _styleHeaderRow(Sheet sheet, int rowIndex, List<String> headers, String hexColor) {
+    for (int col = 0; col < headers.length; col++) {
+      final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
+      cell.value = TextCellValue(headers[col]);
+      cell.cellStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString(hexColor),
+        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+        horizontalAlign: HorizontalAlign.Center,
+      );
+    }
+  }
+
+  Future<String?> _generateFullExcelReport(DatabaseHelper dbh) async {
+    final excel = Excel.createExcel();
+
+    // ── Sheet 1: Omborxona (Inventory Summary) ──────────────────
+    Sheet sInventory = excel['Omborxona'];
+    excel.delete('Sheet1');
+    final inventory = await dbh.getInventorySummary();
+    _styleHeaderRow(sInventory, 0, ['ID', 'Nomi', 'Birlik', 'Zaxira', 'Minimal'], '#1565C0');
+    for (var row in inventory) {
+      final stock = (row['stock'] as num).toDouble();
+      final minStock = (row['min_stock_alert'] as num).toInt();
+      final dataRow = [
+        TextCellValue(row['id'].toString()), 
+        TextCellValue(row['name'] ?? ''), 
+        TextCellValue(row['unit'] ?? ''), 
+        DoubleCellValue(stock), 
+        IntCellValue(minStock)
+      ];
+      sInventory.appendRow(dataRow);
+      // Highlight low stock rows in red
+      if (stock <= minStock) {
+        final lastRowIdx = sInventory.maxRows - 1;
+        for (int c = 0; c < dataRow.length; c++) {
+          sInventory.cell(CellIndex.indexByColumnRow(columnIndex: c, rowIndex: lastRowIdx))
+            .cellStyle = CellStyle(backgroundColorHex: ExcelColor.fromHexString('#FFCDD2'));
+        }
+      }
+    }
+
+    // ── Sheet 2: Baza (Products) ────────────────────────────────
+    Sheet sProducts = excel['Baza'];
+    final products = await dbh.getAllProducts();
+    _styleHeaderRow(sProducts, 0, ['ID', 'Nomi', 'Birlik', 'Tavsif', 'Yaratilgan vaqt'], '#2E7D32');
+    for (var row in products) {
+      sProducts.appendRow([
+        TextCellValue(row['id'].toString()), 
+        TextCellValue(row['name'] ?? ''), 
+        TextCellValue(row['unit'] ?? ''), 
+        TextCellValue(row['description'] ?? ''), 
+        TextCellValue(row['created_at'] ?? '')
+      ]);
+    }
+
+    // ── Sheet 3: Kirim (Stock In) ───────────────────────────────
+    Sheet sKirim = excel['Kirim'];
+    final stockIn = await dbh.getAllStockInFull();
+    _styleHeaderRow(sKirim, 0, ['Vaqt', 'Mahsulot nomi', 'Partiya', 'Yaroqlilik muddati', 'Miqdor', 'Narx (so\'m)', 'Jami (so\'m)', 'Yetkazuvchi', 'To\'lov'], '#00695C');
+    for (var row in stockIn) {
+      sKirim.appendRow([
+        TextCellValue(row['date_time'] ?? ''), 
+        TextCellValue(row['product_name'] ?? ''), 
+        TextCellValue(row['batch_number'] ?? ''), 
+        TextCellValue(row['expiry_date'] ?? ''), 
+        DoubleCellValue((row['quantity'] as num? ?? 0).toDouble()), 
+        DoubleCellValue((row['price_per_unit'] as num? ?? 0).toDouble()), 
+        DoubleCellValue((row['total_amount'] as num? ?? 0).toDouble()),
+        TextCellValue(row['supplier_name'] ?? ''),
+        TextCellValue(row['payment_status'] ?? ''),
+      ]);
+    }
+
+    // ── Sheet 4: Chiqim (Stock Out) ─────────────────────────────
+    Sheet sChiqim = excel['Chiqim'];
+    final stockOut = await dbh.getAllStockOutFull();
+    _styleHeaderRow(sChiqim, 0, ['Vaqt', 'Mahsulot nomi', 'Miqdor', 'Kimga', 'Partiya ref.', 'Eslatma'], '#E65100');
+    for (var row in stockOut) {
+      sChiqim.appendRow([
+        TextCellValue(row['date_time'] ?? ''), 
+        TextCellValue(row['product_name'] ?? ''), 
+        DoubleCellValue((row['quantity'] as num? ?? 0).toDouble()), 
+        TextCellValue(row['receiver_name'] ?? ''),
+        TextCellValue(row['batch_reference'] ?? ''), 
+        TextCellValue(row['notes'] ?? '')
+      ]);
+    }
+
+    // ── Save to temp ──────────────────────────────────────────
+    try {
+      final dir = await getTemporaryDirectory();
+      if (!await dir.exists()) await dir.create(recursive: true);
+      
+      final now = DateTime.now();
+      final stamp = "${now.day}_${now.month}_${now.hour}_${now.minute}_${now.second}";
+      final fileName = "Excel_Report_$stamp.xlsx";
+      final path = p.join(dir.path, fileName);
+      
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        debugPrint("📊 [ExcelGen] Bytes generated: ${fileBytes.length}");
+        await File(path).writeAsBytes(fileBytes, flush: true);
+        if (await File(path).exists()) {
+          debugPrint("📊 [ExcelGen] File saved: $path");
+          return path;
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ [ExcelGen] Error: $e");
+    }
+    return null;
+  }
+
+
+  // 🧪 Force send for testing (bypasses hourly timer)
 
   // --- BOT LISTENER (Interactive Mode) ---
   bool _isListening = false;
@@ -1182,22 +1392,35 @@ class TelegramService {
   Future<void> _handleExcelExport(String chatId) async {
     try {
       await sendMessage(chatId, "⏳ *Excel hisobot shakllantirilmoqda...*");
-      final db = DatabaseHelper.instance;
-      final path = await db.createBackup(null); // Assuming createBackup exports to an xlsx or similar
-      if (path != null) {
-        final error = await sendDocument(
+      final dbh = DatabaseHelper.instance;
+
+      // 1. Generate Styled Excel (returns file path)
+      final excelPath = await _generateFullExcelReport(dbh);
+
+      // 2. Generate DB Backup
+      final dbPath = await dbh.createBackup(null);
+
+      // 3. Send Excel
+      if (excelPath != null) {
+        await sendDocument(
           chatId,
-          File(path),
-          caption: "📁 *Omborxona arxivi va hisoboti*",
+          File(excelPath),
+          caption: "📊 *Barcha ma'lumotlar Excel formatida*",
         );
-        if (error != null) {
-          await sendMessage(chatId, "⚠️ Faylni yuborib bo'lmadi: $error");
-        }
-      } else {
-        await sendMessage(chatId, "⚠️ Hozircha eksport ma'lumoti yo'q.");
       }
+
+      // 4. Send DB Backup
+      if (dbPath != null) {
+        await sendDocument(
+          chatId,
+          File(dbPath),
+          caption: "📁 *Omborxona tizimi zaxira nusxasi (Backup)*",
+        );
+      }
+      
     } catch (e) {
-      await sendMessage(chatId, "⚠️ Xatolik yuz berdi: $e");
+      debugPrint("⚠️ Excel Export Error: $e");
+      await sendMessage(chatId, "⚠️ Hisobot tayyorlashda xatolik yuz berdi: $e");
     }
   }
 
@@ -1205,7 +1428,7 @@ class TelegramService {
     final db = await DatabaseHelper.instance.database;
     final buildings = await db.query(
       'asset_locations',
-      where: 'parent_id IS NULL',
+      where: 'parent_id IS NULL AND is_deleted = 0',
     );
 
     final buttons = <List<Map<String, dynamic>>>[];
@@ -1215,13 +1438,21 @@ class TelegramService {
       ]);
     }
 
+    // Refresh button
+    buttons.add([
+      {'text': "🔄 Yangilash", 'callback_data': "asset_root"},
+    ]);
+
     final markup = {'inline_keyboard': buttons};
-    final text = "🖥 *Jihozlar bo'limi*\n\nIltimos, kerakli binoni tanlang:";
+    final text = "🖥 <b>JIHOZLAR VA AKTIVLAR</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "🏢 Tizimdagi binolar va manzillar:\n"
+        "<i>Pastdan kerakli binoni tanlang:</i>";
 
     if (messageId != null) {
-      await editMessageText(chatId, messageId, text, replyMarkup: markup);
+      await editMessageText(chatId, messageId, text, replyMarkup: markup, parseMode: 'HTML');
     } else {
-      await sendMessage(chatId, text, replyMarkup: markup);
+      await sendMessage(chatId, text, replyMarkup: markup, parseMode: 'HTML');
     }
   }
 
@@ -1242,7 +1473,7 @@ class TelegramService {
     // 2. Get sub-locations (Floors/Rooms)
     final subLocs = await db.query(
       'asset_locations',
-      where: 'parent_id = ?',
+      where: 'parent_id = ? AND is_deleted = 0',
       whereArgs: [locId],
     );
 
@@ -1252,7 +1483,7 @@ class TelegramService {
       SELECT a.*, c.name as category_name
       FROM assets a
       LEFT JOIN asset_categories c ON a.category_id = c.id
-      WHERE a.location_id = ?
+      WHERE a.location_id = ? AND a.is_deleted = 0
     ''',
       [locId],
     );
@@ -1283,32 +1514,44 @@ class TelegramService {
 
     final markup = {'inline_keyboard': buttons};
 
-    String text = "📍 *Manzil:* ${currentLoc['name']}\n";
-    if (assets.isNotEmpty) {
-      text +=
-          "\n📦 *Bu yerdagi jihozlar:* (${assets.length} ta)\n"
-          "-------------------------\n";
+    StringBuffer sb = StringBuffer();
+    sb.writeln("📍 <b>MANZIL:</b> ${currentLoc['name']}");
+    sb.writeln("━━━━━━━━━━━━━━━━━━");
 
+    if (assets.isNotEmpty) {
+      sb.writeln("\n📦 <b>JIHOZLAR RO'YXATI:</b> (${assets.length} ta)");
+      
       for (var a in assets) {
-        text +=
-            "🖥 *${a['name']}*\n"
-            "   - Tur: ${a['category_name'] ?? 'Noma\'lum'}\n"
-            "   - Model: ${a['model'] ?? '-'}\n"
-            "   - Seriya: `${a['serial_number'] ?? '-'}`\n"
-            "   - Rangi: ${a['color'] ?? '-'}\n"
-            "   - Holati: ${a['status']}\n";
+        String statusIcon = "✅";
+        if (a['status'] == 'repair') statusIcon = "🛠";
+        if (a['status'] == 'broken') statusIcon = "🔴";
+        if (a['status'] == 'missing') statusIcon = "❓";
+
+        String name = (a['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        
+        sb.writeln("");
+        sb.writeln("$statusIcon <b>$name</b>");
+        sb.writeln("   🔹 Tur: ${a['category_name'] ?? '-'}");
+        if (a['model'] != null && a['model'] != '-') sb.writeln("   🔹 Model: ${a['model']}");
+        if (a['serial_number'] != null && a['serial_number'] != '-') sb.writeln("   🔹 SN: <code>${a['serial_number']}</code>");
+        sb.writeln("   🔸 Holat: <i>${a['status']}</i>");
         if (a['barcode'] != null) {
-          text += "   - Barcode: `${a['barcode']}`\n";
+          sb.writeln("   🔸 BC: <code>${a['barcode']}</code>");
         }
-        text += "-------------------------\n";
+        sb.writeln("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈");
       }
     } else if (subLocs.isEmpty) {
-      text += "\n📭 Bu yerda hozircha jihozlar yo'q.";
+      sb.writeln("\n📭 <i>Ushbu manzilda hozircha jihozlar mavjud emas.</i>");
     } else {
-      text += "\n👇 Kerakli bo'limni tanlang:";
+      sb.writeln("\n👇 <b>KERAKLI BO'LIMNI TANLANG:</b>");
     }
 
-    await editMessageText(chatId, messageId, text, replyMarkup: markup);
+    if (messageId != 0) {
+      final error = await editMessageText(chatId, messageId, sb.toString(), replyMarkup: markup, parseMode: 'HTML');
+      if (error != null) {
+        debugPrint("❌ Assets Edit Error: $error");
+      }
+    }
   }
 
   // --- UI HELPERS ---
@@ -1721,131 +1964,141 @@ class TelegramService {
   Future<void> _handleAIAnalytics(String chatId) async {
     try {
       debugPrint("🤖 [UltraAI] Starting analysis for $chatId");
-      await sendMessage(chatId, "🧠 *ULTRA AI: Mahalliy tahlil tizimi ishga tushirildi...*");
+      await sendMessage(chatId, "🧠 *ULTRA AI: Tahlil amalga oshirilmoqda...*");
       
       final db = await DatabaseHelper.instance.database;
       
-      // 1. Financial Analytics
+      // 1. Financial: Real inventory value = current stock × last purchase price
       debugPrint("🤖 [UltraAI] Calculating Financials...");
       double totalStockValue = 0;
       try {
-        totalStockValue = await DatabaseHelper.instance.calculateTotalStockValue();
+        final res = await db.rawQuery('''
+          SELECT SUM(
+            ((SELECT IFNULL(SUM(si.quantity),0) FROM stock_in si WHERE si.product_id = p.id AND si.is_deleted = 0) -
+             (SELECT IFNULL(SUM(so.quantity),0) FROM stock_out so WHERE so.product_id = p.id AND so.is_deleted = 0))
+            *
+            (SELECT IFNULL(AVG(si2.price_per_unit),0) FROM stock_in si2 WHERE si2.product_id = p.id AND si2.is_deleted = 0)
+          ) as total_val
+          FROM products p WHERE p.is_deleted = 0
+        ''');
+        totalStockValue = (res.first['total_val'] as num? ?? 0).toDouble();
       } catch (e) {
         debugPrint("🤖 [UltraAI] Financials Error: $e");
       }
-      
-      // 2. Velocity Analytics (Top 3 fast movers)
+
+      // 2. Top movers — ALL TIME (no 30-day filter)
       debugPrint("🤖 [UltraAI] Fetching topOut...");
       List<Map<String, dynamic>> topOut = [];
       try {
-        topOut = await db.rawQuery(
-          '''SELECT p.name, SUM(so.quantity) as qty 
-             FROM stock_out so 
-             JOIN products p ON so.product_id = p.id 
-             WHERE so.date_time >= date('now', '-30 days') AND so.is_deleted = 0
-             GROUP BY p.id ORDER BY qty DESC LIMIT 3'''
-        );
+        topOut = await db.rawQuery('''
+          SELECT COALESCE(p.name, so.product_id) AS name, 
+                 SUM(so.quantity) as qty,
+                 COUNT(*) as ops
+          FROM stock_out so 
+          LEFT JOIN products p ON so.product_id = p.id 
+          WHERE so.is_deleted = 0
+          GROUP BY so.product_id ORDER BY qty DESC LIMIT 5
+        ''');
       } catch (e) {
         debugPrint("🤖 [UltraAI] topOut Error: $e");
       }
 
-      // 3. Shortage Forecasting (Ultra Algorithm)
-      debugPrint("🤖 [UltraAI] Fetching shortageRisks...");
-      List<Map<String, dynamic>> shortageRisks = [];
+      // 3. Current stock per product
+      debugPrint("🤖 [UltraAI] Fetching inventory balance...");
+      List<Map<String, dynamic>> stockBalance = [];
       try {
-        shortageRisks = await db.rawQuery(
-          '''
-          WITH stats AS (
-            SELECT p.name, p.unit,
-              ((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
-               (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as stock,
-              (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND date_time >= date('now', '-30 days') AND is_deleted = 0) as out_30d
-            FROM products p
-            WHERE p.is_deleted = 0
-          )
-          SELECT * FROM stats WHERE stock > 0 AND out_30d > 0
-          ORDER BY (stock * 1.0 / out_30d) ASC
-          LIMIT 5
-          '''
-        );
+        stockBalance = await db.rawQuery('''
+          SELECT p.name, p.unit,
+            ROUND((SELECT IFNULL(SUM(quantity),0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) -
+                  (SELECT IFNULL(SUM(quantity),0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0), 2) AS stock,
+            p.min_stock_alert
+          FROM products p
+          WHERE p.is_deleted = 0
+          ORDER BY stock ASC
+        ''');
       } catch (e) {
-        debugPrint("🤖 [UltraAI] shortageRisks Error: $e");
+        debugPrint("🤖 [UltraAI] stockBalance Error: $e");
       }
 
+      // 4. Shortage risks
+      debugPrint("🤖 [UltraAI] Fetching shortageRisks...");
+      List<Map<String, dynamic>> lowStockItems = stockBalance
+          .where((r) => (r['stock'] as num? ?? 0) <= (r['min_stock_alert'] as num? ?? 0))
+          .toList();
+
+      // Build report
       StringBuffer sb = StringBuffer();
-      sb.writeln("<b>🦁 LOCAL ULTRA AI TAHLILI</b>");
-      sb.writeln("----------------------------");
+      sb.writeln("<b>🦁 ULTRA AI OMBORXONA TAHLILI</b>");
+      sb.writeln("━━━━━━━━━━━━━━━━━━━━━━━━━━");
       sb.writeln("");
 
-      // Section 1: Financials
+      // Financials
       sb.writeln("💰 <b>MOLIYAVIY KO'RSATKICHLAR:</b>");
-      sb.writeln("   • Omborning jami qiymati: <b>${_formatMoney(totalStockValue)}</b> so'm");
-      sb.writeln("   • Holat: <b>Barqaror</b> ✅");
+      sb.writeln("   • Omborning haqiqiy qiymati: <b>${_formatMoney(totalStockValue)} so'm</b>");
+      final totalIn = await db.rawQuery("SELECT COUNT(*) as c, IFNULL(SUM(quantity),0) as q FROM stock_in WHERE is_deleted=0");
+      final totalOut = await db.rawQuery("SELECT COUNT(*) as c, IFNULL(SUM(quantity),0) as q FROM stock_out WHERE is_deleted=0");
+      sb.writeln("   • Jami kirim operatsiyalar: <b>${totalIn.first['c']} ta</b> (${(totalIn.first['q'] as num?)?.round() ?? 0} dona)");
+      sb.writeln("   • Jami chiqim operatsiyalar: <b>${totalOut.first['c']} ta</b> (${(totalOut.first['q'] as num?)?.round() ?? 0} dona)");
       sb.writeln("");
 
-      // Section 2: Consumption Dynamic
-      sb.writeln("🔥 <b>DINAMIK HARAKATLAR (Top-3):</b>");
+      // Current stock 
+      sb.writeln("📦 <b>HOZIRGI ZAXIRA HOLATI:</b>");
+      for (var row in stockBalance) {
+        final stock = (row['stock'] as num? ?? 0);
+        final min = (row['min_stock_alert'] as num? ?? 0);
+        final icon = stock <= 0 ? "🔴" : (stock <= min ? "⚠️" : "✅");
+        final name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        sb.writeln("   $icon <b>$name</b>: ${stock.toStringAsFixed(1)} ${row['unit'] ?? ''}");
+      }
+      sb.writeln("");
+
+      // Top movers
+      sb.writeln("🔥 <b>ENG KO'P SARFLANGAN (Top-5):</b>");
       if (topOut.isEmpty) {
-        sb.writeln("   ➖ Chiqimlar hozircha mavjud emas.");
+        sb.writeln("   ➖ Chiqim operatsiyalar yo'q.");
       } else {
         for (var row in topOut) {
           String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-          sb.writeln("   🔺 $name - <b>${row['qty']} ta</b> sarflandi");
+          sb.writeln("   🔺 <b>$name</b> — ${row['qty']} dona (${row['ops']} marta)");
         }
       }
       sb.writeln("");
 
-      // Section 3: Proactive Forecasting
-      sb.writeln("🚨 <b>SMART BASHORAT (Tugash xavfi):</b>");
-      bool foundRisk = false;
-      if (shortageRisks.isNotEmpty) {
-        for (var row in shortageRisks) {
-          final stock = row['stock'] as num;
-          final runRate = row['out_30d'] as num;
-          if (runRate > 0) {
-            final daysLeft = (stock / (runRate / 30.0)).round();
-            if (daysLeft < 30) {
-              foundRisk = true;
-              String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-              sb.writeln("   ❗ <b>$name</b> - taxminan <b>$daysLeft kunga</b> yetadi");
-            }
-          }
-        }
-      }
-      
-      if (!foundRisk) {
-        sb.writeln("   ✅ Yaqin 30 kun uchun zaxiralar yetarli.");
-      }
-      sb.writeln("");
-
-      // Section 4: Strategic Recommendations
-      sb.writeln("💡 <b>ULTRA TAVSIYALAR:</b>");
-      if (foundRisk) {
-        sb.writeln("   1. Tezpishar (❗) tovarlar uchun <b>shoshilinch buyurtma</b> bering.");
-        sb.writeln("   2. Ushbu oyda logistika xarajatlarini optimallashtiring.");
+      // Shortage warnings
+      sb.writeln("🚨 <b>DIQQAT — KAM QOLGANLAR:</b>");
+      if (lowStockItems.isEmpty) {
+        sb.writeln("   ✅ Barcha zaxiralar normal darajada.");
       } else {
-        sb.writeln("   1. Hozirgi zaxira strategiyasini davom ettiring.");
-        sb.writeln("   2. Inventarizatsiya hisobotini tekshirib chiqing.");
+        for (var row in lowStockItems) {
+          String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+          sb.writeln("   ❗ <b>$name</b>: ${(row['stock'] as num).toStringAsFixed(1)} qoldi (min: ${row['min_stock_alert']})");
+        }
       }
-      
       sb.writeln("");
-      sb.writeln("----------------------------");
-      sb.writeln("#ultra_ai #strategiya");
 
-      final finalReport = sb.toString();
+      // Recommendations
+      sb.writeln("💡 <b>TAVSIYALAR:</b>");
+      if (lowStockItems.isNotEmpty) {
+        sb.writeln("   1. ❗ Kam qolgan mahsulotlarni <b>shoshilinch buyurtma qiling</b>.");
+        sb.writeln("   2.📋 Yetkazuvchilar bilan aloqa o'rnating.");
+      } else {
+        sb.writeln("   1. ✅ Hozirgi zaxira strategiyasini davom ettiring.");
+        sb.writeln("   2. 📊 Har hafta inventarizatsiya hisobotini tekshiring.");
+      }
+      sb.writeln("");
+      sb.writeln("━━━━━━━━━━━━━━━━━━━━━━━━━━");
+      sb.writeln("#ultra_ai #omborxona");
+
       debugPrint("🤖 [UltraAI] Sending report to $chatId...");
-      
-      // Use HTML parse mode for better safety with product names
-      final error = await _sendHtmlMessage(chatId, finalReport);
+      final error = await _sendHtmlMessage(chatId, sb.toString());
       if (error != null) {
-        debugPrint("🤖 [UltraAI] Final Send Error: $error");
-        // Try fallback to text if HTML fails
-        await sendMessage(chatId, "⚠️ Report generation error. Please contact admin.");
+        debugPrint("🤖 [UltraAI] Send Error: $error");
+        await sendMessage(chatId, "⚠️ Hisobotni yuborishda xatolik. Admin bilan bog'laning.");
       }
       
     } catch (e) {
       debugPrint("🤖 [UltraAI] Global Error: $e");
-      await sendMessage(chatId, "❌ Mahalliy Ultra AI tizimida kutilmagan xatolik yuz berdi.");
+      await sendMessage(chatId, "❌ Ultra AI tizimida xatolik yuz berdi.");
     }
   }
 

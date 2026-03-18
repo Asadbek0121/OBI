@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
@@ -599,11 +600,8 @@ class DatabaseHelper {
   }
 
   Future<Map<String, dynamic>> getDashboardStats() async {
-    final db = await instance.database;
-    
-    // 1. Total Inventory Value (Optimized index query)
-    final valueRes = await db.rawQuery('SELECT IFNULL(SUM(total_amount), 0) as total_value FROM stock_in WHERE is_deleted = 0');
-    final totalValue = (valueRes.first['total_value'] as num).toDouble();
+    // 1. Total Inventory Value (Current stock * purchase price)
+    final totalValue = await calculateTotalStockValue();
 
     // 2 & 3. Low stock and Finished items (Calculated in one pass for performance)
     final summary = await getInventorySummary();
@@ -756,27 +754,42 @@ class DatabaseHelper {
 
   Future<String?> createBackup(String? targetDirectory) async {
     try {
-      final dbPath = await getDatabasesPath();
-      final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
-      final sourceFile = File(path);
-
-      if (!await sourceFile.exists()) return null;
-
-      String dirPath;
-      if (targetDirectory == null) {
-         final temp = await getTemporaryDirectory();
-         dirPath = temp.path;
-      } else {
-         dirPath = targetDirectory;
+      // Use the configured path (same as the app uses at startup)
+      final prefs = await SharedPreferences.getInstance();
+      String? dbFilePath = prefs.getString('clinical_warehouse_db_path');
+      
+      if (dbFilePath == null || dbFilePath.isEmpty) {
+        // Fallback: search known locations
+        final candidates = [
+          '/Users/macbookairm1/OBI/omborxona_data.db',
+        ];
+        for (final c in candidates) {
+          if (await File(c).exists()) { dbFilePath = c; break; }
+        }
       }
 
-      final timestamp = DateTime.now().toString().replaceAll(':', '-').replaceAll(' ', '_').substring(0, 19);
-      final filename = "backup_clinical_warehouse_$timestamp.db";
+      if (dbFilePath == null) {
+        debugPrint('❌ createBackup: DB file not found');
+        return null;
+      }
+
+      final sourceFile = File(dbFilePath);
+      if (!await sourceFile.exists()) {
+        debugPrint('❌ createBackup: Source DB missing at $dbFilePath');
+        return null;
+      }
+
+      final dirPath = targetDirectory ?? (await getTemporaryDirectory()).path;
+      final ts = DateTime.now();
+      final timestamp = "${ts.day}-${ts.month}-${ts.year}_${ts.hour}-${ts.minute}";
+      final filename = "Omborxona_DB_$timestamp.db";
       final targetPath = join(dirPath, filename);
       
       await sourceFile.copy(targetPath);
+      debugPrint('✅ createBackup: Saved to $targetPath');
       return targetPath;
     } catch (e) {
+      debugPrint('❌ createBackup error: $e');
       return null;
     }
   }
@@ -1290,9 +1303,63 @@ class DatabaseHelper {
           (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)
         ) * IFNULL((SELECT price_per_unit FROM stock_in WHERE product_id = p.id AND is_deleted = 0 ORDER BY date_time DESC LIMIT 1), 0)
       ) as total_value
-      FROM products p
-      WHERE p.is_deleted = 0
+    FROM products p
+    WHERE p.is_deleted = 0
     ''');
     return (double.tryParse(res.first['total_value']?.toString() ?? '0')) ?? 0.0;
+  }
+
+  // --- Backup & Export Helpers ---
+  
+  Future<List<Map<String, dynamic>>> getAllStockInFull() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        si.date_time,
+        si.id,
+        COALESCE(p.name, si.product_id) AS product_name,
+        si.batch_number,
+        si.expiry_date,
+        si.quantity,
+        si.price_per_unit,
+        si.total_amount,
+        si.supplier_name,
+        si.payment_status
+      FROM stock_in si
+      LEFT JOIN products p ON p.id = si.product_id
+      WHERE si.is_deleted = 0
+      ORDER BY si.date_time DESC
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> getAllStockOutFull() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT 
+        so.date_time,
+        so.id,
+        COALESCE(p.name, so.product_id) AS product_name,
+        so.quantity,
+        so.receiver_name,
+        so.batch_reference,
+        so.notes
+      FROM stock_out so
+      LEFT JOIN products p ON p.id = so.product_id
+      WHERE so.is_deleted = 0
+      ORDER BY so.date_time DESC
+    ''');
+  }
+
+  Future<String?> getLastUpdateTimestamp() async {
+    final db = await instance.database;
+    final res = await db.rawQuery('''
+      SELECT MAX(updated_at) as last_upd 
+      FROM (
+        SELECT updated_at FROM stock_in UNION ALL 
+        SELECT updated_at FROM stock_out UNION ALL 
+        SELECT updated_at FROM products
+      )
+    ''');
+    return res.first['last_upd']?.toString();
   }
 }
