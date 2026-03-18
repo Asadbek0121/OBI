@@ -4,20 +4,21 @@ import 'app_colors.dart';
 
 class GridTheme {
   static PlutoGridStyleConfig getStyle(BuildContext context) {
-    // final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? (isDark ? Colors.white : Colors.black87);
+    final surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return PlutoGridStyleConfig(
       // Backgrounds
-      gridBackgroundColor: Colors.white,
-      rowColor: Colors.white,
-      oddRowColor: AppColors.primary.withValues(alpha: 0.02),
-      evenRowColor: Colors.white,
+      gridBackgroundColor: surfaceColor,
+      rowColor: surfaceColor,
+      oddRowColor: AppColors.primary.withValues(alpha: isDark ? 0.05 : 0.02),
+      evenRowColor: surfaceColor,
       activatedColor: AppColors.primary.withValues(alpha: 0.08),
       
-      // Borders - subtle
-      gridBorderColor: Colors.grey.withValues(alpha: 0.2),
-      borderColor: Colors.grey.withValues(alpha: 0.05),
+      // Borders
+      gridBorderColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.2),
+      borderColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.withValues(alpha: 0.05),
       enableColumnBorderHorizontal: false,
       enableColumnBorderVertical: true,
       enableRowColorAnimation: true,
@@ -41,8 +42,8 @@ class GridTheme {
       
       // Icons and UI
       iconColor: AppColors.primary,
-      menuBackgroundColor: Colors.white,
-      enableGridBorderShadow: true,
+      menuBackgroundColor: surfaceColor,
+      enableGridBorderShadow: !isDark,
     );
   }
 

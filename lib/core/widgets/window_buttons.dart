@@ -11,19 +11,7 @@ class WindowButtons extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Mac-style traffic lights
-          _CircleButton(
-            color: const Color(0xFFFF5F57), // Red
-            onTap: () => windowManager.close(),
-            tooltip: 'Yopish',
-          ),
-          const SizedBox(width: 10),
-          _CircleButton(
-            color: const Color(0xFFFFBD2E), // Yellow
-            onTap: () => windowManager.minimize(),
-            tooltip: 'Kichraytirish',
-          ),
-          const SizedBox(width: 10),
+          // Custom Order: Green, Yellow, Red
           _CircleButton(
             color: const Color(0xFF28C840), // Green
             onTap: () async {
@@ -34,6 +22,18 @@ class WindowButtons extends StatelessWidget {
               }
             },
             tooltip: 'Kattalashtirish',
+          ),
+          const SizedBox(width: 10),
+          _CircleButton(
+            color: const Color(0xFFFFBD2E), // Yellow
+            onTap: () => windowManager.minimize(),
+            tooltip: 'Kichraytirish',
+          ),
+          const SizedBox(width: 10),
+          _CircleButton(
+            color: const Color(0xFFFF5F57), // Red
+            onTap: () => windowManager.close(),
+            tooltip: 'Yopish',
           ),
         ],
       ),

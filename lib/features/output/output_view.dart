@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/utils/app_notifications.dart';
+import '../../core/theme/grid_theme.dart';
 
 class OutputView extends StatefulWidget {
   const OutputView({super.key});
@@ -157,13 +158,7 @@ class _OutputViewState extends State<OutputView> {
                      stateManager = e.stateManager;
                      stateManager.setSelectingMode(PlutoGridSelectingMode.cell);
                   },
-                  configuration: PlutoGridConfiguration(
-                    style: PlutoGridStyleConfig(
-                      gridBorderColor: Colors.transparent,
-                      gridBackgroundColor: Colors.transparent,
-                      rowColor: Colors.transparent, 
-                      enableGridBorderShadow: false,
-                    ),
+                  configuration: GridTheme.getConfig(context).copyWith(
                     localeText: PlutoGridLocaleText(
                         unfreezeColumn: t.text('grid_unfreeze'),
                         freezeColumnToStart: t.text('grid_freeze_start'),

@@ -94,11 +94,11 @@ class _AssetsViewState extends State<AssetsView> {
 
   int _getCountForLocation(int locId, String type) {
     if (type == 'room') {
-      return _allAssets.where((a) => a['location_id'] == locId).length;
+      return _allAssets.where((a) => a['location_id'].toString() == locId.toString()).length;
     } else if (type == 'floor') {
-       return _allAssets.where((a) => a['parent_id'] == locId).length;
+       return _allAssets.where((a) => a['parent_id'].toString() == locId.toString()).length;
     } else { // building
-       return _allAssets.where((a) => a['grandparent_id'] == locId).length;
+       return _allAssets.where((a) => a['grandparent_id'].toString() == locId.toString()).length;
     }
   }
 
@@ -1507,11 +1507,11 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
     
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: GlassContainer(
-        width: 700,
-        height: 700,
-        padding: const EdgeInsets.all(40),
-        child: Form(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 800, maxHeight: MediaQuery.of(context).size.height * 0.9),
+        child: GlassContainer(
+          padding: const EdgeInsets.all(32),
+          child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
@@ -1639,8 +1639,9 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   InputDecoration _deco(String l) => InputDecoration(labelText: l, filled: true, fillColor: Colors.white.withValues(alpha: 0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
 }
@@ -1727,11 +1728,11 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: GlassContainer(
-        width: 600,
-        height: 800,
-        padding: const EdgeInsets.all(40),
-        child: Column(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 600, maxHeight: MediaQuery.of(context).size.height * 0.9),
+        child: GlassContainer(
+          padding: const EdgeInsets.all(32),
+          child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1889,8 +1890,9 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHistoryTimeline() {
     return ListView.builder(
