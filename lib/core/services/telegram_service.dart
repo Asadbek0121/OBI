@@ -26,6 +26,7 @@ class TelegramService {
   final Map<String, String> _userStates = {};
   final Map<String, List<Map<String, dynamic>>> _userCarts = {};
   final Map<String, Map<String, dynamic>> _userSelection = {};
+  final Map<String, Map<String, dynamic>> _userReportSessions = {};
 
   // --- Configuration ---
 
@@ -319,6 +320,7 @@ class TelegramService {
     File file, {
     String? caption,
     String? parseMode,
+    Map<String, dynamic>? replyMarkup,
   }) async {
     final token = await getBotToken();
     if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
@@ -334,6 +336,9 @@ class TelegramService {
       }
       if (parseMode != null) {
         request.fields['parse_mode'] = parseMode;
+      }
+      if (replyMarkup != null) {
+        request.fields['reply_markup'] = jsonEncode(replyMarkup);
       }
 
       final response = await request.send();
@@ -719,6 +724,99 @@ class TelegramService {
       }
     } catch (e) {
       debugPrint("❌ [ExcelGen] Error: $e");
+    }
+    return null;
+  }
+
+  Future<String?> _generateFilteredExcelReport(
+    DatabaseHelper dbh,
+    String type,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Sheet1'];
+    
+    final sStr = DateFormat('yyyy-MM-dd HH:mm').format(start);
+    final eStr = DateFormat('yyyy-MM-dd HH:mm').format(end);
+    
+    if (type == 'in') {
+      sheet.appendRow([TextCellValue('FILTRLANGAN KIRIM HISOBOTI')]);
+      sheet.appendRow([TextCellValue('Sana oralig\'i: $sStr - $eStr')]);
+      sheet.appendRow([]);
+      sheet.appendRow([
+        TextCellValue('ID'),
+        TextCellValue('Mahsulot'),
+        TextCellValue('Miqdori'),
+        TextCellValue('Donasi'),
+        TextCellValue('Narxi'),
+        TextCellValue('Sana'),
+        TextCellValue('Yetkazib beruvchi'),
+      ]);
+
+      final data = await dbh.database.then((db) => db.rawQuery('''
+        SELECT si.*, p.name as product_name 
+        FROM stock_in si
+        LEFT JOIN products p ON si.product_id = p.id
+        WHERE si.is_deleted = 0 AND si.date_time BETWEEN ? AND ?
+        ORDER BY si.date_time DESC
+      ''', [start.toIso8601String(), end.toIso8601String()]));
+
+      for (var row in data) {
+        sheet.appendRow([
+          TextCellValue(row['id']?.toString() ?? ''),
+          TextCellValue(row['product_name']?.toString() ?? 'Noma\'lum'),
+          TextCellValue(row['quantity']?.toString() ?? '0'),
+          TextCellValue(row['unit']?.toString() ?? ''),
+          TextCellValue(row['price_per_unit']?.toString() ?? '0'),
+          TextCellValue(row['date_time']?.toString() ?? ''),
+          TextCellValue(row['supplier_name']?.toString() ?? ''),
+        ]);
+      }
+    } else {
+      sheet.appendRow([TextCellValue('FILTRLANGAN CHIQIM HISOBOTI')]);
+      sheet.appendRow([TextCellValue('Sana oralig\'i: $sStr - $eStr')]);
+      sheet.appendRow([]);
+      sheet.appendRow([
+        TextCellValue('ID'),
+        TextCellValue('Mahsulot'),
+        TextCellValue('Miqdori'),
+        TextCellValue('Donasi'),
+        TextCellValue('Sana'),
+        TextCellValue('Filiat/Bo\'lim'),
+      ]);
+
+      final data = await dbh.database.then((db) => db.rawQuery('''
+        SELECT so.*, p.name as product_name 
+        FROM stock_out so
+        LEFT JOIN products p ON so.product_id = p.id
+        WHERE so.is_deleted = 0 AND so.date_time BETWEEN ? AND ?
+        ORDER BY so.date_time DESC
+      ''', [start.toIso8601String(), end.toIso8601String()]));
+
+      for (var row in data) {
+        sheet.appendRow([
+          TextCellValue(row['id']?.toString() ?? ''),
+          TextCellValue(row['product_name']?.toString() ?? 'Noma\'lum'),
+          TextCellValue(row['quantity']?.toString() ?? '0'),
+          TextCellValue(row['unit']?.toString() ?? ''),
+          TextCellValue(row['date_time']?.toString() ?? ''),
+          TextCellValue(row['branch_name']?.toString() ?? ''),
+        ]);
+      }
+    }
+
+    try {
+      final dir = await getTemporaryDirectory();
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+      final path = p.join(dir.path, "Report_${type}_$stamp.xlsx");
+      final bytes = excel.save();
+      if (bytes != null) {
+        await File(path).writeAsBytes(bytes);
+        return path;
+      }
+    } catch (e) {
+      debugPrint("❌ Filtered Excel Error: $e");
     }
     return null;
   }
@@ -1339,13 +1437,51 @@ class TelegramService {
   }
 
   Future<void> _processCallbackQuery(Map<String, dynamic> query) async {
-    final chatId = query['message']['chat']['id'].toString();
-    final messageId = query['message']['message_id'];
-    final data = query['data']?.toString() ?? '';
+    final data = query['data'] as String;
+    final message = query['message'];
+    final messageId = message['message_id'];
+    final chatId = message['chat']['id'].toString();
 
     await answerCallbackQuery(query['id']);
 
-    if (data.startsWith('asset_loc:')) {
+    // 📊 EXCEL FLOW HANDLING
+    if (data.startsWith('ex_type:')) {
+      final type = data.split(':').last;
+      await _handleExcelDateSelection(chatId, messageId, type);
+    } else if (data == 'ex_back_to_type') {
+      await _handleExcelExport(chatId);
+    } else if (data.startsWith('ex_date:')) {
+      final dr = data.split(':').last;
+      if (dr == 'calendar_start') {
+        await _showCalendar(chatId, messageId, DateTime.now(), isEndDate: false);
+      } else {
+        await _handleExcelGeneration(chatId, messageId, dr);
+      }
+    } else if (data.startsWith('ex_cal_nav:')) {
+      final p = data.split(':');
+      final m = DateTime(int.parse(p[1]), int.parse(p[2]), 1);
+      final isEnd = p[3] == "1";
+      await _showCalendar(chatId, messageId, m, isEndDate: isEnd);
+    } else if (data.startsWith('ex_cal_pick:')) {
+      final p = data.split(':');
+      final date = DateTime(int.parse(p[1]), int.parse(p[2]), int.parse(p[3]));
+      final isEnd = p[4] == "1";
+      final session = _userReportSessions[chatId];
+      if (session != null) {
+        if (!isEnd) {
+          session['custom_start'] = date;
+          await _showCalendar(chatId, messageId, date, isEndDate: true);
+        } else {
+          final start = session['custom_start'] as DateTime? ?? date;
+          final end = DateTime(date.year, date.month, date.day, 23, 59, 59);
+          await _handleExcelGeneration(chatId, messageId, 'custom_cal', customStart: start, customEnd: end);
+        }
+      }
+    } else if (data == 'ex_share_picker') {
+      await _handleSharePicker(chatId);
+    }
+    // (Existing callbacks below...)
+    else if (data.startsWith('asset_loc:')) {
       final locId = int.tryParse(data.split(':')[1]);
       if (locId != null) await _handleShowLocation(chatId, messageId, locId);
     } else if (data == 'asset_root') {
@@ -1390,38 +1526,228 @@ class TelegramService {
   // --- Handlers ---
   
   Future<void> _handleExcelExport(String chatId) async {
-    try {
-      await sendMessage(chatId, "⏳ *Excel hisobot shakllantirilmoqda...*");
-      final dbh = DatabaseHelper.instance;
+    final buttons = [
+      [
+        {'text': "📥 Kirim hisoboti", 'callback_data': "ex_type:in"},
+        {'text': "📤 Chiqim hisoboti", 'callback_data': "ex_type:out"},
+      ],
+      [
+        {'text': "📦 To'liq hisobot + Backup", 'callback_data': "ex_type:full"},
+      ],
+    ];
 
-      // 1. Generate Styled Excel (returns file path)
-      final excelPath = await _generateFullExcelReport(dbh);
+    await sendMessage(
+      chatId,
+      "📊 <b>HISOBOT TURINI TANLANG:</b>\n\n"
+      "<i>Qaysi turdagi amaliyotlar hisoboti kerak?</i>",
+      replyMarkup: {'inline_keyboard': buttons},
+      parseMode: 'HTML',
+    );
+  }
 
-      // 2. Generate DB Backup
-      final dbPath = await dbh.createBackup(null);
+  Future<void> _handleExcelDateSelection(String chatId, int messageId, String type) async {
+    _userReportSessions[chatId] = {'type': type};
+    
+    final buttons = [
+      [
+        {'text': "📅 Bugun", 'callback_data': "ex_date:today"},
+        {'text': "📅 Kecha", 'callback_data': "ex_date:yesterday"},
+      ],
+      [
+        {'text': "🗓 Oxirgi 7 kun", 'callback_data': "ex_date:7d"},
+        {'text': "🗓 Shu oy", 'callback_data': "ex_date:month"},
+      ],
+      [
+        {'text': "🌐 Barchasi (All)", 'callback_data': "ex_date:all"},
+        {'text': "📅 Maxsus oraliq", 'callback_data': "ex_date:calendar_start"},
+      ],
+      [
+        {'text': "⬅️ Orqaga", 'callback_data': "ex_back_to_type"},
+      ]
+    ];
 
-      // 3. Send Excel
-      if (excelPath != null) {
-        await sendDocument(
-          chatId,
-          File(excelPath),
-          caption: "📊 *Barcha ma'lumotlar Excel formatida*",
-        );
-      }
+    String typeTxt = type == 'in' ? "📥 KIRIM" : (type == 'out' ? "📤 CHIQIM" : "📦 TO'LIQ");
+    await editMessageText(
+      chatId,
+      messageId,
+      "📆 <b>SANA ORALIG'INI TANLANG:</b>\n\n"
+      "Turi: <b>$typeTxt</b>\n"
+      "<i>Hisobot qaysi muddatni o'z ichiga olsin?</i>",
+      replyMarkup: {'inline_keyboard': buttons},
+      parseMode: 'HTML',
+    );
+  }
 
-      // 4. Send DB Backup
-      if (dbPath != null) {
-        await sendDocument(
-          chatId,
-          File(dbPath),
-          caption: "📁 *Omborxona tizimi zaxira nusxasi (Backup)*",
-        );
-      }
-      
-    } catch (e) {
-      debugPrint("⚠️ Excel Export Error: $e");
-      await sendMessage(chatId, "⚠️ Hisobot tayyorlashda xatolik yuz berdi: $e");
+  Future<void> _handleExcelGeneration(String chatId, int messageId, String dateRange, {DateTime? customStart, DateTime? customEnd}) async {
+    final session = _userReportSessions[chatId];
+    if (session == null) return;
+    
+    final type = session['type'];
+    session['dateRange'] = dateRange;
+
+    String loadingMsg = customStart != null ? "⏳ <b>Maxsus oraliq hisoboti tayyorlanmoqda...</b>" : "⏳ <b>Hisobot tayyorlanmoqda...</b>";
+    if (messageId != 0) {
+      await editMessageText(chatId, messageId, loadingMsg, parseMode: 'HTML');
+    } else {
+      await sendMessage(chatId, loadingMsg, parseMode: 'HTML');
     }
+
+    try {
+      final dbh = DatabaseHelper.instance;
+      String? filePath;
+      String? dbBackupPath;
+      String title = "";
+
+      DateTime now = DateTime.now();
+      DateTime start = customStart ?? DateTime(2000);
+      DateTime end = customEnd ?? DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      if (customStart != null && customEnd != null) {
+        title = "Maxsus";
+      } else if (dateRange == 'today') {
+        start = DateTime(now.year, now.month, now.day);
+        title = "Bugungi";
+      } else if (dateRange == 'yesterday') {
+        start = DateTime(now.year, now.month, now.day - 1);
+        end = DateTime(now.year, now.month, now.day - 1, 23, 59, 59);
+        title = "Kecha";
+      } else if (dateRange == '7d') {
+        start = now.subtract(const Duration(days: 7));
+        title = "7 kunlik";
+      } else if (dateRange == 'month') {
+        start = DateTime(now.year, now.month, 1);
+        title = "Shu oylik";
+      } else if (dateRange == 'custom') {
+        _userStates[chatId] = 'waiting_for_custom_date';
+        await sendMessage(chatId, "🎯 <b>SANA ORALIG'INI YOZING:</b>\n\nFormat: <code>01.01.2026 - 01.04.2026</code>", parseMode: 'HTML');
+        return;
+      } else {
+        title = "Umumiy";
+      }
+
+      if (type == 'full') {
+        filePath = await _generateFullExcelReport(dbh);
+        dbBackupPath = await dbh.createBackup(null);
+      } else {
+        filePath = await _generateFilteredExcelReport(dbh, type, start, end);
+      }
+
+      if (filePath != null) {
+        String typeTxt = type == 'in' ? "Kirim" : (type == 'out' ? "Chiqim" : "To'liq");
+        final caption = "✅ <b>$title $typeTxt hisoboti tayyor!</b>\n\n"
+            "🗓 Sana: ${DateFormat('dd.MM.yyyy').format(start)} - ${DateFormat('dd.MM.yyyy').format(now)}\n"
+            "📦 Operatsiyalar soni tahlil qilindi.";
+
+        final markup = {
+          'inline_keyboard': [
+            [{'text': "👤 Jo'natish (Share)", 'callback_data': "ex_share_picker"}]
+          ]
+        };
+
+        await sendDocument(chatId, File(filePath), caption: caption, parseMode: 'HTML', replyMarkup: markup);
+        session['lastFilePath'] = filePath;
+
+        if (dbBackupPath != null) {
+          await sendDocument(chatId, File(dbBackupPath), caption: "💾 Baza zaxira nusxasi (Backup)", parseMode: 'HTML');
+        }
+      }
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ Xatolik: $e");
+    }
+  }
+
+  Future<void> _showCalendar(String chatId, int messageId, DateTime month, {bool isEndDate = false}) async {
+    final session = _userReportSessions[chatId];
+    if (session == null) return;
+
+    final List<List<Map<String, dynamic>>> keyboard = [];
+
+    // Header: Month and Year
+    final monthName = DateFormat('MMMM yyyy').format(month);
+    final typeTxt = session['type'] == 'in' ? "Kirim" : "Chiqim";
+    final stepTxt = isEndDate ? "TUGASH sanasini tanlang" : "BOSHLANISH sanasini tanlang";
+
+    keyboard.add([
+        {'text': "◀️", 'callback_data': "ex_cal_nav:${month.year}:${month.month - 1}:${isEndDate ? 1 : 0}"},
+        {'text': monthName, 'callback_data': "ignore"},
+        {'text': "▶️", 'callback_data': "ex_cal_nav:${month.year}:${month.month + 1}:${isEndDate ? 1 : 0}"},
+    ]);
+
+    // Weekday headers
+    keyboard.add([
+      {'text': "Du", 'callback_data': "ignore"},
+      {'text': "Se", 'callback_data': "ignore"},
+      {'text': "Ch", 'callback_data': "ignore"},
+      {'text': "Pa", 'callback_data': "ignore"},
+      {'text': "Ju", 'callback_data': "ignore"},
+      {'text': "Sh", 'callback_data': "ignore"},
+      {'text': "Ya", 'callback_data': "ignore"},
+    ]);
+
+    // Days
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0);
+    
+    int startOffset = firstDay.weekday - 1; // Mon=1 -> 0
+    List<Map<String, dynamic>> currentRow = [];
+    
+    // Empty cells before first day
+    for (int i = 0; i < startOffset; i++) {
+      currentRow.add({'text': " ", 'callback_data': "ignore"});
+    }
+
+    for (int day = 1; day <= lastDay.day; day++) {
+      currentRow.add({
+        'text': "$day",
+        'callback_data': "ex_cal_pick:${month.year}:${month.month}:$day:${isEndDate ? 1 : 0}"
+      });
+      if (currentRow.length == 7) {
+        keyboard.add(currentRow);
+        currentRow = [];
+      }
+    }
+    if (currentRow.isNotEmpty) {
+      while (currentRow.length < 7) {
+        currentRow.add({'text': " ", 'callback_data': "ignore"});
+      }
+      keyboard.add(currentRow);
+    }
+
+    keyboard.add([{'text': "⬅️ Bekor qilish", 'callback_data': "ex_back_to_type"}]);
+
+    final text = "📅 <b>KALENDAR: $typeTxt Hisoboti</b>\n\n📌 $stepTxt";
+    await editMessageText(chatId, messageId, text, replyMarkup: {'inline_keyboard': keyboard}, parseMode: 'HTML');
+  }
+
+  Future<void> _handleSharePicker(String chatId) async {
+    final users = await getUsers();
+    final session = _userReportSessions[chatId];
+    if (session == null || session['lastFilePath'] == null) {
+      await sendMessage(chatId, "⚠️ Avval hisobotni yuklang.");
+      return;
+    }
+
+    final buttons = <List<Map<String, dynamic>>>[];
+    for (var u in users) {
+      if (u['chatId'] != chatId) {
+        buttons.add([
+          {'text': "👤 ${u['name']} (${u['role']})", 'callback_data': "ex_do_share:${u['chatId']}"}
+        ]);
+      }
+    }
+
+    if (buttons.isEmpty) {
+      await sendMessage(chatId, "📭 Tizimda boshqa foydalanuvchilar topilmadi.");
+      return;
+    }
+
+    await sendMessage(
+      chatId,
+      "👥 <b>KIMGA YUBORAMIZ?</b>\n\n"
+      "<i>Tizimdan foydalanuvchini tanlang:</i>",
+      replyMarkup: {'inline_keyboard': buttons},
+      parseMode: 'HTML',
+    );
   }
 
   Future<void> _handleAssetsStatMenu(String chatId, {int? messageId}) async {
@@ -1974,14 +2300,14 @@ class TelegramService {
       try {
         final res = await db.rawQuery('''
           SELECT SUM(
-            ((SELECT IFNULL(SUM(si.quantity),0) FROM stock_in si WHERE si.product_id = p.id AND si.is_deleted = 0) -
-             (SELECT IFNULL(SUM(so.quantity),0) FROM stock_out so WHERE so.product_id = p.id AND so.is_deleted = 0))
-            *
-            (SELECT IFNULL(AVG(si2.price_per_unit),0) FROM stock_in si2 WHERE si2.product_id = p.id AND si2.is_deleted = 0)
+            (
+              (SELECT IFNULL(SUM(si.quantity), 0) FROM stock_in si WHERE si.product_id = p.id AND si.is_deleted = 0) - 
+              (SELECT IFNULL(SUM(so.quantity), 0) FROM stock_out so WHERE so.product_id = p.id AND so.is_deleted = 0)
+            ) * IFNULL((SELECT si2.price_per_unit FROM stock_in si2 WHERE si2.product_id = p.id AND si2.is_deleted = 0 ORDER BY si2.date_time DESC LIMIT 1), 0)
           ) as total_val
           FROM products p WHERE p.is_deleted = 0
         ''');
-        totalStockValue = (res.first['total_val'] as num? ?? 0).toDouble();
+        totalStockValue = (double.tryParse(res.first['total_val']?.toString() ?? '0')) ?? 0.0;
       } catch (e) {
         debugPrint("🤖 [UltraAI] Financials Error: $e");
       }
