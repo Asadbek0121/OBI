@@ -23,8 +23,6 @@ import 'dart:io';
 import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
-import '../../core/services/notification_provider.dart';
-import 'package:intl/intl.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -34,6 +32,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final ScrollController _sidebarController = ScrollController();
   int _selectedIndex = 0;
   bool _isLoadingDashboard = true;
   Map<String, dynamic> _stats = {'total_value': 0.0, 'low_stock': 0, 'finished': 0};
@@ -79,6 +78,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _sidebarController.dispose();
     super.dispose();
   }
 
@@ -146,104 +146,120 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   // Sidebar
                   SizedBox(
-                    width: 250,
-                    child: GlassContainer(
-                      borderRadius: 0,
-                      opacity: 0.8,
+                    width: 260,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        border: const Border(right: BorderSide(color: AppColors.glassBorder)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(4, 0),
+                          )
+                        ],
+                      ),
                       child: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+                            padding: const EdgeInsets.all(24.0),
                             child: Column(
                               children: [
                                 Image.asset('assets/logo.png', width: 100, height: 100),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 12),
                                 Text(
                                   t.text('title_app'), 
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 18, 
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.2,
-                                     color: Theme.of(context).textTheme.headlineMedium?.color,
-                                  ),
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
                           ),
-                          _SidebarItem(
-                            icon: Icons.dashboard, 
-                            label: t.text('menu_dashboard'), 
-                            isActive: _selectedIndex == 0,
-                            onTap: () {
-                              setState(() => _selectedIndex = 0);
-                              _loadDashboardData(); 
-                            },
+                          const SizedBox(height: 8),
+                          Expanded(
+                            child: Scrollbar(
+                              controller: _sidebarController,
+                              child: ListView(
+                                controller: _sidebarController,
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                children: [
+                                  _SidebarItem(
+                                    icon: Icons.dashboard_rounded, 
+                                    label: t.text('menu_dashboard'), 
+                                    isActive: _selectedIndex == 0,
+                                    onTap: () {
+                                      setState(() => _selectedIndex = 0);
+                                      _loadDashboardData(); 
+                                    },
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.inventory_2_rounded, 
+                                    label: t.text('menu_inventory'), 
+                                    isActive: _selectedIndex == 1,
+                                    onTap: () => setState(() => _selectedIndex = 1),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.storage_rounded, 
+                                    label: t.text('menu_database'), 
+                                    isActive: _selectedIndex == 2,
+                                    onTap: () => setState(() => _selectedIndex = 2),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.add_circle_outline_rounded, 
+                                    label: t.text('menu_in'), 
+                                    isActive: _selectedIndex == 3,
+                                    onTap: () => setState(() => _selectedIndex = 3),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.remove_circle_outline_rounded, 
+                                    label: t.text('menu_out'), 
+                                    isActive: _selectedIndex == 4,
+                                    onTap: () => setState(() => _selectedIndex = 4),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.devices_other_rounded, 
+                                    label: t.text('menu_assets'), 
+                                    isActive: _selectedIndex == 5,
+                                    onTap: () => setState(() => _selectedIndex = 5),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.analytics_rounded, 
+                                    label: t.text('menu_reports'), 
+                                    isActive: _selectedIndex == 6,
+                                    onTap: () => setState(() => _selectedIndex = 6),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.smart_toy_rounded, 
+                                    label: t.text('menu_telegram'),
+                                    isActive: _selectedIndex == 8,
+                                    badgeCount: _pendingTelegramOrders,
+                                    onTap: () => setState(() => _selectedIndex = 8),
+                                  ),
+                                  _SidebarItem(
+                                    icon: Icons.settings_rounded, 
+                                    label: t.text('menu_settings'), 
+                                    isActive: _selectedIndex == 7,
+                                    onTap: () => setState(() => _selectedIndex = 7),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          _SidebarItem(
-                            icon: Icons.inventory_2, 
-                            label: t.text('menu_inventory'), 
-                            isActive: _selectedIndex == 1,
-                            onTap: () => setState(() => _selectedIndex = 1),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.storage, 
-                            label: t.text('menu_database'), 
-                            isActive: _selectedIndex == 2,
-                            onTap: () => setState(() => _selectedIndex = 2),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.download, 
-                            label: t.text('menu_in'), 
-                            isActive: _selectedIndex == 3,
-                            onTap: () => setState(() => _selectedIndex = 3),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.upload, 
-                            label: t.text('menu_out'), 
-                            isActive: _selectedIndex == 4,
-                            onTap: () => setState(() => _selectedIndex = 4),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.devices_other, 
-                            label: t.text('menu_assets'), 
-                            isActive: _selectedIndex == 5,
-                            onTap: () => setState(() => _selectedIndex = 5),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.analytics, 
-                            label: t.text('menu_reports'), 
-                            isActive: _selectedIndex == 6,
-                            onTap: () => setState(() => _selectedIndex = 6),
-                          ),
-                          const Spacer(),
                           
-                          _SidebarItem(
-                            icon: Icons.settings, 
-                            label: t.text('menu_settings'), 
-                            isActive: _selectedIndex == 7,
-                            onTap: () => setState(() => _selectedIndex = 7),
-                          ),
-                          
-                          _SidebarItem(
-                            icon: Icons.smart_toy, 
-                            label: t.text('menu_telegram'),
-                            isActive: _selectedIndex == 8,
-                            badgeCount: _pendingTelegramOrders,
-                            onTap: () => setState(() => _selectedIndex = 8),
-                          ),
-                          
-                          _SidebarItem(
-                            icon: Icons.lock, 
-                            label: t.text('menu_logout'), 
-                            isActive: false,
-                            onTap: () {
-                              Provider.of<AuthProvider>(context, listen: false).logout();
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (c) => const SplashScreen()),
-                                (route) => false,
-                              );
-                            },
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: _SidebarItem(
+                              icon: Icons.logout_rounded, 
+                              label: t.text('menu_logout'), 
+                              isActive: false,
+                              onTap: () {
+                                Provider.of<AuthProvider>(context, listen: false).logout();
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (c) => const SplashScreen()),
+                                  (route) => false,
+                                );
+                              },
+                            ),
                           ),
                         ],
                       ),
@@ -343,150 +359,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                ),
              );
           },
-        );
-      },
-    );
-  }
-
-  void _showNotificationCenter(BuildContext context) {
-    final provider = context.read<NotificationProvider>();
-    provider.markAllAsRead(); // Mark as read when opened
-
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: '',
-      barrierColor: Colors.black.withValues(alpha: 0.2),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => const SizedBox(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return SlideTransition(
-          position: Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero).animate(anim1),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Container(
-                width: 380,
-                height: double.infinity,
-                margin: const EdgeInsets.all(20),
-                child: GlassContainer(
-                  borderRadius: 24,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Bildirishnomalar", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: -0.5)),
-                          Container(
-                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.05), shape: BoxShape.circle),
-                            child: IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      Expanded(
-                        child: Consumer<NotificationProvider>(
-                          builder: (context, provider, _) {
-                            if (provider.notifications.isEmpty) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(20),
-                                      decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.05), shape: BoxShape.circle),
-                                      child: Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey[300]),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text("Hozircha bildirishnomalar yo'q", style: TextStyle(color: Colors.grey[400], fontSize: 15, fontWeight: FontWeight.w500)),
-                                  ],
-                                ),
-                              );
-                            }
-                            return ListView.separated(
-                              itemCount: provider.notifications.length,
-                              separatorBuilder: (c, i) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final n = provider.notifications[index];
-                                return Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(
-                                    color: n.color.withValues(alpha: 0.04),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: n.color.withValues(alpha: 0.1)),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: n.color.withValues(alpha: 0.08),
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                        child: Icon(n.icon, color: n.color, size: 20),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(n.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, letterSpacing: -0.2)),
-                                                ),
-                                                Text(
-                                                  DateFormat('HH:mm').format(n.timestamp),
-                                                  style: TextStyle(color: Colors.grey[400], fontSize: 11, fontWeight: FontWeight.w600),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              n.message, 
-                                              style: TextStyle(color: Colors.black.withValues(alpha: 0.6), fontSize: 13, height: 1.3),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Consumer<NotificationProvider>(
-                        builder: (context, provider, _) {
-                          if (provider.notifications.isEmpty) return const SizedBox.shrink();
-                          return SizedBox(
-                            width: double.infinity,
-                            child: TextButton.icon(
-                              onPressed: () => provider.clearAll(),
-                              icon: const Icon(Icons.delete_sweep_outlined, size: 20, color: Colors.red),
-                              label: const Text("Hammasini tozalash", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                backgroundColor: Colors.red.withValues(alpha: 0.05),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         );
       },
     );
@@ -618,22 +490,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                      padding: const EdgeInsets.all(10),
                      borderRadius: 30,
                      child: const Icon(Icons.refresh_rounded, size: 20, color: AppColors.primary),
-                   ),
-                   const SizedBox(width: 12),
-                   // Notification Button
-                   Consumer<NotificationProvider>(
-                     builder: (context, notifications, _) {
-                       return Badge(
-                         label: Text("${notifications.unreadCount}"),
-                         isLabelVisible: notifications.unreadCount > 0,
-                         child: GlassContainer(
-                           onTap: () => _showNotificationCenter(context),
-                           padding: const EdgeInsets.all(10),
-                           borderRadius: 30,
-                           child: const Icon(Icons.notifications_outlined, size: 20, color: Colors.orange),
-                         ),
-                       );
-                     },
                    ),
                    const SizedBox(width: 12),
                    // Date Badge
@@ -1034,44 +890,77 @@ class _FancyStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: GlassContainer(
-        padding: EdgeInsets.zero,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+          border: Border.all(color: color.withValues(alpha: 0.05)),
+        ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: gradient == null ? color.withValues(alpha: 0.1) : null,
-                      gradient: gradient,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: gradient != null ? [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 6),
-                        )
-                      ] : null,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: gradient == null ? color.withValues(alpha: 0.1) : null,
+                        gradient: gradient,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(icon, color: gradient != null ? Colors.white : color, size: 24),
                     ),
-                    child: Icon(icon, color: gradient != null ? Colors.white : color, size: 32),
+                    if (onTap != null)
+                      Icon(Icons.arrow_outward_rounded, size: 16, color: Colors.grey[400]),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 32),
+                Text(
+                  title.toUpperCase(), 
+                  style: TextStyle(
+                    color: Colors.grey[500], 
+                    fontSize: 10, 
+                    fontWeight: FontWeight.w900, 
+                    letterSpacing: 1.2
+                  )
+                ),
                 const SizedBox(height: 8),
-                Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800, 
-                  letterSpacing: -0.5,
-                  fontSize: 28,
-                )),
+                Text(
+                  value, 
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900, 
+                    fontSize: 24,
+                    color: Colors.black87,
+                    letterSpacing: -1,
+                  )
+                ),
                 if (subvalue != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(subvalue!, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        subvalue!, 
+                        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900),
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -1132,17 +1021,41 @@ class _QuickActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 16),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const Spacer(),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Spacer(),
+              Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey[400]),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1165,49 +1078,66 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: isActive ? BoxDecoration(
-          gradient: LinearGradient(
-              colors: [AppColors.primary.withValues(alpha: 0.1), AppColors.primary.withValues(alpha: 0.05)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: isActive ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: isActive ? [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ] : null,
           ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-        ) : null,
-        child: Row(
-          children: [
-            Icon(icon, color: isActive ? AppColors.primary : AppColors.textSecondary, size: 20),
-            const SizedBox(width: 12),
-            Text(label, style: TextStyle(
-              color: isActive ? AppColors.primary : AppColors.textSecondary,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            )),
-            if (badgeCount > 0) ...[
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.error,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+          child: Row(
+            children: [
+              Icon(
+                icon, 
+                color: isActive ? Colors.white : Colors.grey[600], 
+                size: 22
+              ),
+              const SizedBox(width: 16),
+              Expanded(
                 child: Text(
-                  badgeCount > 9 ? "9+" : badgeCount.toString(),
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  label, 
+                  style: TextStyle(
+                    color: isActive ? Colors.white : Colors.grey[800],
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 14,
+                  ),
                 ),
               ),
+              if (badgeCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isActive ? Colors.white.withValues(alpha: 0.2) : AppColors.error,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    badgeCount.toString(),
+                    style: TextStyle(
+                      color: isActive ? Colors.white : Colors.white, 
+                      fontSize: 10, 
+                      fontWeight: FontWeight.w900
+                    ),
+                  ),
+                ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
 class _TodayStatItem extends StatelessWidget {
   final String label;
   final String value;

@@ -87,21 +87,26 @@ class SyncService {
       for (var row in unsynced) {
         try {
           final data = Map<String, dynamic>.from(row);
-          // Don't send local sync_status to server
-          data.remove('sync_status');
           
-          // CRITICAL: Supabase tables might not have all local debugging/migration columns
-          // Filter to only include columns that are expected in the cloud schema
-          if (table == 'assets') {
-             // Avoid sending 'location' (if it exists locally) as Supabase uses 'location_id'
-             data.remove('location'); 
-          }
-          if (table == 'asset_locations') {
-             // Avoid sending 'short_code' if Supabase hasn't been updated yet
-             data.remove('short_code');
+          // 🛡️ Filter out local-only columns to prevent Cloud Sync errors
+          // These columns might not exist in the basic Supabase schema yet
+          final localOnlyColumns = [
+            'sync_status', 
+            'is_deleted', 
+            'deleted_at',
+            'short_code',     // Only for asset_locations
+            'payment_status', // Only for stock_in
+            'location'        // Error log mention
+          ];
+          
+          for (var col in localOnlyColumns) {
+            data.remove(col);
           }
           
-          await _supabase.from(table).upsert(data);
+          // Only send if not empty (besides ID)
+          if (data.length > 1) {
+             await _supabase.from(table).upsert(data);
+          }
           
           // Mark as synced locally
           await db.update(

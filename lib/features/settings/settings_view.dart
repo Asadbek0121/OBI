@@ -285,7 +285,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _factoryReset(BuildContext context) async {
     final t = Provider.of<AppTranslations>(context, listen: false);
-    
     final confirm = await AppDialogs.showConfirmDialog(
       context: context,
       title: t.text('dlg_factory_reset_title'),
@@ -293,39 +292,30 @@ class _SettingsViewState extends State<SettingsView> {
     );
 
     if (confirm == true) {
-      if (!context.mounted) return;
-      
-      // Secondary Warning
-      final confirm2 = await AppDialogs.showConfirmDialog(
-        context: context,
-        title: "QAT'IY TASDIQLASH",
-        content: "Barcha mahsulotlar ro'yxati ham o'chib ketadi! Davom etasizmi?",
-      );
-
-      if (confirm2 == true) {
-        if (!context.mounted) return;
-        AppDialogs.showBlurDialog(context: context, title: "Tozalanmoqda...", content: const CircularProgressIndicator());
-        
-        try {
+       if (!context.mounted) return;
+       AppDialogs.showBlurDialog(context: context, title: "Yangilanmoqda...", content: const CircularProgressIndicator());
+       try {
           await DatabaseHelper.instance.factoryReset();
-          if (!context.mounted) return;
-          Navigator.pop(context); // Close loader
-          AppNotifications.showSuccess(context, "Tizim butunlay tozalandi!");
+          // Seed defaults again
+          await DatabaseHelper.instance.createAssetsTableIfNeeded(); 
           
-          // Restart app to clear all providers in memory
-          Future.delayed(const Duration(seconds: 2), () {
-            if (!context.mounted) return;
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (c) => const SplashScreen()),
-              (route) => false,
-            );
-          });
-        } catch (e) {
           if (!context.mounted) return;
-          Navigator.pop(context); // Close loader
+          Navigator.pop(context); // loader
+          AppNotifications.showSuccess(context, "Ilova zavod holatiga qaytarildi!");
+          
+          // Restart app
+          Future.delayed(const Duration(seconds: 1), () {
+             if (!context.mounted) return;
+             Navigator.of(context).pushAndRemoveUntil(
+               MaterialPageRoute(builder: (c) => const SplashScreen()),
+               (route) => false,
+             );
+          });
+       } catch (e) {
+          if (!context.mounted) return;
+          Navigator.pop(context); // loader
           AppNotifications.showError(context, "Xatolik: $e");
-        }
-      }
+       }
     }
   }
 
@@ -432,9 +422,17 @@ class _SettingsViewState extends State<SettingsView> {
                 width: 350,
                 icon: Icons.cloud_upload_outlined,
                 title: t.text('menu_backup'),
-                subtitle: "Oxirgi zaxira: Bugun, 14:00",
+                subtitle: "Nusxa yaratish (Zaxira o'lish)",
                 color: AppColors.success,
                 onTap: () => _showBackupDialog(context),
+              ),
+              _SettingCard(
+                width: 350,
+                icon: Icons.restore_page_rounded,
+                title: "Backupdan Tiklash",
+                subtitle: "Tizim ma'lumotlarini nusxadan tiklash",
+                color: AppColors.primary,
+                onTap: () => _restoreBackup(context),
               ),
               _SettingCard(
                 width: 350,
@@ -443,14 +441,6 @@ class _SettingsViewState extends State<SettingsView> {
                 subtitle: "Tayyor ma'lumotlarni yuklash",
                 color: Colors.teal,
                 onTap: () => _importExcel(context),
-              ),
-              _SettingCard(
-                width: 350,
-                icon: Icons.restore_page_rounded,
-                title: "Backupdan Tiklash",
-                subtitle: "Eski ma'lumotlarni qayta tiklash",
-                color: AppColors.warning, 
-                onTap: () => _restoreBackup(context),
               ),
             ],
           ),
@@ -469,19 +459,19 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               _SettingCard(
                 width: 350,
-                icon: Icons.factory_rounded,
-                title: t.text('set_factory_reset'),
-                subtitle: t.text('set_factory_reset_desc'),
-                color: Colors.deepOrange, 
-                onTap: () => _factoryReset(context),
-              ),
-              _SettingCard(
-                width: 350,
                 icon: Icons.delete_forever,
                 title: "Ma'lumotlarni Tozalash",
                 subtitle: "Kirim, Chiqim va Hisobotlarni o'chirish",
-                color: AppColors.error, 
+                color: AppColors.warning, 
                 onTap: () => _clearAllData(context),
+              ),
+              _SettingCard(
+                width: 350,
+                icon: Icons.factory_rounded,
+                title: t.text('btn_factory_reset'),
+                subtitle: "Barchasini o'chirib yangidek qilish",
+                color: AppColors.error, 
+                onTap: () => _factoryReset(context),
               ),
             ],
           ),
@@ -490,7 +480,7 @@ class _SettingsViewState extends State<SettingsView> {
           Center(
             child: Column(
               children: [
-                const Text("Omborxona Boshqaruv Tizimi v2.0.1", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const Text("Omborxona Boshqaruv Tizimi v2.0.4", style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text("© 2026 OMBORXONA SYSTEMS", style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 11)),
                 const SizedBox(height: 4),

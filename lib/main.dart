@@ -11,7 +11,6 @@ import 'package:provider/provider.dart';
 import 'core/localization/app_translations.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/services/profile_provider.dart';
-import 'core/services/notification_provider.dart';
 
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
@@ -83,61 +82,55 @@ void main() async {
      // Configured! Proceed with normal boot.
      startScreen = const SplashScreen();
      
-    // 🌍 START APP IMMEDIATELY (Non-blocking heavy services)
-    runApp(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider.value(value: appTranslations),
-          ChangeNotifierProvider.value(value: themeProvider),
-          ChangeNotifierProvider.value(value: profileProvider),
-          ChangeNotifierProvider.value(value: authProvider),
-          ChangeNotifierProvider(create: (_) => NotificationProvider()),
-        ],
-        child: ClinicalWarehouseApp(home: startScreen),
-      )
-    );
+    // 🛡️ SECURITY INIT: Open the Secure Vault
+    try {
+      await DatabaseHelper.instance.database;
+      debugPrint("✅ System: Secure Database initialized successfully.");
+    } catch (e) {
+      debugPrint("❌ System: Failed to initialize Secure Database: $e");
+    }
 
-    // 🕊️ BACKGROUND SERVICES START (After UI is up)
-    _startBackgroundServices();
+    // 🤖 TELEGRAM SCHEDULER
+    try {
+       debugPrint("🤖 System: Checking Telegram Backup Schedule...");
+       final tgService = TelegramService();
+       
+       // Initial Check
+       await tgService.checkWeeklyBackup(DatabaseHelper.instance);
+       await tgService.checkDailyBackup(DatabaseHelper.instance);
+       await tgService.checkDailyLowStockAlert(DatabaseHelper.instance);
+       await tgService.checkDailyReportAuto(DatabaseHelper.instance);
+
+       // Periodic Check (Every 30 minutes)
+       // This ensures if app is left open, it still sends the report at 18:00
+       Stream.periodic(const Duration(minutes: 30)).listen((_) async {
+          await tgService.checkDailyReportAuto(DatabaseHelper.instance);
+          await tgService.checkDailyBackup(DatabaseHelper.instance);
+       });
+
+       // 🎧 START INTERACTIVE BOT LISTENER
+       tgService.startBotListener();
+
+        // 🔄 SYNC SERVICE INIT
+        final syncService = SyncService();
+        await syncService.init();
+
+    } catch (e) {
+       debugPrint("❌ System: Service Initialization Error: $e");
+    }
   }
-}
 
-Future<void> _startBackgroundServices() async {
-  // 🛡️ DB INIT
-  try {
-    await DatabaseHelper.instance.database;
-    debugPrint("✅ Background: Database initialized successfully.");
-  } catch (e) {
-    debugPrint("❌ Background: Database Error: $e");
-  }
-
-  // 🤖 TELEGRAM & SYNC
-  try {
-     final tgService = TelegramService();
-     
-     // 1. Interactive Bot
-     tgService.startBotListener();
-     tgService.setupAutoBackupListener();
-
-     // 2. Initial Checks
-     await tgService.checkWeeklyBackup(DatabaseHelper.instance);
-     await tgService.checkDailyBackup(DatabaseHelper.instance);
-     await tgService.checkDailyLowStockAlert(DatabaseHelper.instance);
-     await tgService.checkDailyReportAuto(DatabaseHelper.instance);
-
-     // 3. Scheduling
-     Stream.periodic(const Duration(minutes: 30)).listen((_) async {
-        await tgService.checkDailyReportAuto(DatabaseHelper.instance);
-        await tgService.checkDailyBackup(DatabaseHelper.instance);
-     });
-
-     // 🔄 CLOUD SYNC
-     final syncService = SyncService();
-     await syncService.init();
-     debugPrint("✅ Background: Services initialized successfully.");
-  } catch (e) {
-     debugPrint("⚠️ Background: Service Error: $e");
-  }
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: appTranslations),
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: profileProvider),
+        ChangeNotifierProvider.value(value: authProvider),
+      ],
+      child: ClinicalWarehouseApp(home: startScreen),
+    )
+  );
 }
 
 class ClinicalWarehouseApp extends StatelessWidget {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
-import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
@@ -128,7 +127,6 @@ class _StockInViewState extends State<StockInView> {
         field: 'price',
         type: PlutoColumnType.text(),
         width: 140,
-        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_unit'),
@@ -142,7 +140,6 @@ class _StockInViewState extends State<StockInView> {
         field: 'quantity',
         type: PlutoColumnType.text(),
         width: 100,
-        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_tax_percent'),
@@ -156,7 +153,6 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 120,
         enableEditingMode: false,
-        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_surcharge_percent'),
@@ -170,7 +166,6 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 140,
         enableEditingMode: false,
-        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_from'),
@@ -204,8 +199,6 @@ class _StockInViewState extends State<StockInView> {
         width: 150,
         enableEditingMode: false,
         renderer: (rendererContext) {
-          final val = rendererContext.cell.value.toString();
-          final isNaqd = val.toLowerCase().contains('naqd');
           return InkWell(
             onTap: () => _showChoiceDialog(
               title: t.text('col_payment_status'), 
@@ -215,23 +208,11 @@ class _StockInViewState extends State<StockInView> {
                 stateManager.notifyListeners();
               }
             ),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isNaqd ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isNaqd ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2)),
-                ),
-                child: Text(
-                  val,
-                  style: TextStyle(
-                    color: isNaqd ? Colors.green : Colors.orange,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            child: Row(
+              children: [
+                Expanded(child: Text(rendererContext.cell.value.toString())),
+                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+              ],
             ),
           );
         },
@@ -242,31 +223,6 @@ class _StockInViewState extends State<StockInView> {
         type: PlutoColumnType.text(),
         width: 160,
         enableEditingMode: false,
-        textAlign: PlutoColumnTextAlign.right,
-        renderer: (rendererContext) {
-          return Text(
-            rendererContext.cell.value.toString(),
-            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-          );
-        },
-      ),
-      PlutoColumn(
-        title: "",
-        field: "action",
-        type: PlutoColumnType.text(),
-        readOnly: true,
-        enableFilterMenuItem: false,
-        enableSorting: false,
-        enableSetColumnsMenuItem: false,
-        width: 60,
-        renderer: (rendererContext) {
-          return IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 18),
-            onPressed: () {
-               stateManager.removeRows([rendererContext.row]);
-            },
-          );
-        },
       ),
     ];
   }
@@ -288,7 +244,6 @@ class _StockInViewState extends State<StockInView> {
           'supplier': PlutoCell(value: suppliers.isNotEmpty ? suppliers.first : ''),
           'payment_status': PlutoCell(value: paymentTypes.isNotEmpty ? paymentTypes.first : 'Naqd'),
           'total_amount': PlutoCell(value: ''),
-          'action': PlutoCell(value: ''),
         },
       );
   }
@@ -417,7 +372,6 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -425,8 +379,7 @@ class _StockInViewState extends State<StockInView> {
     }
     
     final t = Provider.of<AppTranslations>(context);
-
-    final gridConfig = PlutoGridConfiguration(
+    final gridConfig = GridTheme.getConfig(context).copyWith(
       localeText: PlutoGridLocaleText(
         unfreezeColumn: t.text('grid_unfreeze'),
         freezeColumnToStart: t.text('grid_freeze_start'),
@@ -448,12 +401,6 @@ class _StockInViewState extends State<StockInView> {
       columnSize: const PlutoGridColumnSizeConfig(
         autoSizeMode: PlutoAutoSizeMode.scale,
       ),
-        scrollbar: const PlutoGridScrollbarConfig(
-          isAlwaysShown: true,
-          scrollbarThickness: 10,
-          scrollbarRadius: Radius.circular(5),
-        ),
-        style: GridTheme.getStyle(context),
     );
 
     return Column(
@@ -462,60 +409,54 @@ class _StockInViewState extends State<StockInView> {
         // Header
         Wrap(
           alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.end,
           spacing: 16,
           runSpacing: 16,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.text('header_check_in'), style: Theme.of(context).textTheme.headlineMedium),
+                Text(t.text('header_check_in'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                )),
                 const SizedBox(height: 8),
-                Text(t.text('inp_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                Text(t.text('inp_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
               ],
             ),
             
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ElevatedButton.icon(
+                _HeaderButton(
                   onPressed: () {
                      if (mounted) {
                         stateManager.removeAllRows();
                         stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
                      }
                   }, 
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(t.text('btn_cancel')), 
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                    foregroundColor: AppColors.textPrimary,
-                    elevation: 0,
-                  ),
+                  icon: Icons.refresh_rounded,
+                  label: t.text('btn_cancel'),
+                  color: Colors.grey[200]!,
+                  textColor: AppColors.textPrimary,
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
+                _HeaderButton(
                   onPressed: isOCRLoading ? null : _handleOCR, 
-                  icon: isOCRLoading 
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
-                    : const Icon(Icons.document_scanner, size: 18), 
-                  label: Text(isOCRLoading ? t.text('msg_ocr_reading') : t.text('btn_ocr')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    foregroundColor: AppColors.primary,
-                    elevation: 0,
-                  ),
+                  icon: Icons.document_scanner_rounded, 
+                  label: isOCRLoading ? t.text('msg_ocr_reading') : t.text('btn_ocr'),
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  textColor: AppColors.primary,
+                  isLoading: isOCRLoading,
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
+                _HeaderButton(
                   onPressed: _saveStockIn, 
-                  icon: const Icon(Icons.save), 
-                  label: Text(t.text('btn_save')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  ),
+                  icon: Icons.save_rounded, 
+                  label: t.text('btn_save'),
+                  color: AppColors.success,
+                  textColor: Colors.white,
+                  isPrimary: true,
                 ),
               ],
             ),
@@ -523,8 +464,19 @@ class _StockInViewState extends State<StockInView> {
         ),
         const SizedBox(height: 24),
         Expanded(
-          child: GlassContainer(
-            padding: EdgeInsets.zero,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: PlutoGrid(
@@ -663,6 +615,56 @@ class _StockInViewState extends State<StockInView> {
           }
         );
       }
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color textColor;
+  final bool isLoading;
+  final bool isPrimary;
+
+  const _HeaderButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.isLoading = false,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ] : null,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: isLoading 
+          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
+          : Icon(icon, size: 20),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ),
     );
   }
 }

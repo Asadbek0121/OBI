@@ -23,6 +23,7 @@ class _AssetsViewState extends State<AssetsView> {
   
   bool _isLoading = true;
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _filterScrollController = ScrollController();
   
   int? _selectedBuildingId;
   int? _selectedFloorId;
@@ -35,24 +36,16 @@ class _AssetsViewState extends State<AssetsView> {
   String _sidebarTitle = "Binolar";
   List<Map<String, dynamic>> _sidebarItems = [];
 
-  late ScrollController _hierarchyScrollController;
-  late ScrollController _assetScrollController;
-  late ScrollController _sidebarScrollController;
-
   @override
   void initState() {
     super.initState();
-    _hierarchyScrollController = ScrollController();
-    _assetScrollController = ScrollController();
-    _sidebarScrollController = ScrollController();
     _initData();
   }
 
   @override
   void dispose() {
-    _hierarchyScrollController.dispose();
-    _assetScrollController.dispose();
-    _sidebarScrollController.dispose();
+    _searchCtrl.dispose();
+    _filterScrollController.dispose();
     super.dispose();
   }
 
@@ -116,7 +109,6 @@ class _AssetsViewState extends State<AssetsView> {
       if (mounted) {
         setState(() {
           _allAssets = data;
-          debugPrint("📦 Asset Search: Found ${data.length} total assets.");
           _applyFilters();
           _isLoading = false;
         });
@@ -144,7 +136,6 @@ class _AssetsViewState extends State<AssetsView> {
       bool locMatches = true;
       if (_selectedRoomId != null) {
         locMatches = asset['location_id'].toString() == _selectedRoomId.toString();
-        if (locMatches) debugPrint("DEBUG: Asset in room match check: ${asset['name']} (loc_id: ${asset['location_id']} vs target: $_selectedRoomId)");
       } else if (_selectedFloorId != null) {
         // Match if it's in the floor directly or in any room belonging to that floor
         locMatches = asset['location_id'].toString() == _selectedFloorId.toString() || 
@@ -162,7 +153,6 @@ class _AssetsViewState extends State<AssetsView> {
       return nameMatches && catMatches && locMatches && statusMatches;
     }).toList();
     
-    debugPrint("🔍 Filters Applied: Shown ${_filteredAssets.length} assets.");
     setState(() {});
   }
 
@@ -253,24 +243,18 @@ class _AssetsViewState extends State<AssetsView> {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: Scrollbar(
-            controller: _hierarchyScrollController,
-            thumbVisibility: true,
-            child: GridView.builder(
-              controller: _hierarchyScrollController,
-              padding: const EdgeInsets.only(right: 12),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 300,
-                mainAxisExtent: 260,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-              ),
-              itemCount: _sidebarItems.length,
-              itemBuilder: (context, index) {
-                final item = _sidebarItems[index];
-                return _buildLocationCard(item, t);
-              },
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 300,
+              mainAxisExtent: 260,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
             ),
+            itemCount: _sidebarItems.length,
+            itemBuilder: (context, index) {
+              final item = _sidebarItems[index];
+              return _buildLocationCard(item, t);
+            },
           ),
         ),
       ],
@@ -397,11 +381,11 @@ class _AssetsViewState extends State<AssetsView> {
         border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Scrollbar(
-        controller: _sidebarScrollController,
+        controller: _filterScrollController,
         thumbVisibility: true,
         thickness: 8,
         child: SingleChildScrollView(
-          controller: _sidebarScrollController,
+          controller: _filterScrollController,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -535,103 +519,66 @@ class _AssetsViewState extends State<AssetsView> {
         ),
       ),
     );
-  }
-
-  Widget _buildHeader(AppTranslations t) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-
+  }  Widget _buildHeader(AppTranslations t) {
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 16,
       runSpacing: 16,
       children: [
-        Row(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Text(t.text('assets_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            )),
+            const SizedBox(height: 8),
             if (_selectedBuildingId != null) 
-              Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: IconButton.filled(
-                  onPressed: _goBack,
-                  icon: const Icon(Icons.arrow_back_rounded, size: 20),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.blue.withValues(alpha: 0.1),
-                    foregroundColor: Colors.blue,
-                  ),
-                ),
-              ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(t.text('assets_title'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: -0.5, color: isDark ? Colors.white : Colors.black87)),
-                if (_selectedBuildingId != null) ...[
-                   const SizedBox(height: 4),
-                   _buildBreadcrumbs(t),
-                ] else
-                   Text(t.text('assets_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
+               _buildBreadcrumbs(t)
+            else
+               Text(t.text('assets_subtitle'), style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 250,
+              width: 280, // Slightly reduced width to fit better
               height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search_rounded, color: Colors.blue, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: (v) => _applyFilters(),
-                      decoration: InputDecoration(
-                        hintText: t.text('assets_search'),
-                        hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
                 ],
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => _applyFilters(),
+                decoration: InputDecoration(
+                  hintText: t.text('assets_search'),
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
             const SizedBox(width: 16),
-            SizedBox(
-              height: 48,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Colors.blue, Colors.blueAccent]),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [BoxShadow(color: Colors.blue.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4))],
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: () => _showAddAssetModal(),
-                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
-                  label: Text(t.text('btn_add_new'), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
+            _HeaderBtn(
+              onPressed: () => _showAddAssetModal(),
+              icon: Icons.add_rounded,
+              label: t.text('btn_add_new'),
+              color: AppColors.primary,
+              textColor: Colors.white,
+              isPrimary: true,
             ),
           ],
         ),
@@ -670,12 +617,10 @@ class _AssetsViewState extends State<AssetsView> {
 
   Widget _buildGrid(AppTranslations t) {
     return Scrollbar(
-      controller: _assetScrollController,
       thumbVisibility: true,
       thickness: 10,
       radius: const Radius.circular(5),
       child: GridView.builder(
-        controller: _assetScrollController,
         padding: const EdgeInsets.only(bottom: 100, right: 12),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 350,
@@ -900,7 +845,6 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final statusColor = _getStatusColor(widget.asset['status']);
     final hasImage = widget.asset['photo_path'] != null;
 
@@ -922,20 +866,11 @@ class _AnimatedAssetCardState extends State<_AnimatedAssetCard> {
               transform: Matrix4.diagonal3Values(_isHovered ? 1.02 : 1.0, _isHovered ? 1.02 : 1.0, 1.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
-                color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white, 
-                border: Border.all(
-                  color: isDark 
-                    ? Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.05)
-                    : Colors.grey.withValues(alpha: _isHovered ? 0.4 : 0.15),
-                  width: 1.5
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: _isHovered ? 0.1 : 0.04),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10)
-                  )
-                ],
+                color: Colors.white.withValues(alpha: 0.03), // Subtle glass 
+                border: Border.all(color: Colors.white.withValues(alpha: _isHovered ? 0.2 : 0.05), width: 1.5),
+                boxShadow: _isHovered ? [
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))
+                ] : [],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
@@ -1765,7 +1700,14 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
   }
 
   Future<void> _reloadAsset() async {
-    final refreshed = await DatabaseHelper.instance.getAssetById(_asset['id']);
+    final barcode = _asset['barcode'];
+    final refreshed = await DatabaseHelper.instance.getAssetByBarcode(barcode); // Using barcode lookup or we need getById
+    // Actually we need getAssetById logic, but we only have getAssetByBarcode public or getAll. 
+    // Let's assume barcode is stable. Or I should add getAssetById
+    
+    // Fallback: reload history and just set didUpdate = true. 
+    // Ideally we want to see the new Name/Model immediately.
+    // Let's implement fresh fetch.
     if (refreshed != null) {
       setState(() {
          _asset = refreshed;
@@ -2210,6 +2152,52 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
               ],
             )
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderBtn extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color textColor;
+  final bool isPrimary;
+
+  const _HeaderBtn({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ] : null,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         ),
       ),
     );

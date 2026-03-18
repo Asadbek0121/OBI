@@ -5,7 +5,6 @@ import 'package:pluto_grid/pluto_grid.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
-import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/theme/grid_theme.dart';
@@ -700,123 +699,189 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
     final t = Provider.of<AppTranslations>(context);
-    
+
+    final gridConfig = GridTheme.getConfig(context).copyWith(
+      localeText: PlutoGridLocaleText(
+        unfreezeColumn: t.text('grid_unfreeze'),
+        freezeColumnToStart: t.text('grid_freeze_start'),
+        freezeColumnToEnd: t.text('grid_freeze_end'),
+        autoFitColumn: t.text('grid_auto_fit'),
+        hideColumn: t.text('grid_hide_column'),
+        setColumns: t.text('grid_set_columns'),
+        setFilter: t.text('grid_set_filter'),
+        resetFilter: t.text('grid_reset_filter'),
+        filterContains: t.text('filter_contains'),
+        filterEquals: t.text('filter_equals'),
+        filterStartsWith: t.text('filter_starts_with'),
+        filterEndsWith: t.text('filter_ends_with'),
+        filterGreaterThan: t.text('filter_greater'),
+        filterGreaterThanOrEqualTo: t.text('filter_greater_equal'),
+        filterLessThan: t.text('filter_less'),
+        filterLessThanOrEqualTo: t.text('filter_less_equal'),
+      ),
+      columnSize: const PlutoGridColumnSizeConfig(
+        autoSizeMode: PlutoAutoSizeMode.scale,
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.text('rep_title'), style: Theme.of(context).textTheme.headlineMedium),
+                Text(t.text('rep_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                )),
                 const SizedBox(height: 8),
-                Text(
-                  "${_startDate.toString().substring(0,10)} - ${_endDate.toString().substring(0,10)}",
-                  style: const TextStyle(color: Colors.grey),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        "${_startDate.toString().substring(0,10)} — ${_endDate.toString().substring(0,10)}",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ElevatedButton.icon(
+                _HeaderBtn(
                   onPressed: _selectDateRange,
-                  icon: const Icon(Icons.date_range),
-                  label: Text(t.text('rep_select_date')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    foregroundColor: AppColors.primary,
-                    elevation: 0,
-                  ),
+                  icon: Icons.date_range_rounded,
+                  label: t.text('rep_select_date'),
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  textColor: AppColors.primary,
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _exportToExcel, 
-                  icon: const Icon(Icons.download), 
-                  label: Text(t.text('btn_export_excel')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                  ),
+                _HeaderBtn(
+                  onPressed: _exportToExcel,
+                  icon: Icons.download_rounded,
+                  label: "Excel",
+                  color: AppColors.success,
+                  textColor: Colors.white,
+                  isPrimary: true,
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
+                _HeaderBtn(
                   onPressed: _sendToTelegram,
-                  icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                  label: const Text("Telegram"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                  ),
+                  icon: Icons.send_rounded,
+                  label: "Telegram",
+                  color: const Color(0xFF229ED9), // Telegram Blue
+                  textColor: Colors.white,
+                  isPrimary: true,
                 ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: AppColors.primary,
-          tabs: [
-            Tab(text: "📦 ${t.text('rep_in_report')}"),
-            Tab(text: "📤 ${t.text('rep_out_report')}"),
-          ],
+        const SizedBox(height: 24),
+        Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.all(4),
+          child: TabBar(
+            controller: _tabController,
+            dividerColor: Colors.transparent,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            labelColor: AppColors.primary,
+            unselectedLabelColor: Colors.grey[600],
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+            tabs: [
+              Tab(text: t.text('rep_in_report')),
+              Tab(text: t.text('rep_out_report')),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: _isLoading 
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildGrid(
-                    context,
-                    columns: _getInColumns(t), 
-                    rows: _inRows, 
-                    onLoaded: (e) => _inStateManager = e.stateManager
-                  ),
-                  _buildGrid(
-                    context,
-                    columns: _getOutColumns(t), 
-                    rows: _outRows, 
-                    onLoaded: (e) => _outStateManager = e.stateManager
-                  ),
-                ],
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildGridContainer(
+                context,
+                columns: _getInColumns(t), 
+                rows: _inRows, 
+                onLoaded: (e) => _inStateManager = e.stateManager,
+                config: gridConfig,
               ),
+              _buildGridContainer(
+                context,
+                columns: _getOutColumns(t), 
+                rows: _outRows, 
+                onLoaded: (e) => _outStateManager = e.stateManager,
+                config: gridConfig,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildGrid(BuildContext context, {required List<PlutoColumn> columns, required List<PlutoRow> rows, required Function(PlutoGridOnLoadedEvent) onLoaded}) {
-    return GlassContainer(
-      padding: EdgeInsets.zero,
+  Widget _buildGridContainer(BuildContext context, {
+    required List<PlutoColumn> columns, 
+    required List<PlutoRow> rows, 
+    required Function(PlutoGridOnLoadedEvent) onLoaded,
+    required PlutoGridConfiguration config,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: PlutoGrid(
-          key: ValueKey(Provider.of<AppTranslations>(context).currentLocale),
           columns: columns,
           rows: rows,
           onLoaded: onLoaded,
           mode: PlutoGridMode.readOnly,
-          configuration: PlutoGridConfiguration(
-            localeText: PlutoGridLocaleText(
-              unfreezeColumn: Provider.of<AppTranslations>(context, listen: false).text('grid_unfreeze'),
-              freezeColumnToStart: Provider.of<AppTranslations>(context, listen: false).text('grid_freeze_start'),
-              freezeColumnToEnd: Provider.of<AppTranslations>(context, listen: false).text('grid_freeze_end'),
-              autoFitColumn: Provider.of<AppTranslations>(context, listen: false).text('grid_auto_fit'),
-              hideColumn: Provider.of<AppTranslations>(context, listen: false).text('grid_hide_column'),
-              setColumns: Provider.of<AppTranslations>(context, listen: false).text('grid_set_columns'),
-              setFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_set_filter'),
-              resetFilter: Provider.of<AppTranslations>(context, listen: false).text('grid_reset_filter'),
-            ),
-            style: GridTheme.getStyle(context),
-          ),
+          configuration: config,
         ),
       ),
     );
@@ -899,5 +964,51 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
         },
       ),
     ];
+  }
+}
+
+class _HeaderBtn extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color textColor;
+  final bool isPrimary;
+
+  const _HeaderBtn({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ] : null,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+      ),
+    );
   }
 }

@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl.dart';
 
 class ExcelService {
   static Future<Map<String, int>> importData(String path) async {
@@ -489,111 +488,6 @@ class ExcelService {
   static String _sanitizeSheetName(String name) {
     // Excel sheets cannot have certain characters or be longer than 31 chars
     return name.replaceAll(RegExp(r'[*?:/\\\[\]]'), '').substring(0, name.length > 31 ? 31 : name.length);
-  }
-
-  static Future<File?> generateFullBackupExcel() async {
-    try {
-      final db = DatabaseHelper.instance;
-      
-      // 1. Fetch all data
-      final inventory = await db.getInventorySummary();
-      final products = await db.getAllProducts();
-      final stockIn = await db.getStockInReport();
-      final stockOut = await db.getStockOutReport();
-      
-      final excel = xl.Excel.createExcel();
-      excel.rename('Sheet1', 'Omborxona');
-      
-      // Styles
-      final headerStyle = xl.CellStyle(
-        bold: true,
-        backgroundColorHex: xl.ExcelColor.fromHexString("#4F81BD"),
-        fontColorHex: xl.ExcelColor.fromHexString("#FFFFFF"),
-        horizontalAlign: xl.HorizontalAlign.Center,
-      );
-
-      // --- Sheet 1: Omborxona ---
-      var sheet1 = excel['Omborxona'];
-      final h1 = ["ID", "Nomi", "Birlik", "Qoldiq", "Minimal qoldiq"];
-      for(int i=0; i<h1.length; i++) {
-        var cell = sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.value = xl.TextCellValue(h1[i]);
-        cell.cellStyle = headerStyle;
-      }
-      for(int r=0; r<inventory.length; r++) {
-        final d = inventory[r];
-        sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r+1)).value = xl.TextCellValue(d['id'].toString());
-        sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r+1)).value = xl.TextCellValue(d['name'] ?? '');
-        sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r+1)).value = xl.TextCellValue(d['unit'] ?? '');
-        sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r+1)).value = xl.DoubleCellValue((d['stock'] as num).toDouble());
-        sheet1.cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: r+1)).value = xl.DoubleCellValue((d['min_stock_alert'] as num).toDouble());
-      }
-
-      // --- Sheet 2: Baza ---
-      var sheet2 = excel['Baza'];
-      final h2 = ["ID", "Nomi", "Birlik", "Tavsif"];
-      for(int i=0; i<h2.length; i++) {
-        var cell = sheet2.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.value = xl.TextCellValue(h2[i]);
-        cell.cellStyle = headerStyle;
-      }
-      for(int r=0; r<products.length; r++) {
-        final d = products[r];
-        sheet2.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r+1)).value = xl.TextCellValue(d['id'].toString());
-        sheet2.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r+1)).value = xl.TextCellValue(d['name'] ?? '');
-        sheet2.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r+1)).value = xl.TextCellValue(d['unit'] ?? '');
-        sheet2.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r+1)).value = xl.TextCellValue(d['description'] ?? '');
-      }
-
-      // --- Sheet 3: Kirim ---
-      var sheet3 = excel['Kirim'];
-      final h3 = ["Sana", "ID", "Mahsulot", "Soni", "Narxi", "Jami", "Yetkazib beruvchi"];
-      for(int i=0; i<h3.length; i++) {
-        var cell = sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.value = xl.TextCellValue(h3[i]);
-        cell.cellStyle = headerStyle;
-      }
-      for(int r=0; r<stockIn.length; r++) {
-        final d = stockIn[r];
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r+1)).value = xl.TextCellValue(d['date_time']?.toString().substring(0, 16).replaceAll('T', ' ') ?? '');
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r+1)).value = xl.TextCellValue(d['product_id'].toString());
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r+1)).value = xl.TextCellValue(d['product_name'] ?? '');
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r+1)).value = xl.DoubleCellValue((d['quantity'] as num).toDouble());
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: r+1)).value = xl.DoubleCellValue((d['price_per_unit'] as num).toDouble());
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: r+1)).value = xl.DoubleCellValue((d['total_amount'] as num).toDouble());
-        sheet3.cell(xl.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: r+1)).value = xl.TextCellValue(d['supplier_name'] ?? '');
-      }
-
-      // --- Sheet 4: Chiqim ---
-      var sheet4 = excel['Chiqim'];
-      final h4 = ["Sana", "ID", "Mahsulot", "Soni", "Qabul qiluvchi"];
-      for(int i=0; i<h4.length; i++) {
-        var cell = sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.value = xl.TextCellValue(h4[i]);
-        cell.cellStyle = headerStyle;
-      }
-      for(int r=0; r<stockOut.length; r++) {
-        final d = stockOut[r];
-        sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: r+1)).value = xl.TextCellValue(d['date_time']?.toString().substring(0, 16).replaceAll('T', ' ') ?? '');
-        sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: r+1)).value = xl.TextCellValue(d['product_id'].toString());
-        sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: r+1)).value = xl.TextCellValue(d['product_name'] ?? '');
-        sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: r+1)).value = xl.DoubleCellValue((d['quantity'] as num).toDouble());
-        sheet4.cell(xl.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: r+1)).value = xl.TextCellValue(d['receiver_name'] ?? '');
-      }
-
-      // Save
-      final fileBytes = excel.save();
-      if (fileBytes != null) {
-        final directory = await getTemporaryDirectory();
-        final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-        final file = File("${directory.path}/Baza_Zaxira_$timestamp.xlsx");
-        await file.writeAsBytes(fileBytes);
-        return file;
-      }
-    } catch (e) {
-      debugPrint("❌ Excel Backup Error: $e");
-    }
-    return null;
   }
 }
 

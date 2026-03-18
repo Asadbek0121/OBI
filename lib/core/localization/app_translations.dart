@@ -44,6 +44,11 @@ class AppTranslations extends ChangeNotifier {
       'menu_backup': 'Zaxira (Backup)',
       'menu_settings': 'Sozlamalar',
       'menu_logout': 'Chiqish',
+      'menu_transactions': 'Amallar',
+      'label_system': 'Tizim',
+      'dlg_factory_reset_title': 'Zavod holatiga qaytarish',
+      'dlg_factory_reset_content': 'DIQQAT! Bu amal barcha ma\'lumotlarni (mahsulotlar, kirim-chiqimlar, jihozlar) butunlay o\'chirib tashlaydi. Dastur yangidek holatga qaytadi. Davom etasizmi?',
+      'btn_factory_reset': 'Zavod holatiga qaytarish',
       
       // Actions
       'btn_save': 'Saqlash',
@@ -301,10 +306,6 @@ class AppTranslations extends ChangeNotifier {
       'dash_pending': 'Kutilmoqda',
       'dash_delivered': 'Yetkazildi',
       'dash_last_update': 'Oxirgi',
-      'set_factory_reset': 'Zavod sozlamalariga qaytarish',
-      'set_factory_reset_desc': 'Barcha ma\'lumotlar va mahsulotlar o\'chib ketadi',
-      'dlg_factory_reset_title': 'TO\'LIQ TOZALASH!',
-      'dlg_factory_reset_content': 'Siz haqiqatdan ham butun ma\'lumotlar bazasini o\'chirib yubormoqchimisiz? Mahsulotlar ro\'yxati, yetkazib beruvchilar va barcha tarixiy ma\'lumotlar butunlay o\'chib ketadi. Bu amalni ORQAGA QAYTARIB BO\'LMAYDI!',
     },
     'ru': {
       // Sidebar
@@ -572,10 +573,6 @@ class AppTranslations extends ChangeNotifier {
       'dash_pending': 'В ожидании',
       'dash_delivered': 'Доставлено',
       'dash_last_update': 'Последнее',
-      'set_factory_reset': 'Сброс до заводских настроек',
-      'set_factory_reset_desc': 'Все данные и товары будут удалены',
-      'dlg_factory_reset_title': 'ПОЛНАЯ ОЧИСТКА!',
-      'dlg_factory_reset_content': 'Вы действительно хотите полностью очистить базу данных? Список товаров, поставщики и вся история будут безвозвратно удалены. Это действие НЕВОЗМОЖНО ОТМЕНИТЬ!',
     },
     'tr': {
       // Sidebar
@@ -806,10 +803,6 @@ class AppTranslations extends ChangeNotifier {
       'inventory_desc': 'Depodaki ürünlerin genel durumu ve bakiyesi.',
       'msg_confirm_delete': 'Silmek istediğinizden emin misiniz?',
       'msg_deleted': 'Silindi',
-      'set_factory_reset': 'Fabrika Ayarlarına Dön',
-      'set_factory_reset_desc': 'Tüm veriler ve ürünler silinecektir',
-      'dlg_factory_reset_title': 'TAM TEMİZLİK!',
-      'dlg_factory_reset_content': 'Veritabanını tamamen temizlemek istediğinizden emin misiniz? Ürün listesi, tedarikçiler ve tüm geçmiş veriler kalıcı olarak silinecektir. Bu işlem GERİ ALINAMAZ!',
 
       // Telegram & Assets New
       'menu_assets': 'Varlıklar',

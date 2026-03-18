@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
@@ -39,23 +38,59 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(t.text('db_title'), style: Theme.of(context).textTheme.headlineMedium),
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: AppColors.primary,
-              tabs: [
-                Tab(text: t.text('db_products')),
-                Tab(text: t.text('db_suppliers')),
-                Tab(text: t.text('db_receivers')),
-                Tab(text: t.text('db_payment_types')),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t.text('db_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                )),
+                const SizedBox(height: 4),
+                Container(
+                  width: 60,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ],
+            ),
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.primary,
+                ),
+                dividerColor: Colors.transparent,
+                tabs: [
+                  Tab(text: t.text('db_products')),
+                  Tab(text: t.text('db_suppliers')),
+                  Tab(text: t.text('db_receivers')),
+                  Tab(text: t.text('db_payment_types')),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         Expanded(
           child: TabBarView(
             controller: _tabController,
@@ -161,7 +196,6 @@ class _ProductGridState extends State<_ProductGrid> {
         field: 'id',
         type: PlutoColumnType.text(),
         width: 150,
-        textAlign: PlutoColumnTextAlign.center,
       ),
       PlutoColumn(
         title: t.text('col_product'),
@@ -183,20 +217,13 @@ class _ProductGridState extends State<_ProductGrid> {
         enableFilterMenuItem: false,
         enableSorting: false,
         enableSetColumnsMenuItem: false,
-        width: 60,
-        textAlign: PlutoColumnTextAlign.center,
+        width: 80,
         renderer: (rendererContext) {
-          final id = rendererContext.row.cells['id']?.value.toString() ?? '';
-          if (id.isEmpty && rendererContext.rowIdx == stateManager.rows.length - 1) return const SizedBox.shrink();
           return IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
+            icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () {
                _confirmDelete(rendererContext.row);
             },
-            style: IconButton.styleFrom(
-              hoverColor: Colors.red.withValues(alpha: 0.05),
-              padding: EdgeInsets.zero,
-            ),
           );
         },
       ),
@@ -206,20 +233,45 @@ class _ProductGridState extends State<_ProductGrid> {
       children: [
         Align(
           alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
-            onPressed: _saveChanges, 
-            icon: const Icon(Icons.save), 
-            label: Text(t.text('db_save_products')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _saveChanges, 
+              icon: const Icon(Icons.save_rounded, size: 20), 
+              label: Text(t.text('db_save_products')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
         Expanded(
-          child: GlassContainer(
-            padding: EdgeInsets.zero,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: PlutoGrid(
@@ -237,7 +289,7 @@ class _ProductGridState extends State<_ProductGrid> {
                     }
                   }
                 },
-                configuration: PlutoGridConfiguration(
+                configuration: GridTheme.getConfig(context).copyWith(
                   localeText: PlutoGridLocaleText(
                     unfreezeColumn: Provider.of<AppTranslations>(context, listen: false).text('grid_unfreeze'),
                     freezeColumnToStart: Provider.of<AppTranslations>(context, listen: false).text('grid_freeze_start'),
@@ -256,12 +308,6 @@ class _ProductGridState extends State<_ProductGrid> {
                     filterLessThan: Provider.of<AppTranslations>(context, listen: false).text('filter_less'),
                     filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
-                    style: GridTheme.getStyle(context),
-                    scrollbar: const PlutoGridScrollbarConfig(
-                      isAlwaysShown: true,
-                      scrollbarThickness: 10,
-                      scrollbarRadius: Radius.circular(5),
-                    ),
                 ),
               ),
             ),
@@ -400,20 +446,15 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
         enableFilterMenuItem: false,
         enableSorting: false,
         enableSetColumnsMenuItem: false,
-        width: 60,
-        textAlign: PlutoColumnTextAlign.center,
+        width: 80,
         renderer: (rendererContext) {
            // Don't show delete on the empty 'add new' row
            if (rendererContext.rowIdx == stateManager.rows.length - 1) return const SizedBox.shrink();
            return IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
+            icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () {
                _confirmDelete(rendererContext.row);
             },
-            style: IconButton.styleFrom(
-              hoverColor: Colors.red.withValues(alpha: 0.05),
-              padding: EdgeInsets.zero,
-            ),
           );
         },
       ),
@@ -423,20 +464,45 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
       children: [
          Align(
           alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
-            onPressed: _saveChanges, 
-            icon: const Icon(Icons.save), 
-            label: Text(t.text('btn_save')),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.success.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _saveChanges, 
+              icon: const Icon(Icons.check_circle_outline_rounded, size: 20), 
+              label: Text(t.text('btn_save')),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
         Expanded(
-          child: GlassContainer(
-            padding: EdgeInsets.zero,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: PlutoGrid(
@@ -454,7 +520,7 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
                     }
                   }
                 },
-                configuration: PlutoGridConfiguration(
+                configuration: GridTheme.getConfig(context).copyWith(
                   localeText: PlutoGridLocaleText(
                     unfreezeColumn: Provider.of<AppTranslations>(context, listen: false).text('grid_unfreeze'),
                     freezeColumnToStart: Provider.of<AppTranslations>(context, listen: false).text('grid_freeze_start'),
@@ -473,12 +539,6 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
                     filterLessThan: Provider.of<AppTranslations>(context, listen: false).text('filter_less'),
                     filterLessThanOrEqualTo: Provider.of<AppTranslations>(context, listen: false).text('filter_less_equal'),
                   ),
-                    style: GridTheme.getStyle(context),
-                    scrollbar: const PlutoGridScrollbarConfig(
-                      isAlwaysShown: true,
-                      scrollbarThickness: 10,
-                      scrollbarRadius: Radius.circular(5),
-                    ),
                 ),
               ),
             ),

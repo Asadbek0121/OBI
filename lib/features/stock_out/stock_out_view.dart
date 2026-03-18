@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
-import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
@@ -80,7 +79,7 @@ class _StockOutViewState extends State<StockOutView> {
         field: 'product_name',
         type: PlutoColumnType.text(),
         width: 250,
-        enableEditingMode: false, // Read-only, filled by ID
+        enableEditingMode: false,
       ),
       PlutoColumn(
         title: t.text('col_unit'),
@@ -94,7 +93,6 @@ class _StockOutViewState extends State<StockOutView> {
         field: 'quantity',
         type: PlutoColumnType.text(),
         width: 120,
-        textAlign: PlutoColumnTextAlign.right,
       ),
       PlutoColumn(
         title: t.text('col_to_receiver'),
@@ -121,36 +119,12 @@ class _StockOutViewState extends State<StockOutView> {
           );
         },
       ),
-      // Hidden column for validation
       PlutoColumn(
         title: t.text('col_stock'),
         field: 'current_stock',
         type: PlutoColumnType.number(),
         width: 0,
         hide: true,
-      ),
-      PlutoColumn(
-        title: "",
-        field: "action",
-        type: PlutoColumnType.text(),
-        readOnly: true,
-        enableFilterMenuItem: false,
-        enableSorting: false,
-        enableSetColumnsMenuItem: false,
-        width: 60,
-        textAlign: PlutoColumnTextAlign.center,
-        renderer: (rendererContext) {
-          return IconButton(
-            icon: Icon(Icons.delete_outline_rounded, color: Colors.red.withValues(alpha: 0.6), size: 18),
-            onPressed: () {
-               stateManager.removeRows([rendererContext.row]);
-            },
-            style: IconButton.styleFrom(
-              hoverColor: Colors.red.withValues(alpha: 0.05),
-              padding: EdgeInsets.zero,
-            ),
-          );
-        },
       ),
     ];
 
@@ -174,16 +148,13 @@ class _StockOutViewState extends State<StockOutView> {
         final receiver = row.cells['receiver']?.value.toString() ?? '';
         final dateStr = row.cells['date']?.value.toString() ?? DateTime.now().toIso8601String();
         
-        // We can use the row date, but we need to ensure it's in a standard format for DB
-        // PlutoGrid date column usually returns formatted string.
-        
         await DatabaseHelper.instance.insertStockOut({
-           'id': DateTime.now().millisecondsSinceEpoch.toString() + productId, // Unique ID
+           'id': DateTime.now().millisecondsSinceEpoch.toString() + productId,
            'product_id': productId,
-           'date_time': dateStr, // Use user selected date
+           'date_time': dateStr,
            'quantity': qty,
            'receiver_name': receiver,
-           'batch_reference': '', // Default empty for now as requested
+           'batch_reference': '',
            'notes': '', 
         });
         savedCount++;
@@ -215,7 +186,6 @@ class _StockOutViewState extends State<StockOutView> {
           'quantity': PlutoCell(value: ''),
           'receiver': PlutoCell(value: receivers.isNotEmpty ? receivers.first : ''),
           'current_stock': PlutoCell(value: ''),
-          'action': PlutoCell(value: ''),
         },
       );
   }
@@ -227,8 +197,7 @@ class _StockOutViewState extends State<StockOutView> {
     }
 
     final t = Provider.of<AppTranslations>(context);
-
-    final gridConfig = PlutoGridConfiguration(
+    final gridConfig = GridTheme.getConfig(context).copyWith(
       localeText: PlutoGridLocaleText(
         unfreezeColumn: t.text('grid_unfreeze'),
         freezeColumnToStart: t.text('grid_freeze_start'),
@@ -250,56 +219,52 @@ class _StockOutViewState extends State<StockOutView> {
       columnSize: const PlutoGridColumnSizeConfig(
         autoSizeMode: PlutoAutoSizeMode.scale,
       ),
-      scrollbar: const PlutoGridScrollbarConfig(
-        isAlwaysShown: true,
-        scrollbarThickness: 10,
-        scrollbarRadius: Radius.circular(5),
-      ),
-      style: GridTheme.getStyle(context),
     );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 16,
+          runSpacing: 16,
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.text('header_check_out'), style: Theme.of(context).textTheme.headlineMedium),
+                Text(t.text('header_check_out'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                )),
                 const SizedBox(height: 8),
-                Text(t.text('out_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                Text(t.text('out_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
               ],
             ),
             
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ElevatedButton.icon(
+                _HeaderButton(
                   onPressed: () {
                     if (mounted) {
                       stateManager.removeAllRows();
                       stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
                     }
                   }, 
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: Text(t.text('btn_cancel')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.withValues(alpha: 0.2),
-                    foregroundColor: AppColors.textPrimary,
-                    elevation: 0,
-                  ),
+                  icon: Icons.refresh_rounded,
+                  label: t.text('btn_cancel'),
+                  color: Colors.grey[200]!,
+                  textColor: AppColors.textPrimary,
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
+                _HeaderButton(
                   onPressed: _saveStockOut, 
-                  icon: const Icon(Icons.check_circle), 
-                  label: Text(t.text('btn_create_out')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error, // Red for outflow
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  ),
+                  icon: Icons.check_circle_rounded, 
+                  label: t.text('btn_out'),
+                  color: AppColors.primary, 
+                  textColor: Colors.white,
+                  isPrimary: true,
                 ),
               ],
             ),
@@ -308,8 +273,19 @@ class _StockOutViewState extends State<StockOutView> {
         const SizedBox(height: 24),
 
         Expanded(
-          child: GlassContainer(
-            padding: EdgeInsets.zero,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+            ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: PlutoGrid(
@@ -321,26 +297,21 @@ class _StockOutViewState extends State<StockOutView> {
                   stateManager.setShowColumnFilter(false);
                 },
                 onChanged: (PlutoGridOnChangedEvent event) async {
-                   // Auto-append row if the last row is modified
                    if (event.rowIdx == stateManager.rows.length - 1) {
                      if (event.column.field == 'product_id' && event.value.toString().isNotEmpty) {
                         stateManager.appendRows([_createEmptyRow(stateManager.rows.length + 1)]);
                      }
                    }
 
-                   // 1. ID Lookup Logic
                    if (event.column.field == 'product_id') {
                       final id = event.value.toString();
                       if (id.isNotEmpty) {
-                         // Get Product Info
                          final product = await DatabaseHelper.instance.getProductById(id);
                          if (product != null) {
                             event.row.cells['product_name']?.value = product['name'];
-                            event.row.cells['unit']?.value = product['unit'] ?? ''; // Populate Unit
+                            event.row.cells['unit']?.value = product['unit'] ?? '';
                             
-                            // Get Inventory Level
                             final inventory = await DatabaseHelper.instance.getInventorySummary();
-                            // Find stock for this ID
                             final stockItem = inventory.firstWhere((e) => e['id'] == id, orElse: () => {'stock': 0.0});
                             event.row.cells['current_stock']?.value = stockItem['stock'] ?? 0;
                          } else {
@@ -352,13 +323,12 @@ class _StockOutViewState extends State<StockOutView> {
                       }
                    }
 
-                  // Validation Logic: Check if Quantity > Stock
                   if (event.column.field == 'quantity') {
                     final qty = double.tryParse(event.row.cells['quantity']?.value.toString() ?? '0') ?? 0;
                     final stock = double.tryParse(event.row.cells['current_stock']?.value.toString() ?? '0') ?? 0;
                     
                     if (qty > stock) {
-                       event.row.cells['quantity']?.value = stock; // Auto-clamp
+                       event.row.cells['quantity']?.value = stock;
                        if (context.mounted) {
                          ScaffoldMessenger.of(context).showSnackBar(
                            SnackBar(content: Text("Omborda yetarli emas! Mavjud: $stock"), duration: const Duration(seconds: 1)),
@@ -389,7 +359,10 @@ class _StockOutViewState extends State<StockOutView> {
           builder: (context, setDialogState) {
             final filteredOptions = options.where((o) => o.toLowerCase().contains(filter.toLowerCase())).toList();
             return AlertDialog(
-              title: Text(title),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
               content: SizedBox(
                 width: 400,
                 height: 500,
@@ -399,41 +372,91 @@ class _StockOutViewState extends State<StockOutView> {
                       decoration: InputDecoration(
                         hintText: "Qidirish...",
                         prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                       onChanged: (v) => setDialogState(() => filter = v),
                     ),
                     const SizedBox(height: 16),
                     Expanded(
-                      child: Scrollbar(
-                        thumbVisibility: true,
-                        thickness: 8,
-                        child: ListView.builder(
-                          itemCount: filteredOptions.length,
-                          itemBuilder: (context, i) {
-                            return ListTile(
-                              title: Text(filteredOptions[i]),
-                              onTap: () {
-                                onSelected(filteredOptions[i]);
-                                Navigator.pop(context);
-                              },
-                              hoverColor: AppColors.primary.withValues(alpha: 0.1),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            );
-                          },
-                        ),
+                      child: ListView.builder(
+                        itemCount: filteredOptions.length,
+                        itemBuilder: (context, i) {
+                          return ListTile(
+                            title: Text(filteredOptions[i]),
+                            onTap: () {
+                              onSelected(filteredOptions[i]);
+                              Navigator.pop(context);
+                            },
+                            hoverColor: AppColors.primary.withValues(alpha: 0.1),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(Provider.of<AppTranslations>(context, listen: false).text('btn_cancel'))),
+                TextButton(
+                  onPressed: () => Navigator.pop(context), 
+                  child: Text(Provider.of<AppTranslations>(context, listen: false).text('btn_cancel'))
+                ),
               ],
             );
           }
         );
       }
+    );
+  }
+}
+
+class _HeaderButton extends StatelessWidget {
+  final VoidCallback? onPressed;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color textColor;
+  final bool isPrimary;
+
+  const _HeaderButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.textColor,
+    this.isPrimary = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: isPrimary ? [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ] : null,
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 0,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+      ),
     );
   }
 }
