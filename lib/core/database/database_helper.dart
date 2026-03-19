@@ -106,6 +106,14 @@ class DatabaseHelper {
       if (!e.toString().toLowerCase().contains('duplicate')) {}
     }
 
+    // Add brand and description columns if missing
+    try {
+      await db.execute('ALTER TABLE assets ADD COLUMN brand TEXT');
+    } catch (e) { /* already exists */ }
+    try {
+      await db.execute('ALTER TABLE assets ADD COLUMN description TEXT');
+    } catch (e) { /* already exists */ }
+
     // 🚀 STEP 1 for CLOUD SYNC: Ensure ALL tables have 'updated_at' and 'sync_status'
     final tablesToSync = [
       'products', 'stock_in', 'stock_out', 'assets', 

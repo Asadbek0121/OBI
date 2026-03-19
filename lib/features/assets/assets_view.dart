@@ -1394,6 +1394,8 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
   final _serialCtrl = TextEditingController();
   final _colorCtrl = TextEditingController();
   final _catCtrl = TextEditingController();
+  final _brandCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
   
   int? _selectedBuildId;
   int? _selectedFloorId;
@@ -1412,10 +1414,12 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
     if (widget.asset != null) {
       final a = widget.asset!;
       _nameCtrl.text = a['name'];
+      _brandCtrl.text = a['brand'] ?? '';
       _modelCtrl.text = a['model'] ?? '';
       _serialCtrl.text = a['serial_number'] ?? '';
       _colorCtrl.text = a['color'] ?? '';
       _catCtrl.text = a['category_name'] ?? '';
+      _descCtrl.text = a['description'] ?? '';
       _selectedStatus = a['status'];
       _photoPath = a['photo_path'];
       
@@ -1509,6 +1513,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
       // 3. Insert or Update Asset
       final data = {
         'name': _nameCtrl.text,
+        'brand': _brandCtrl.text,
         'model': _modelCtrl.text,
         'serial_number': _serialCtrl.text,
         'color': _colorCtrl.text,
@@ -1516,6 +1521,7 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
         'location_id': _selectedRoomId,
         'status': _selectedStatus,
         'photo_path': _photoPath,
+        'description': _descCtrl.text,
       };
 
       if (widget.asset == null) {
@@ -1535,7 +1541,6 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
     }
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
@@ -1590,6 +1595,8 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                 
                 Row(
                   children: [
+                    Expanded(child: TextFormField(controller: _brandCtrl, decoration: _deco('Brend'))),
+                    const SizedBox(width: 16),
                     Expanded(child: TextFormField(controller: _modelCtrl, decoration: _deco(t.text('asset_inp_model')))),
                     const SizedBox(width: 16),
                     Expanded(child: TextFormField(controller: _serialCtrl, decoration: _deco(t.text('asset_inp_serial')))),
@@ -1619,6 +1626,12 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
                 ),
                 const SizedBox(height: 20),
                 TextFormField(controller: _colorCtrl, decoration: _deco(t.text('asset_inp_color'))),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _descCtrl, 
+                  decoration: _deco('Tavsif'),
+                  maxLines: 2,
+                ),
                 
                 const SizedBox(height: 32),
                 Text(t.text('menu_location'), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -1811,11 +1824,15 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _infoRow("${t.text('col_name')}:", _asset['name']),
+                    if ((_asset['brand'] ?? '').toString().isNotEmpty)
+                      _infoRow('Brend:', _asset['brand']),
                     _infoRow("${t.text('asset_inp_model')}/Marka:", _asset['model'] ?? '-'),
                     _infoRow("${t.text('asset_inp_serial')}:", _asset['serial_number'] ?? '-'),
                     _infoRow("${t.text('col_category')}:", _asset['category_name'] ?? '-'),
                     _infoRow("${t.text('col_status')}:", _asset['status'] ?? t.text('status_new')),
                     _infoRow("${t.text('asset_inp_color')}:", _asset['color'] ?? '-'),
+                    if ((_asset['description'] ?? '').toString().isNotEmpty)
+                      _infoRow('Tavsif:', _asset['description']),
                     
                     const SizedBox(height: 24),
                     const Divider(),
@@ -1905,17 +1922,7 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      showDialog(context: context, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
-                      PrintService.printAssetBarcode(_asset).then((_) {
-                        if (context.mounted) Navigator.pop(context);
-                      }).catchError((e) {
-                         if (context.mounted) {
-                           Navigator.pop(context);
-                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Xato: $e")));
-                         }
-                      });
-                    }, 
+                    onPressed: () => _showBarcodeDialog(context, t),
                     icon: const Icon(Icons.qr_code_2_rounded),
                     label: const Text("ETIKETKA"),
                     style: ElevatedButton.styleFrom(
@@ -1933,6 +1940,145 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
     ),
   );
 }
+
+
+  void _showBarcodeDialog(BuildContext ctx, AppTranslations t) {
+    final a = _asset;
+    final barcodeData = a['barcode'] ?? 'N/A';
+    
+    Widget infoLine(String label, String? value) => Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 13, color: Colors.black87),
+          children: [
+            TextSpan(text: '$label ', style: const TextStyle(fontWeight: FontWeight.bold)),
+            TextSpan(text: value ?? '-'),
+          ],
+        ),
+      ),
+    );
+
+    showDialog(
+      context: ctx,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('QR kod - To\'liq ma\'lumotlar', 
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Left: barcode
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('40x30mm qog\'oz uchun optimallashtirilgan',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: BarcodeWidget(
+                            barcode: Barcode.code128(),
+                            data: barcodeData,
+                            width: 180,
+                            height: 80,
+                            drawText: true,
+                            style: const TextStyle(fontSize: 8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 24),
+                    // Right: details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Barkodda quyidagi ma\'lumotlar mavjud:',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 12),
+                          infoLine('Tashkilot:', a['grandparent_location_name'] ?? a['parent_location_name']),
+                          if (a['parent_location_name'] != null)
+                            infoLine('Qavat:', a['parent_location_name']),
+                          infoLine('Xona:', a['location_name']),
+                          infoLine('Jihoz:', a['name']),
+                          infoLine('Kategoriya:', a['category_name']),
+                          infoLine('Inv kode:', barcodeData),
+                          if ((a['brand'] ?? '').toString().isNotEmpty)
+                            infoLine('Brend:', a['brand']),
+                          infoLine('Model:', a['model']),
+                          infoLine('Seriya:', a['serial_number']),
+                          infoLine('Rang:', a['color']),
+                          infoLine('Holat:', a['status']),
+                          if ((a['description'] ?? '').toString().isNotEmpty)
+                            infoLine('Tavsif:', a['description']),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Yopish'),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.print_rounded, size: 18),
+                      label: const Text('Chop etish'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        showDialog(context: ctx, barrierDismissible: false, builder: (c) => const Center(child: CircularProgressIndicator()));
+                        PrintService.printAssetBarcode(a).then((_) {
+                          if (ctx.mounted) Navigator.pop(ctx);
+                        }).catchError((e) {
+                          if (ctx.mounted) {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Xato: $e')));
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildHistoryTimeline() {
     final t = Provider.of<AppTranslations>(context);

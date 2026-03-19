@@ -2418,13 +2418,24 @@ class TelegramService {
       debugPrint("🤖 [UltraAI] Sending report to $chatId...");
       final error = await _sendHtmlMessage(chatId, sb.toString());
       if (error != null) {
-        debugPrint("🤖 [UltraAI] Send Error: $error");
-        await sendMessage(chatId, "⚠️ Hisobotni yuborishda xatolik. Admin bilan bog'laning.");
+        debugPrint("🤖 [UltraAI] HTML Send Error: $error — trying plain text fallback");
+        // Fallback: strip HTML tags and send as plain text
+        final plain = sb.toString()
+          .replaceAll(RegExp(r'<[^>]*>'), '')
+          .replaceAll('&lt;', '<')
+          .replaceAll('&gt;', '>')
+          .replaceAll('&amp;', '&');
+        final err2 = await sendMessage(chatId, plain, parseMode: '');
+        if (err2 != null) {
+          await sendMessage(chatId, '⚠️ Hisobot yuborildi, lekin formatlashda xatolik yuz berdi.');
+        }
       }
       
     } catch (e) {
       debugPrint("🤖 [UltraAI] Global Error: $e");
-      await sendMessage(chatId, "❌ Ultra AI tizimida xatolik yuz berdi.");
+      try {
+        await sendMessage(chatId, "❌ Ultra AI: Tahlil xatosi yuz berdi. Iltimos keyinroq urinib ko'ring.");
+      } catch (_) {}
     }
   }
 
