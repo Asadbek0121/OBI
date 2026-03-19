@@ -10,6 +10,8 @@ import '../../core/theme/grid_theme.dart';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:flutter/services.dart';
+
 class InputView extends StatefulWidget {
   const InputView({super.key});
 
@@ -176,6 +178,61 @@ class _InputViewState extends State<InputView> {
     return newId;
   }
 
+  Future<void> _pasteFromClipboard() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    
+    if (text == null || text.isEmpty) {
+      AppNotifications.showError(context, "Clipboard bo'sh");
+      return;
+    }
+
+    try {
+      final lines = text.trim().split('\n');
+      List<PlutoRow> newRows = [];
+      
+      for (var line in lines) {
+        if (line.trim().isEmpty) continue;
+        final cells = line.split('\t'); // Excel columns are tab-separated
+        
+        // Match columns order: #, Date, ID, Product, Price, Unit, Qty, Tax%, TaxSum, Surch%, SurchSum, From, Total
+        // If pasted data has fewer cells, handle it
+        Map<String, PlutoCell> rowCells = {
+          'no': PlutoCell(value: cells.length > 0 ? cells[0] : ''),
+          'date': PlutoCell(value: cells.length > 1 ? cells[1] : DateTime.now().toString().substring(0, 16)),
+          'id': PlutoCell(value: cells.length > 2 ? cells[2] : ''),
+          'product': PlutoCell(value: cells.length > 3 ? cells[3] : ''),
+          'price': PlutoCell(value: cells.length > 4 ? double.tryParse(cells[4].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'unit': PlutoCell(value: cells.length > 5 ? cells[5] : 'dona'),
+          'qty': PlutoCell(value: cells.length > 6 ? double.tryParse(cells[6].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'tax_pct': PlutoCell(value: cells.length > 7 ? double.tryParse(cells[7].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'tax_sum': PlutoCell(value: cells.length > 8 ? double.tryParse(cells[8].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'surcharge_pct': PlutoCell(value: cells.length > 9 ? double.tryParse(cells[9].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'surcharge_sum': PlutoCell(value: cells.length > 10 ? double.tryParse(cells[10].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+          'supplier': PlutoCell(value: cells.length > 11 ? cells[11] : ''),
+          'total': PlutoCell(value: cells.length > 12 ? double.tryParse(cells[12].replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0 : 0.0),
+        };
+        
+        newRows.add(PlutoRow(cells: rowCells));
+      }
+
+      if (newRows.isNotEmpty) {
+        // If first row looks like header, remove it (optional but helpful)
+        final firstRowVal = newRows.first.cells['product']?.value?.toString().toLowerCase();
+        if (firstRowVal == 'product' || firstRowVal == 'mahsulot' || firstRowVal == 'product name') {
+           newRows.removeAt(0);
+        }
+
+        stateManager.prependRows(newRows);
+        AppNotifications.showSuccess(context, "${newRows.length} qator nusxalandi");
+      }
+    } catch (e) {
+      debugPrint("Paste error: $e");
+      AppNotifications.showError(context, "Nusxalashda xatolik: Ma'lumot formati mos emas");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
@@ -272,15 +329,30 @@ class _InputViewState extends State<InputView> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(t.text('inp_title'), style: Theme.of(context).textTheme.headlineMedium),
-                ElevatedButton.icon(
-                  onPressed: _saveData,
-                  icon: const Icon(Icons.save),
-                  label: Text(t.text('btn_save')),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  ),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _pasteFromClipboard,
+                      icon: const Icon(Icons.content_paste),
+                      label: const Text("Paste (Excel)"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _saveData,
+                      icon: const Icon(Icons.save),
+                      label: Text(t.text('btn_save')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
