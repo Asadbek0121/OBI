@@ -6,6 +6,7 @@ import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
+import 'package:flutter/services.dart';
 
 class ProductDatabaseView extends StatefulWidget {
   const ProductDatabaseView({super.key});
@@ -28,6 +29,7 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
     _tabController.dispose();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +141,8 @@ class _ProductGridState extends State<_ProductGrid> {
                'id': PlutoCell(value: p['id']),
                'name': PlutoCell(value: p['name']),
                'unit': PlutoCell(value: p['unit'] ?? (validUnits.isNotEmpty ? validUnits.first : '')),
-               'action': PlutoCell(value: ''), // Fix: Initialize action cell
+               'min_stock_alert': PlutoCell(value: p['min_stock_alert']?.toString() ?? '10'),
+               'action': PlutoCell(value: ''),
             }
           ));
         }
@@ -155,8 +158,88 @@ class _ProductGridState extends State<_ProductGrid> {
       'id': PlutoCell(value: ''),
       'name': PlutoCell(value: ''),
       'unit': PlutoCell(value: validUnits.isNotEmpty ? validUnits.first : 'DONA'),
-      'action': PlutoCell(value: ''), // Fix: Initialize action cell
+      'min_stock_alert': PlutoCell(value: '10'),
+      'action': PlutoCell(value: ''),
     });
+  }
+
+  Future<void> _pasteFromClipboard() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    
+    if (text == null || text.isEmpty) {
+      if (mounted) AppNotifications.showError(context, "Clipboard bo'sh");
+      return;
+    }
+
+    try {
+      stateManager.setShowLoading(true);
+      final lines = text.trim().split('\n');
+      List<PlutoRow> newRows = [];
+      
+      for (var line in lines) {
+        if (line.trim().isEmpty) continue;
+        final cells = line.split('\t'); 
+        
+        // Expected columns: ID, PRODUCT
+        if (cells.length < 2) continue;
+
+        String id = cells[0].trim();
+        String name = cells[1].trim();
+        
+        if (id.isEmpty || name.isEmpty) continue;
+        
+        // Check if ID already exists in current rows
+        bool exists = stateManager.rows.any((r) => r.cells['id']?.value.toString().toLowerCase() == id.toLowerCase());
+        if (exists) continue;
+
+        String minStock = '10';
+        if (cells.length > 2) {
+          // If 3 columns: ID, PRODUCT, MIN_STOCK. If only 2, use default 10.
+          minStock = cells[2].trim().replaceAll(RegExp(r'[^0-9]'), '');
+          if (minStock.isEmpty) minStock = '10';
+        }
+
+        newRows.add(PlutoRow(cells: {
+          'id': PlutoCell(value: id),
+          'name': PlutoCell(value: name),
+          'unit': PlutoCell(value: validUnits.isNotEmpty ? validUnits.first : 'DONA'),
+          'min_stock_alert': PlutoCell(value: minStock),
+          'action': PlutoCell(value: ''),
+        }));
+      }
+
+      if (newRows.isNotEmpty) {
+        // Remove header if copied
+        final firstRowVal = newRows.first.cells['name']?.value?.toString().toLowerCase() ?? '';
+        if (firstRowVal.contains('product') || firstRowVal.contains('mahsulot')) {
+           newRows.removeAt(0);
+        }
+        
+        // Remove the very last empty row if present
+        if (stateManager.rows.isNotEmpty) {
+           final lastRow = stateManager.rows.last;
+           final lastId = lastRow.cells['id']?.value?.toString() ?? '';
+           if (lastId.isEmpty) {
+              stateManager.removeRows([lastRow]);
+           }
+        }
+
+        stateManager.appendRows(newRows);
+        // Add back an empty row at the end
+        stateManager.appendRows([_createEmptyRow()]);
+        
+        if (mounted) {
+           AppNotifications.showSuccess(context, "${newRows.length} ${t.text('db_msg_saved')}");
+        }
+      }
+    } catch (e) {
+      debugPrint("Paste error: $e");
+      if (mounted) AppNotifications.showError(context, "Nusxalashda xatolik");
+    } finally {
+      stateManager.setShowLoading(false);
+    }
   }
 
   Future<void> _saveChanges() async {
@@ -165,12 +248,14 @@ class _ProductGridState extends State<_ProductGrid> {
       final id = row.cells['id']?.value.toString() ?? '';
       final name = row.cells['name']?.value.toString() ?? '';
       final unit = row.cells['unit']?.value.toString() ?? '';
+      final minStock = int.tryParse(row.cells['min_stock_alert']?.value.toString() ?? '10') ?? 10;
 
       if (id.isNotEmpty && name.isNotEmpty) {
         await DatabaseHelper.instance.insertProduct({
           'id': id,
           'name': name,
           'unit': unit,
+          'min_stock_alert': minStock,
           'created_at': DateTime.now().toIso8601String(),
         });
         savedCount++;
@@ -210,6 +295,12 @@ class _ProductGridState extends State<_ProductGrid> {
         width: 150,
       ),
       PlutoColumn(
+        title: t.text('label_min_stock'),
+        field: 'min_stock_alert',
+        type: PlutoColumnType.number(),
+        width: 180,
+      ),
+      PlutoColumn(
         title: "",
         field: "action",
         type: PlutoColumnType.text(),
@@ -231,31 +322,57 @@ class _ProductGridState extends State<_ProductGrid> {
 
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerRight,
-          child: Container(
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.2),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _pasteFromClipboard, 
+                icon: const Icon(Icons.content_paste_rounded, size: 20), 
+                label: const Text("Smart Paste"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  foregroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
                 ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _saveChanges, 
-              icon: const Icon(Icons.save_rounded, size: 20), 
-              label: Text(t.text('db_save_products')),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: _saveChanges, 
+                icon: const Icon(Icons.save_rounded, size: 20), 
+                label: Text(t.text('db_save_products')),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 20),
         Expanded(

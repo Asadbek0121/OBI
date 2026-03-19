@@ -96,7 +96,12 @@ class SyncService {
             'deleted_at',
             'short_code',     // Only for asset_locations
             'payment_status', // Only for stock_in
-            'location'        // Error log mention
+            'location',        // Error log mention
+            'tax_percent',    // New column mismatch with cloud
+            'tax_sum',
+            'surcharge_percent',
+            'surcharge_sum',
+            'min_stock_alert'  // Added to products
           ];
           
           for (var col in localOnlyColumns) {

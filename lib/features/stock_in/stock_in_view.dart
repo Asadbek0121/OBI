@@ -310,6 +310,7 @@ class _StockInViewState extends State<StockInView> {
   }
 
   Future<void> _pasteFromClipboard() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     
@@ -357,13 +358,17 @@ class _StockInViewState extends State<StockInView> {
            if (p != null) {
               row.cells['product_id']?.value = p['id'];
               row.cells['unit']?.value = p['unit'] ?? '';
+              row.cells['product_name']?.value = p['name'];
+           } else {
+              row.cells['product_name']?.value = "❌ ${t.text('msg_not_found')}";
            }
         } else if (pIdVal.isNotEmpty) {
-           // Verify Name if ID exists
            final p = await DatabaseHelper.instance.getProductById(pIdVal);
            if (p != null) {
               row.cells['product_name']?.value = p['name'];
               row.cells['unit']?.value = p['unit'] ?? '';
+           } else {
+              row.cells['product_name']?.value = "❌ ${t.text('msg_not_found')}";
            }
         }
         

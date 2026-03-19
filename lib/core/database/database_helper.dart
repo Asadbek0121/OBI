@@ -598,11 +598,11 @@ class DatabaseHelper {
       LEFT JOIN (
         SELECT product_id, SUM(quantity) as total_in 
         FROM stock_in WHERE is_deleted = 0 GROUP BY product_id
-      ) si ON p.id = si.product_id
+      ) si ON LOWER(p.id) = LOWER(si.product_id)
       LEFT JOIN (
         SELECT product_id, SUM(quantity) as total_out 
         FROM stock_out WHERE is_deleted = 0 GROUP BY product_id
-      ) so ON p.id = so.product_id
+      ) so ON LOWER(p.id) = LOWER(so.product_id)
       WHERE (p.is_deleted = 0 OR p.is_deleted IS NULL)
     ''');
     
@@ -670,25 +670,29 @@ class DatabaseHelper {
       SELECT * FROM (
         SELECT 
           'in' as type,
-          si.date_time,
+          si.updated_at as date,
+          si.date_time as logic_date,
           p.name as product_name,
           si.quantity,
           si.supplier_name as party
         FROM stock_in si
-        JOIN products p ON si.product_id = p.id
+        JOIN products p ON LOWER(si.product_id) = LOWER(p.id)
+        WHERE si.is_deleted = 0
         
         UNION ALL
         
         SELECT 
           'out' as type,
-          so.date_time,
+          so.updated_at as date,
+          so.date_time as logic_date,
           p.name as product_name,
           so.quantity,
           so.receiver_name as party
         FROM stock_out so
-        JOIN products p ON so.product_id = p.id
+        JOIN products p ON LOWER(so.product_id) = LOWER(p.id)
+        WHERE so.is_deleted = 0
       )
-      ORDER BY date_time DESC
+      ORDER BY date DESC
       LIMIT ?
     ''', [limit]);
     
@@ -713,7 +717,7 @@ class DatabaseHelper {
     return await db.rawQuery('''
       SELECT si.*, p.name as product_name, p.unit
       FROM stock_in si
-      JOIN products p ON si.product_id = p.id
+      JOIN products p ON LOWER(si.product_id) = LOWER(p.id)
       WHERE $where
       ORDER BY date_time DESC
     ''', args);
@@ -736,7 +740,7 @@ class DatabaseHelper {
     return await db.rawQuery('''
       SELECT so.*, p.name as product_name, p.unit
       FROM stock_out so
-      JOIN products p ON so.product_id = p.id
+      JOIN products p ON LOWER(so.product_id) = LOWER(p.id)
       WHERE $where
       ORDER BY date_time DESC
     ''', args);
@@ -887,14 +891,11 @@ class DatabaseHelper {
 
   Future<Map<String, dynamic>> getDashboardStatusToday() async {
      final db = await instance.database;
-     final now = DateTime.now();
-     final todayStr = now.toString().substring(0, 10); // yyyy-MM-dd
-
-     // Total IN Today
-     final resIn = await db.rawQuery("SELECT COUNT(*) as cnt, SUM(total_amount) as sm FROM stock_in WHERE date_time LIKE '$todayStr%'");
      
-     // Total OUT Today
-     final resOut = await db.rawQuery("SELECT COUNT(*) as cnt FROM stock_out WHERE date_time LIKE '$todayStr%'");
+     // Robust today comparison using SQLite date() functions (compensates for UTC/Local mismatch)
+     final resIn = await db.rawQuery("SELECT COUNT(*) as cnt, SUM(total_amount) as sm FROM stock_in WHERE date(updated_at, 'localtime') = date('now', 'localtime') AND is_deleted = 0");
+     
+     final resOut = await db.rawQuery("SELECT COUNT(*) as cnt FROM stock_out WHERE date(updated_at, 'localtime') = date('now', 'localtime') AND is_deleted = 0");
 
      return {
        'in_count': resIn.first['cnt'] ?? 0,
@@ -919,7 +920,7 @@ class DatabaseHelper {
         SELECT 
           p.id, p.name, p.unit, so.quantity, so.date_time
         FROM products p
-        JOIN stock_out so ON p.id = so.product_id
+        JOIN stock_out so ON LOWER(p.id) = LOWER(so.product_id)
         WHERE so.date_time >= ? AND so.is_deleted = 0
       ''', [date30d]);
 
@@ -1395,9 +1396,9 @@ class DatabaseHelper {
     final res = await db.rawQuery('''
       SELECT SUM(
         (
-          (SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
-          (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)
-        ) * IFNULL((SELECT price_per_unit FROM stock_in WHERE product_id = p.id AND is_deleted = 0 ORDER BY date_time DESC LIMIT 1), 0)
+          (SELECT IFNULL(SUM(quantity), 0) FROM stock_in WHERE LOWER(product_id) = LOWER(p.id) AND is_deleted = 0) - 
+          (SELECT IFNULL(SUM(quantity), 0) FROM stock_out WHERE LOWER(product_id) = LOWER(p.id) AND is_deleted = 0)
+        ) * IFNULL((SELECT (total_amount / IIF(quantity = 0, 1, quantity)) FROM stock_in WHERE LOWER(product_id) = LOWER(p.id) AND is_deleted = 0 ORDER BY date_time DESC LIMIT 1), 0)
       ) as total_value
     FROM products p
     WHERE p.is_deleted = 0

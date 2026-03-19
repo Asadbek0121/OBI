@@ -12,6 +12,7 @@ import '../assets/assets_view.dart';
 import '../reports/reports_view.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/auth_provider.dart';
+import 'package:intl/intl.dart';
 import '../splash/splash_screen.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/widgets/global_search_modal.dart';
@@ -23,8 +24,6 @@ import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/notification_provider.dart';
-import 'package:intl/intl.dart';
-
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -62,6 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
          }
          setState(() => _pendingTelegramOrders = count);
        }
+       if (_selectedIndex == 0) _loadDashboardData(); 
     });
     DatabaseHelper.instance.getPendingBranchOrdersCount().then((count) {
        if (mounted) setState(() => _pendingTelegramOrders = count);
@@ -120,6 +120,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       debugPrint("Error loading dashboard data: $e");
     }
+  }
+
+  String _formatNum(dynamic value) {
+    if (value == null) return "0";
+    final formatter = NumberFormat.decimalPattern('en_US');
+    return formatter.format(value).replaceAll(',', ' ');
   }
 
   @override
@@ -677,21 +683,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                child: Row(children: [
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_income'), 
-                   value: "${_todayStats['in_count'] ?? 0} ${t.text('unit_items')}", 
-                   subvalue: ((_todayStats['in_sum'] ?? 0) as num).toDouble().toStringAsFixed(0), 
+                   value: "${_formatNum(_todayStats['in_count'])} ${t.text('unit_items')}", 
+                   subvalue: "${_formatNum(_todayStats['in_sum'])} ${t.text('unit_currency')}", 
                    icon: Icons.arrow_downward_rounded, 
                    color: Colors.green
                  )),
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_outcome'), 
-                   value: "${_todayStats['out_count'] ?? 0} ${t.text('unit_items')}", 
+                   value: "${_formatNum(_todayStats['out_count'])} ${t.text('unit_items')}", 
                    subvalue: t.text('dash_distributed'), 
                    icon: Icons.arrow_upward_rounded, 
                    color: Colors.orange
                  )),
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_activity'), 
-                   value: "${(_todayStats['in_count'] ?? 0) + (_todayStats['out_count'] ?? 0)}", 
+                   value: _formatNum((_todayStats['in_count'] ?? 0) + (_todayStats['out_count'] ?? 0)), 
                    subvalue: t.text('dash_total_ops'), 
                    icon: Icons.timeline, 
                    color: Colors.blue
@@ -713,14 +719,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               return Wrap(spacing: 16, runSpacing: 16, children: [
                 _FancyStatCard(
                   title: t.text('dash_total_value'), 
-                  value: "${(_stats['total_value'] ?? 0.0).toStringAsFixed(0)} ${t.text('unit_currency')}", 
+                  value: "${_formatNum(_stats['total_value'])} ${t.text('unit_currency')}", 
                   icon: Icons.monetization_on_rounded, 
                   color: Colors.blue, 
                   width: (width - 48)/3
                 ),
                 _FancyStatCard(
                   title: t.text('dash_low_stock'), 
-                  value: (_stats['low_stock'] ?? 0).toString(), 
+                  value: _formatNum(_stats['low_stock']), 
                   icon: Icons.warning_rounded, 
                   color: Colors.orange, 
                   width: (width - 48)/3, 
@@ -731,7 +737,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 _FancyStatCard(
                   title: t.text('dash_expiring'), 
-                  value: (_stats['finished'] ?? 0).toString(), 
+                  value: _formatNum(_stats['finished']), 
                   icon: Icons.timer_off_rounded, 
                   color: Colors.red, 
                   width: (width - 48)/3, 
@@ -755,12 +761,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: activity['type'] == 'IN' ? Colors.green : Colors.orange
                 );
             }))),
-            const SizedBox(height: 32),
-            Row(children: [
-              _QuickActionTile(icon: Icons.add_box_rounded, label: t.text('menu_in'), color: Colors.green, onTap: ()=>setState(()=>_selectedIndex=3)),
-              const SizedBox(width: 16),
-              _QuickActionTile(icon: Icons.outbox_rounded, label: t.text('menu_out'), color: Colors.orange, onTap: ()=>setState(()=>_selectedIndex=4)),
-            ]),
           ],
         ],
       ),
@@ -786,14 +786,6 @@ class _ActivityItem extends StatelessWidget {
   const _ActivityItem({required this.title, required this.subtitle, required this.time, required this.icon, required this.color});
   @override Widget build(BuildContext context) {
     return ListTile(leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color, size: 20)), title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(subtitle), trailing: Text(time, style: TextStyle(color: Colors.grey[500], fontSize: 12)));
-  }
-}
-
-class _QuickActionTile extends StatelessWidget {
-  final IconData icon; final String label; final Color color; final VoidCallback onTap;
-  const _QuickActionTile({required this.icon, required this.label, required this.color, required this.onTap});
-  @override Widget build(BuildContext context) {
-    return Expanded(child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(20), child: GlassContainer(padding: const EdgeInsets.all(20), child: Row(children: [Icon(icon, color: color), const SizedBox(width: 16), Text(label, style: const TextStyle(fontWeight: FontWeight.bold))]))));
   }
 }
 
