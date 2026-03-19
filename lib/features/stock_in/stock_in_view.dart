@@ -267,7 +267,8 @@ class _StockInViewState extends State<StockInView> {
         // Calculated fields to save (mapping to existing DB schema where possible)
         final totalAmount = double.tryParse(row.cells['total_amount']?.value.toString() ?? '0') ?? 0;
 
-        final txId = DateTime.now().millisecondsSinceEpoch.toString() + productId;
+        final index = stateManager.rows.indexOf(row);
+        final txId = "${DateTime.now().microsecondsSinceEpoch}_${index}_$productId";
 
         // Parse extra fields
         final taxPct = double.tryParse(row.cells['tax_percent']?.value.toString() ?? '0') ?? 0;

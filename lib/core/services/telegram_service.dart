@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/database/database_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:barcode/barcode.dart';
 import 'package:image/image.dart' as img;
 import 'package:zxing_lib/zxing.dart';
 import 'package:zxing_lib/common.dart';
@@ -273,6 +274,34 @@ class TelegramService {
       return null;
     } catch (e) {
       return e.toString();
+    }
+  }
+
+  Future<String?> sendPhotoBytes(
+    String chatId,
+    Uint8List bytes, {
+    String? caption,
+    String parseMode = 'Markdown',
+  }) async {
+    final token = await getBotToken();
+    if (token == null || token.isEmpty) return "Bot tokeni sozlanmagan";
+
+    try {
+      final url = Uri.parse('$_baseUrl$token/sendPhoto');
+      final request = http.MultipartRequest('POST', url)
+        ..fields['chat_id'] = chatId
+        ..files.add(http.MultipartFile.fromBytes('photo', bytes, filename: 'label.png'));
+
+      if (caption != null) {
+        request.fields['caption'] = caption;
+      }
+      request.fields['parse_mode'] = parseMode;
+
+      final response = await request.send();
+      if (response.statusCode == 200) return null;
+      return "Error: ${response.statusCode}";
+    } catch (e) {
+      return "Error: $e";
     }
   }
 
@@ -1479,6 +1508,27 @@ class TelegramService {
       }
     } else if (data == 'ex_share_picker') {
       await _handleSharePicker(chatId);
+    } else if (data.startsWith('ex_do_share:')) {
+      final targetChatId = data.split(':')[1];
+      final session = _userReportSessions[chatId];
+      if (session != null && session['lastFilePath'] != null) {
+        final path = session['lastFilePath']!;
+        final file = File(path);
+        if (await file.exists()) {
+          final users = await getUsers();
+          final sender = users.firstWhere((u) => u['chatId'] == chatId, orElse: () => {'name': 'Foydalanuvchi'});
+          
+          await sendDocument(
+            targetChatId, 
+            file, 
+            caption: "📂 <b>${sender['name']}</b> sizga hisobot yubordi.",
+            parseMode: 'HTML'
+          );
+          await sendMessage(chatId, "✅ Hisobot muvaffaqiyatli yuborildi!");
+        } else {
+          await sendMessage(chatId, "⚠️ Xatolik: Hisobot fayli topilmadi. Iltimos, hisobotni qaytadan generatsiya qiling.");
+        }
+      }
     }
     // (Existing callbacks below...)
     else if (data.startsWith('asset_loc:')) {
@@ -1520,6 +1570,9 @@ class TelegramService {
         await updateOrderStatus(oid, 'rejected', chatId, adminComment: "Telegram orqali rad etildi");
         await editMessageText(chatId, messageId, "❌ Buyurtma #ORD-$oid rad etildi!");
       }
+    } else if (data.startsWith('asset_label:')) {
+      final aid = int.tryParse(data.split(':')[1]);
+      if (aid != null) await _handleSendAssetLabel(chatId, aid);
     }
   }
 
@@ -1635,7 +1688,7 @@ class TelegramService {
       if (filePath != null) {
         String typeTxt = type == 'in' ? "Kirim" : (type == 'out' ? "Chiqim" : "To'liq");
         final caption = "✅ <b>$title $typeTxt hisoboti tayyor!</b>\n\n"
-            "🗓 Sana: ${DateFormat('dd.MM.yyyy').format(start)} - ${DateFormat('dd.MM.yyyy').format(now)}\n"
+            "🗓 Sana: ${DateFormat('dd.MM.yyyy').format(start)} - ${DateFormat('dd.MM.yyyy').format(end)}\n"
             "📦 Operatsiyalar soni tahlil qilindi.";
 
         final markup = {
@@ -1810,6 +1863,7 @@ class TelegramService {
       FROM assets a
       LEFT JOIN asset_categories c ON a.category_id = c.id
       WHERE a.location_id = ? AND a.is_deleted = 0
+      ORDER BY a.name ASC
     ''',
       [locId],
     );
@@ -1825,6 +1879,18 @@ class TelegramService {
           'callback_data': "asset_loc:${sl['id']}",
         },
       ]);
+    }
+
+    // Add assets as buttons (Label Generator)
+    if (assets.isNotEmpty) {
+      for (var a in assets) {
+        buttons.add([
+          {
+            'text': "🏷 ${a['name']}",
+            'callback_data': "asset_label:${a['id']}",
+          },
+        ]);
+      }
     }
 
     // Back button
@@ -1849,21 +1915,41 @@ class TelegramService {
       
       for (var a in assets) {
         String statusIcon = "✅";
-        if (a['status'] == 'repair') statusIcon = "🛠";
-        if (a['status'] == 'broken') statusIcon = "🔴";
-        if (a['status'] == 'missing') statusIcon = "❓";
+        final statusLower = (a['status'] ?? '').toString().toLowerCase();
+        if (statusLower.contains('tamir')) {
+          statusIcon = "🛠";
+        } else if (statusLower.contains('buz') || statusLower.contains('broken')) {
+          statusIcon = "🔴";
+        } else if (statusLower.contains('yoq') || statusLower.contains('missing')) {
+          statusIcon = "❓";
+        }
 
-        String name = (a['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        String name = _e(a['name']);
         
         sb.writeln("");
         sb.writeln("$statusIcon <b>$name</b>");
-        sb.writeln("   🔹 Tur: ${a['category_name'] ?? '-'}");
-        if (a['model'] != null && a['model'] != '-') sb.writeln("   🔹 Model: ${a['model']}");
-        if (a['serial_number'] != null && a['serial_number'] != '-') sb.writeln("   🔹 SN: <code>${a['serial_number']}</code>");
-        sb.writeln("   🔸 Holat: <i>${a['status']}</i>");
-        if (a['barcode'] != null) {
-          sb.writeln("   🔸 BC: <code>${a['barcode']}</code>");
+        sb.writeln("   🔹 Tur: <i>${_e(a['category_name'])}</i>");
+        
+        if (a['brand'] != null && a['brand'] != '-' && a['brand'].toString().isNotEmpty) {
+           sb.writeln("   🔹 Brend: ${_e(a['brand'])}");
         }
+        if (a['model'] != null && a['model'] != '-' && a['model'].toString().isNotEmpty) {
+           sb.writeln("   🔹 Model: ${_e(a['model'])}");
+        }
+        if (a['serial_number'] != null && a['serial_number'] != '-' && a['serial_number'].toString().isNotEmpty) {
+           sb.writeln("   🔹 SN: <code>${_e(a['serial_number'])}</code>");
+        }
+        
+        sb.writeln("   🔸 Holat: <i>${_e(a['status'])}</i>");
+        
+        if (a['barcode'] != null && a['barcode'].toString().isNotEmpty) {
+          sb.writeln("   🔸 BC: <code>${_e(a['barcode'])}</code>");
+        }
+        
+        if (a['description'] != null && a['description'] != '-' && a['description'].toString().isNotEmpty) {
+          sb.writeln("   📝 <i>${_e(a['description'])}</i>");
+        }
+        
         sb.writeln("┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈");
       }
     } else if (subLocs.isEmpty) {
@@ -2369,12 +2455,16 @@ class TelegramService {
 
       // Current stock 
       sb.writeln("📦 <b>HOZIRGI ZAXIRA HOLATI:</b>");
-      for (var row in stockBalance) {
+      final displayStock = stockBalance.take(30).toList();
+      for (var row in displayStock) {
         final stock = (row['stock'] as num? ?? 0);
         final min = (row['min_stock_alert'] as num? ?? 0);
         final icon = stock <= 0 ? "🔴" : (stock <= min ? "⚠️" : "✅");
-        final name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-        sb.writeln("   $icon <b>$name</b>: ${stock.toStringAsFixed(1)} ${row['unit'] ?? ''}");
+        final name = _e(row['name']);
+        sb.writeln("   $icon <b>$name</b>: ${stock.toStringAsFixed(1)} ${_e(row['unit'])}");
+      }
+      if (stockBalance.length > 30) {
+        sb.writeln("   ... (va yana ${stockBalance.length - 30} ta mahsulot)");
       }
       sb.writeln("");
 
@@ -2384,7 +2474,7 @@ class TelegramService {
         sb.writeln("   ➖ Chiqim operatsiyalar yo'q.");
       } else {
         for (var row in topOut) {
-          String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+          String name = _e(row['name']);
           sb.writeln("   🔺 <b>$name</b> — ${row['qty']} dona (${row['ops']} marta)");
         }
       }
@@ -2395,9 +2485,13 @@ class TelegramService {
       if (lowStockItems.isEmpty) {
         sb.writeln("   ✅ Barcha zaxiralar normal darajada.");
       } else {
-        for (var row in lowStockItems) {
-          String name = (row['name'] ?? 'Noma\'lum').toString().replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+        final displayLow = lowStockItems.take(20).toList();
+        for (var row in displayLow) {
+          String name = _e(row['name']);
           sb.writeln("   ❗ <b>$name</b>: ${(row['stock'] as num).toStringAsFixed(1)} qoldi (min: ${row['min_stock_alert']})");
+        }
+        if (lowStockItems.length > 20) {
+          sb.writeln("   ... (va yana ${lowStockItems.length - 20} ta tanqislik)");
         }
       }
       sb.writeln("");
@@ -2419,13 +2513,14 @@ class TelegramService {
       final error = await _sendHtmlMessage(chatId, sb.toString());
       if (error != null) {
         debugPrint("🤖 [UltraAI] HTML Send Error: $error — trying plain text fallback");
-        // Fallback: strip HTML tags and send as plain text
         final plain = sb.toString()
           .replaceAll(RegExp(r'<[^>]*>'), '')
           .replaceAll('&lt;', '<')
           .replaceAll('&gt;', '>')
           .replaceAll('&amp;', '&');
-        final err2 = await sendMessage(chatId, plain, parseMode: '');
+        
+        final truncatedPlain = plain.length > 4000 ? "${plain.substring(0, 3950)}..." : plain;
+        final err2 = await sendMessage(chatId, truncatedPlain, parseMode: '');
         if (err2 != null) {
           await sendMessage(chatId, '⚠️ Hisobot yuborildi, lekin formatlashda xatolik yuz berdi.');
         }
@@ -2438,5 +2533,98 @@ class TelegramService {
       } catch (_) {}
     }
   }
+
+  // --- Helpers ---
+  String _e(dynamic val) {
+    if (val == null) return '';
+    return val.toString()
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+  }
+
+  Future<void> _handleSendAssetLabel(String chatId, int aid) async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final assets = await db.rawQuery('''
+        SELECT a.*, c.name as category_name, l.name as location_name
+        FROM assets a
+        LEFT JOIN asset_categories c ON a.category_id = c.id
+        LEFT JOIN asset_locations l ON a.location_id = l.id
+        WHERE a.id = ? AND a.is_deleted = 0
+      ''', [aid]);
+
+      if (assets.isEmpty) {
+        await sendMessage(chatId, "❌ Jihoz topilmadi.");
+        return;
+      }
+
+      final a = assets.first;
+      await sendMessage(chatId, "⏳ <b>Etiketka (ID: #${a['id']}) generatsiya qilinmoqda...</b>", parseMode: 'HTML');
+
+      // Generate Image using 'image' and 'barcode' packages
+      final bytes = await _generateAssetLabelBytes(a);
+      
+      final info = StringBuffer();
+      info.writeln("📦 <b>${_e(a['name'])}</b>");
+      info.writeln("📍 ${_e(a['location_name'])}");
+      info.writeln("🔢 ${_e(a['barcode'])}");
+
+      await sendPhotoBytes(chatId, bytes, caption: info.toString(), parseMode: 'HTML');
+    } catch (e) {
+      debugPrint("❌ Generate Label Error: $e");
+      await sendMessage(chatId, "⚠️ Etiketka generatsiya qilishda xatolik yub berdi: $e");
+    }
+  }
+
+  Future<Uint8List> _generateAssetLabelBytes(Map<String, dynamic> asset) async {
+    // 1. Create a 600x400 white canvas
+    final image = img.Image(width: 600, height: 400);
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+
+    // 2. Draw Text (Header)
+    img.drawString(image, "OBI CLINICAL WAREHOUSE", font: img.arial24, x: 20, y: 15, color: img.ColorRgb8(0, 50, 200));
+    img.drawLine(image, x1: 20, y1: 50, x2: 580, y2: 50, color: img.ColorRgb8(100, 100, 100));
+
+    // 3. Asset Basic Info
+    final fontTitle = img.arial48;
+    final fontNormal = img.arial24;
+
+    img.drawString(image, asset['name']?.toString() ?? '', font: fontTitle, x: 20, y: 70, color: img.ColorRgb8(0, 0, 0));
+    img.drawString(image, "Tur: ${asset['category_name'] ?? '-'}", font: fontNormal, x: 20, y: 130, color: img.ColorRgb8(50, 50, 50));
+    img.drawString(image, "Brend: ${asset['brand'] ?? '-'}", font: fontNormal, x: 20, y: 165, color: img.ColorRgb8(50, 50, 50));
+    img.drawString(image, "Model: ${asset['model'] ?? '-'}", font: fontNormal, x: 20, y: 200, color: img.ColorRgb8(50, 50, 50));
+    img.drawString(image, "SN: ${asset['serial_number'] ?? '-'}", font: fontNormal, x: 20, y: 235, color: img.ColorRgb8(50, 50, 50));
+
+    // 4. Generate Barcode Bars using 'barcode' package
+    final bcValue = asset['barcode']?.toString() ?? 'NO-BC';
+    try {
+      final bc = Barcode.code128();
+      // Generate the internal data
+      final bars = bc.make(bcValue, width: 400, height: 80);
+      
+      const baseX = 100;
+      const baseY = 290;
+      
+    for (var bar in bars) {
+      if (bar is BarcodeBar && bar.black) {
+        img.fillRect(
+           image, 
+           x1: (baseX + bar.left).toInt(), 
+           y1: baseY, 
+           x2: (baseX + bar.left + bar.width).toInt(), 
+           y2: baseY + 70, 
+           color: img.ColorRgb8(0,0,0)
+        );
+      }
+    }
+    // Add text below barcode
+    img.drawString(image, bcValue, font: fontNormal, x: 220, y: 365, color: img.ColorRgb8(0, 0, 0));
+  } catch (e) {
+     img.drawString(image, "BARCODE ERROR: $bcValue", font: fontNormal, x: 20, y: 300, color: img.ColorRgb8(200, 0, 0));
+  }
+
+  return Uint8List.fromList(img.encodePng(image));
+}
 
 }

@@ -114,51 +114,13 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE assets ADD COLUMN description TEXT');
     } catch (e) { /* already exists */ }
 
-    // 🚀 STEP 1 for CLOUD SYNC: Ensure ALL tables have 'updated_at' and 'sync_status'
-    final tablesToSync = [
-      'products', 'stock_in', 'stock_out', 'assets', 
-      'asset_locations', 'asset_categories', 'asset_movements',
-      'branch_orders', 'branch_order_items'
-    ];
-
-    for (var table in tablesToSync) {
-      // Add 'updated_at' column
-      try {
-        await db.execute('ALTER TABLE $table ADD COLUMN updated_at TEXT CURRENT_TIMESTAMP');
-      } catch (e) {
-        // Ignore if exists
-      }
-      
-      // Add 'sync_status' column (default: pending_insert for cloud sync logic)
-      try {
-        await db.execute("ALTER TABLE $table ADD COLUMN sync_status TEXT DEFAULT 'pending_insert'");
-      } catch (e) {
-        // Ignore if exists
-      }
-
-      // Add 'is_deleted' column (default: 0)
-      try {
-        await db.execute("ALTER TABLE $table ADD COLUMN is_deleted INTEGER DEFAULT 0");
-        // Ensure all existing rows have 0 if they were NULL
-        await db.execute("UPDATE $table SET is_deleted = 0 WHERE is_deleted IS NULL");
-      } catch (e) {
-        // Ignore if exists
-      }
-      try {
-        await db.execute("ALTER TABLE $table ADD COLUMN deleted_at TEXT");
-      } catch (e) {
-        // Ignore if exists
-      }
-    }
-
-
-    // 2. Assets Module Tables (RESTACKED)
+    // 2. Ensure all tables exist FIRST
     await db.execute('''
       CREATE TABLE IF NOT EXISTS asset_locations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         parent_id INTEGER,
         name TEXT NOT NULL,
-        type TEXT NOT NULL, -- 'building', 'floor', 'room', 'spot'
+        type TEXT NOT NULL,
         FOREIGN KEY (parent_id) REFERENCES asset_locations (id) ON DELETE CASCADE
       )
     ''');
@@ -179,7 +141,7 @@ class DatabaseHelper {
         color TEXT,
         category_id INTEGER,
         location_id INTEGER,
-        status TEXT, -- 'Yangi', 'Ishlatilgan', 'Tamirtalab', 'Eskirgan'
+        status TEXT,
         photo_path TEXT,
         barcode TEXT UNIQUE,
         created_at TEXT,
@@ -193,9 +155,9 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id TEXT,
         branch_name TEXT,
-        status TEXT, -- 'pending', 'approved', 'rejected', 'delivered'
-        photo_file_id TEXT, -- Added for image-based orders
-        admin_comment TEXT, -- Added for feedback
+        status TEXT,
+        photo_file_id TEXT,
+        admin_comment TEXT,
         created_at TEXT
       )
     ''');
@@ -211,6 +173,38 @@ class DatabaseHelper {
         FOREIGN KEY (order_id) REFERENCES branch_orders (id) ON DELETE CASCADE
       )
     ''');
+
+    // 🚀 STEP 1 for CLOUD SYNC: Ensure ALL tables have 'updated_at' and 'sync_status'
+    final tablesToSync = [
+      'products', 'stock_in', 'stock_out', 'assets', 
+      'asset_locations', 'asset_categories', 'asset_movements',
+      'branch_orders', 'branch_order_items'
+    ];
+
+    for (var table in tablesToSync) {
+      // Add 'updated_at' column
+      try {
+        await db.execute('ALTER TABLE $table ADD COLUMN updated_at TEXT');
+      } catch (_) {}
+      
+      // Add 'sync_status' column
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN sync_status TEXT DEFAULT 'pending_insert'");
+      } catch (_) {}
+
+      // Add 'is_deleted' column
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN is_deleted INTEGER DEFAULT 0");
+        await db.execute("UPDATE $table SET is_deleted = 0 WHERE is_deleted IS NULL");
+      } catch (_) {}
+
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN deleted_at TEXT");
+      } catch (_) {}
+    }
+
+
+
 
     // 2.2 Branch Orders migration
     try {

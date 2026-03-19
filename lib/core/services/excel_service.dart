@@ -213,7 +213,7 @@ class ExcelService {
         if (qty <= 0) continue;
 
         // FIX: Use unique ID that doesn't overwrite existing records
-        final txnId = 'IMP_${DateTime.now().millisecondsSinceEpoch}_$i';
+        final txnId = 'IMP_${DateTime.now().microsecondsSinceEpoch}_$i';
 
         await DatabaseHelper.instance.insertStockIn({
           'id': txnId,
@@ -316,7 +316,7 @@ class ExcelService {
 
             if (qty <= 0) continue;
 
-            final txnId = 'IMP_${DateTime.now().millisecondsSinceEpoch}_$i';
+            final txnId = 'IMP_${DateTime.now().microsecondsSinceEpoch}_$i';
 
             await DatabaseHelper.instance.insertStockOut({
                 'id': txnId,
@@ -435,7 +435,7 @@ class ExcelService {
     }
 
     // 4. Create New product
-    final newId = excelId.isNotEmpty ? excelId : 'P_${DateTime.now().millisecondsSinceEpoch}';
+    final newId = excelId.isNotEmpty ? excelId : 'P_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode % 1000}';
     await DatabaseHelper.instance.insertProduct({
         'id': newId,
         'name': name,

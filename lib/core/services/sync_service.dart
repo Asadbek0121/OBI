@@ -33,10 +33,9 @@ class SyncService {
     'products',
     'stock_in',
     'stock_out',
-    'assets',
-    'asset_locations',
     'asset_categories',
-    // 'asset_movements', // Temporarily disabled due to schema mismatch causing logs spam and potential lag
+    'asset_locations',
+    'assets',
     'branch_orders',
     'branch_order_items'
   ];
@@ -101,7 +100,7 @@ class SyncService {
             'tax_sum',
             'surcharge_percent',
             'surcharge_sum',
-            'min_stock_alert'  // Added to products
+            // 'min_stock_alert'  // Now allowed to sync as it exists in Supabase
           ];
           
           for (var col in localOnlyColumns) {

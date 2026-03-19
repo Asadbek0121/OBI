@@ -80,9 +80,10 @@ class _InputViewState extends State<InputView> {
         double surchargeSum = double.tryParse(row.cells['surcharge_sum']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
 
         String productId = await _resolveAndSyncProduct(excelId, product, unit);
+        final txId = "MAN_${DateTime.now().microsecondsSinceEpoch}_${count}_$productId";
 
         await DatabaseHelper.instance.insertStockIn({
-           'id': 'MAN_${DateTime.now().millisecondsSinceEpoch}_$count',
+           'id': txId,
            'product_id': productId, 
            'date_time': dateStr,
            'quantity': qty,
@@ -166,7 +167,7 @@ class _InputViewState extends State<InputView> {
     // 2. Create New
     final newId = excelId.isNotEmpty && excelId.length > 2 
         ? excelId 
-        : 'P_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode % 100}';
+        : 'P_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode % 100}';
         
     await db.insert('products', {
       'id': newId,

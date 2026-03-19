@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'core/services/update_service.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_theme.dart';
 import 'app_config.dart';
@@ -136,10 +138,22 @@ void main() async {
     )
   );
 }
-
-class ClinicalWarehouseApp extends StatelessWidget {
+class ClinicalWarehouseApp extends StatefulWidget {
   final Widget home;
   const ClinicalWarehouseApp({super.key, required this.home});
+
+  @override
+  State<ClinicalWarehouseApp> createState() => _ClinicalWarehouseAppState();
+}
+
+class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkUpdate(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +173,7 @@ class ClinicalWarehouseApp extends StatelessWidget {
           child: child!,
         );
       },
-      home: home,
+      home: widget.home,
     );
   }
 }

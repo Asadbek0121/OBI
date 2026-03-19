@@ -148,9 +148,11 @@ class _StockOutViewState extends State<StockOutView> {
 
         final receiver = row.cells['receiver']?.value.toString() ?? '';
         final dateStr = row.cells['date']?.value.toString() ?? DateTime.now().toIso8601String();
-        
+        final index = stateManager.rows.indexOf(row);
+        final txId = "${DateTime.now().microsecondsSinceEpoch}_${index}_$productId";
+
         await DatabaseHelper.instance.insertStockOut({
-           'id': DateTime.now().millisecondsSinceEpoch.toString() + productId,
+           'id': txId,
            'product_id': productId,
            'date_time': dateStr,
            'quantity': qty,

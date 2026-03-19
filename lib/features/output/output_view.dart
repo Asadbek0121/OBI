@@ -52,9 +52,12 @@ class _OutputViewState extends State<OutputView> {
         String date = row.cells['date']?.value.toString() ?? DateTime.now().toIso8601String();
 
         if (product.isNotEmpty && qty > 0) {
+          final productId = await _resolveProductId(product);
+          final txId = "OUT_${DateTime.now().microsecondsSinceEpoch}_${count}_$productId";
+
           await DatabaseHelper.instance.insertStockOut({
-             'id': DateTime.now().millisecondsSinceEpoch.toString() + count.toString(),
-             'product_id': await _resolveProductId(product), 
+             'id': txId,
+             'product_id': productId, 
              'date_time': date,
              'quantity': qty,
              'receiver_name': receiver,
@@ -81,7 +84,7 @@ class _OutputViewState extends State<OutputView> {
     if (res.isNotEmpty) {
       return res.first['id'] as String;
     } else {
-      final newId = DateTime.now().millisecondsSinceEpoch.toString() + (name.hashCode % 1000).toString();
+      final newId = "P_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode % 1000}";
       await db.insert('products', {
         'id': newId,
         'name': name,
