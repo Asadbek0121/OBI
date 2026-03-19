@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/services/update_service.dart';
@@ -147,12 +148,25 @@ class ClinicalWarehouseApp extends StatefulWidget {
 }
 
 class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
+  Timer? _updateTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService.checkUpdate(context);
     });
+    
+    // Check every 10 minutes for updates while app is open
+    _updateTimer = Timer.periodic(const Duration(minutes: 10), (timer) {
+      if (mounted) UpdateService.checkUpdate(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
   }
 
   @override
