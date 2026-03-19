@@ -37,24 +37,20 @@ class UpdateService {
           final assets = data['assets'] as List;
           
           if (assets.isNotEmpty) {
-            if (Platform.isWindows) {
-              final msix = assets.firstWhere(
-                (a) => a['name'].toString().endsWith('.msix') || a['name'].toString().endsWith('.exe'), 
-                orElse: () => assets[0]
-              );
-              downloadUrl = msix['browser_download_url'];
-              fileName = msix['name'];
-            } else if (Platform.isMacOS) {
-              final dmg = assets.firstWhere(
-                (a) => a['name'].toString().endsWith('.dmg') || a['name'].toString().endsWith('.zip'), 
-                orElse: () => assets[0]
-              );
-              downloadUrl = dmg['browser_download_url'];
-              fileName = dmg['name'];
-            }
+            String suffix = Platform.isWindows ? '.msix' : '.dmg';
+            
+            final asset = assets.firstWhere(
+              (a) => a['name'].toString().toLowerCase().endsWith(suffix) || 
+                     a['name'].toString().toLowerCase().endsWith('.exe') ||
+                     a['name'].toString().toLowerCase().endsWith('.zip'),
+              orElse: () => assets[0]
+            );
+            
+            downloadUrl = asset['browser_download_url'];
+            fileName = asset['name'];
 
             if (downloadUrl.isNotEmpty && context.mounted) {
-              _showUpdateDialog(context, latestVersion, downloadUrl, fileName, data['body'] ?? '');
+              _showUpdateBanner(context, latestVersion, downloadUrl, fileName);
             }
           }
         } else if (showNoUpdate && context.mounted) {
@@ -85,57 +81,23 @@ class UpdateService {
     return false;
   }
 
-  static void _showUpdateDialog(BuildContext context, String version, String url, String fileName, String notes) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.rocket_launch, color: Colors.blueAccent),
-            const SizedBox(width: 10),
-            Text('Yangi talqin tayyor! (v$version)'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Tizimda yangi imkoniyatlar va xatoliklar tuzatilgan.'),
-            if (notes.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              const Text("Yangiliklar:", style: TextStyle(fontWeight: FontWeight.bold)),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 150),
-                width: double.maxFinite,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withAlpha(25),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: SingleChildScrollView(child: Text(notes)),
-              ),
-            ],
-            const SizedBox(height: 10),
-            const Text('Hozir yangilashni xohlaysizmi?'),
-          ],
-        ),
+  static void _showUpdateBanner(BuildContext context, String version, String url, String fileName) {
+     ScaffoldMessenger.of(context).showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: Colors.blueAccent.withAlpha(50),
+        content: Text('Yangi talqin tayyor: v$version', style: const TextStyle(fontWeight: FontWeight.bold)),
+        leading: const Icon(Icons.system_update, color: Colors.blueAccent),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Keyinroq'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
             onPressed: () {
-              Navigator.pop(context);
+              ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
               _showDownloadProgress(context, url, fileName);
             },
-            child: const Text('Hozir yangilash', style: TextStyle(color: Colors.white)),
+            child: const Text('YANGILASH', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () => ScaffoldMessenger.of(context).hideCurrentMaterialBanner(),
+            child: const Text('YOPISH', style: TextStyle(color: Colors.grey)),
           ),
         ],
       ),
@@ -191,23 +153,35 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
 
       setState(() {
         _progress = 1.0;
-        _status = "Yuklash yakunlandi. O'rnatilmoqda...";
+        _status = "O'rnatilmoqda...";
       });
 
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      // Launch installer
       if (Platform.isWindows) {
-        await Process.run('start', [savePath], runInShell: true);
+        // Try Silent install via PowerShell
+        try {
+           final res = await Process.run('powershell', [
+             '-Command', 
+             'Add-AppxPackage', '-Path', '"$savePath"', '-ForceUpdateFromAnyVersion'
+           ], runInShell: true);
+           
+           if (res.exitCode != 0) {
+              // Fallback to standard UI install if powershell fails
+              await Process.run('start', [savePath], runInShell: true);
+           }
+        } catch (e) {
+           await Process.run('start', [savePath], runInShell: true);
+        }
       } else if (Platform.isMacOS) {
         await Process.run('open', [savePath]);
       }
 
-      exit(0); // Close app to allow update
+      exit(0); 
     } catch (e) {
       setState(() {
         _isError = true;
-        _status = "Xatolik yuz berdi: $e";
+        _status = "Xatolik: $e";
       });
     }
   }
