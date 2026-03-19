@@ -37,18 +37,22 @@ class UpdateService {
           final assets = data['assets'] as List;
           
           if (assets.isNotEmpty) {
-            String suffix = Platform.isWindows ? '.msix' : '.dmg';
+            if (Platform.isWindows) {
+              final msix = assets.firstWhere(
+                (a) => a['name'].toString().toLowerCase().endsWith('.msix'), 
+                orElse: () => assets[0]
+              );
+              downloadUrl = msix['browser_download_url'];
+              fileName = msix['name'];
+            } else if (Platform.isMacOS) {
+              final dmg = assets.firstWhere(
+                (a) => a['name'].toString().toLowerCase().endsWith('.dmg'),
+                orElse: () => assets[0]
+              );
+              downloadUrl = dmg['browser_download_url'];
+              fileName = dmg['name'];
+            }
             
-            final asset = assets.firstWhere(
-              (a) => a['name'].toString().toLowerCase().endsWith(suffix) || 
-                     a['name'].toString().toLowerCase().endsWith('.exe') ||
-                     a['name'].toString().toLowerCase().endsWith('.zip'),
-              orElse: () => assets[0]
-            );
-            
-            downloadUrl = asset['browser_download_url'];
-            fileName = asset['name'];
-
             if (downloadUrl.isNotEmpty && context.mounted) {
               _showUpdateBanner(context, latestVersion, downloadUrl, fileName, data['body'] ?? '');
             }
