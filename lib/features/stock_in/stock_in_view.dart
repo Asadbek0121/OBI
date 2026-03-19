@@ -6,9 +6,7 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/services/local_ocr_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import 'package:flutter/services.dart';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});
@@ -311,64 +309,119 @@ class _StockInViewState extends State<StockInView> {
     }
   }
 
-  Future<void> _handleOCR() async {
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    
+    if (text == null || text.isEmpty) {
+      if (mounted) AppNotifications.showError(context, "Clipboard bo'sh");
+      return;
+    }
+
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        setState(() => isOCRLoading = true);
-        stateManager.setShowLoading(true);
-        final file = File(result.files.single.path!);
+      stateManager.setShowLoading(true);
+      final lines = text.trim().split('\n');
+      List<PlutoRow> newRows = [];
+      
+      for (var line in lines) {
+        if (line.trim().isEmpty) continue;
+        final cells = line.split('\t'); // Excel columns are tab-separated
         
-        // 🚀 Using Our NEW Personal Local AI Model (MacOS Native Vision)
-        final localOCR = LocalOCRService();
-        final List<Map<String, dynamic>>? extractedItems = await localOCR.processImageLocally(file);
-
-        if (extractedItems != null && extractedItems.isNotEmpty) {
-          final List<PlutoRow> newRows = [];
-          
-          for (var item in extractedItems) {
-            final row = _createEmptyRow(newRows.length + 1);
-            row.cells['product_name']?.value = item['name'];
-            row.cells['product_id']?.value = item['id'];
-            row.cells['unit']?.value = item['unit'];
-            row.cells['quantity']?.value = item['quantity'].toString();
-            row.cells['price']?.value = item['price'].toString();
-            
-            // Auto Calculation
-            final q = double.tryParse(row.cells['quantity']?.value ?? '0') ?? 0;
-            final p = double.tryParse(row.cells['price']?.value ?? '0') ?? 0;
-            row.cells['total_amount']?.value = (q * p).toStringAsFixed(0);
-            
-            newRows.add(row);
-          }
-
-          stateManager.appendRows(newRows);
-          stateManager.setShowLoading(false);
-          
-          if (mounted) {
-            final newCount = extractedItems.where((i) => i['is_new'] == true).length;
-            
-            if (newCount > 0) {
-              AppNotifications.showWarning(context, "Local AI: ${extractedItems.length} ta mahsulot topildi, lekin ulardan $newCount tasi bazangizda yo'q. Iltimos tekshirib chiqing!");
-            } else {
-              AppNotifications.showSuccess(context, "Local AI: ${extractedItems.length} ta mahsulot tanib olindi!");
-            }
-          }
-        } else {
-          if (mounted) AppNotifications.showError(context, "Rasmdan birorta mahsulot topilmadi.");
-          stateManager.setShowLoading(false);
+        // Match columns order: #, Date, ID, Product, Price, Unit, Qty, Tax%, TaxSum, Surch%, SurchSum, From, P.Status, Total
+        final row = _createEmptyRow(stateManager.rows.length + newRows.length + 1);
+        
+        if (cells.isNotEmpty) row.cells['no']?.value = cells[0];
+        if (cells.length > 1) {
+          String rawDate = cells[1];
+          row.cells['date']?.value = _parseExcelDate(rawDate);
         }
+        if (cells.length > 2) row.cells['product_id']?.value = cells[2];
+        if (cells.length > 3) row.cells['product_name']?.value = cells[3];
+        if (cells.length > 4) row.cells['price']?.value = cells[4].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 5) row.cells['unit']?.value = cells[5];
+        if (cells.length > 6) row.cells['quantity']?.value = cells[6].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 7) row.cells['tax_percent']?.value = cells[7].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 8) row.cells['tax_sum']?.value = cells[8].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 9) row.cells['surcharge_percent']?.value = cells[9].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 10) row.cells['surcharge_sum']?.value = cells[10].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 11) row.cells['supplier']?.value = cells[11];
+        if (cells.length > 12) row.cells['payment_status']?.value = cells[12];
+        if (cells.length > 13) row.cells['total_amount']?.value = cells[13].replaceAll(RegExp(r'[^0-9.]'), '');
+
+        // Verify product ID if missing but name exists
+        final pIdVal = row.cells['product_id']?.value?.toString() ?? '';
+        final pNameVal = row.cells['product_name']?.value?.toString() ?? '';
+
+        if (pIdVal.isEmpty && pNameVal.isNotEmpty) {
+           final p = await DatabaseHelper.instance.getProductByName(pNameVal);
+           if (p != null) {
+              row.cells['product_id']?.value = p['id'];
+              row.cells['unit']?.value = p['unit'] ?? '';
+           }
+        } else if (pIdVal.isNotEmpty) {
+           // Verify Name if ID exists
+           final p = await DatabaseHelper.instance.getProductById(pIdVal);
+           if (p != null) {
+              row.cells['product_name']?.value = p['name'];
+              row.cells['unit']?.value = p['unit'] ?? '';
+           }
+        }
+        
+        // Re-calculate row total
+        _calculateRow(row);
+        newRows.add(row);
+      }
+
+      if (newRows.isNotEmpty) {
+        // If first row looks like header, remove it
+        final firstRowVal = newRows.first.cells['product_name']?.value?.toString().toLowerCase();
+        if (firstRowVal == 'product' || firstRowVal == 'mahsulot' || firstRowVal == 'product name') {
+           newRows.removeAt(0);
+        }
+        
+        stateManager.appendRows(newRows);
+        if (mounted) AppNotifications.showSuccess(context, "${newRows.length} qator nusxalandi");
       }
     } catch (e) {
-      debugPrint("OCR Handler Error: $e");
-      if (mounted) AppNotifications.showError(context, "OCR Xatosi: $e");
-      stateManager.setShowLoading(false);
+      debugPrint("Paste error: $e");
+      if (mounted) AppNotifications.showError(context, "Nusxalashda xatolik: Ma'lumot formati mos emas");
     } finally {
-      if (mounted) setState(() => isOCRLoading = false);
+      stateManager.setShowLoading(false);
+    }
+  }
+
+  String _parseExcelDate(String raw) {
+    if (raw.isEmpty) return DateTime.now().toString().substring(0, 10);
+    try {
+      String clean = raw.trim().replaceAll('.', '/').replaceAll('-', '/');
+      if (clean.contains('/')) {
+        final pts = clean.split('/');
+        if (pts.length == 3) {
+          int p0 = int.parse(pts[0]);
+          int p1 = int.parse(pts[1]);
+          int p2 = int.parse(pts[2]);
+          if (p2 > 2000) return DateTime(p2, p1, p0).toString().substring(0, 10);
+        }
+      }
+    } catch (_) {}
+    return raw;
+  }
+
+  void _calculateRow(PlutoRow row) {
+    final qty = double.tryParse(row.cells['quantity']?.value?.toString() ?? '0') ?? 0;
+    final price = double.tryParse(row.cells['price']?.value?.toString() ?? '0') ?? 0;
+    final taxPct = double.tryParse(row.cells['tax_percent']?.value?.toString() ?? '0') ?? 0;
+    final surPct = double.tryParse(row.cells['surcharge_percent']?.value?.toString() ?? '0') ?? 0;
+
+    final baseTotal = qty * price;
+    final taxSum = baseTotal * (taxPct / 100);
+    final surSum = (baseTotal + taxSum) * (surPct / 100);
+    final finalTotal = baseTotal + taxSum + surSum;
+
+    if (finalTotal > 0) {
+      row.cells['tax_sum']?.value = taxSum.toStringAsFixed(0);
+      row.cells['surcharge_sum']?.value = surSum.toStringAsFixed(0);
+      row.cells['total_amount']?.value = finalTotal.toStringAsFixed(0);
     }
   }
 
@@ -442,12 +495,11 @@ class _StockInViewState extends State<StockInView> {
                 ),
                 const SizedBox(width: 12),
                 _HeaderButton(
-                  onPressed: isOCRLoading ? null : _handleOCR, 
-                  icon: Icons.document_scanner_rounded, 
-                  label: isOCRLoading ? t.text('msg_ocr_reading') : t.text('btn_ocr'),
+                  onPressed: _pasteFromClipboard, 
+                  icon: Icons.content_paste_rounded, 
+                  label: "Smart Paste",
                   color: AppColors.primary.withValues(alpha: 0.1),
                   textColor: AppColors.primary,
-                  isLoading: isOCRLoading,
                 ),
                 const SizedBox(width: 12),
                 _HeaderButton(
@@ -625,7 +677,6 @@ class _HeaderButton extends StatelessWidget {
   final String label;
   final Color color;
   final Color textColor;
-  final bool isLoading;
   final bool isPrimary;
 
   const _HeaderButton({
@@ -634,7 +685,6 @@ class _HeaderButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.textColor,
-    this.isLoading = false,
     this.isPrimary = false,
   });
 
@@ -652,9 +702,7 @@ class _HeaderButton extends StatelessWidget {
       ),
       child: ElevatedButton.icon(
         onPressed: onPressed,
-        icon: isLoading 
-          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
-          : Icon(icon, size: 20),
+        icon: Icon(icon, size: 20),
         label: Text(label),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,

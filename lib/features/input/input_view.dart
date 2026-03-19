@@ -179,11 +179,11 @@ class _InputViewState extends State<InputView> {
   }
 
   Future<void> _pasteFromClipboard() async {
-    final t = Provider.of<AppTranslations>(context, listen: false);
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     
     if (text == null || text.isEmpty) {
+      if (!mounted) return;
       AppNotifications.showError(context, "Clipboard bo'sh");
       return;
     }
@@ -199,7 +199,7 @@ class _InputViewState extends State<InputView> {
         // Match columns order: #, Date, ID, Product, Price, Unit, Qty, Tax%, TaxSum, Surch%, SurchSum, From, Total
         // If pasted data has fewer cells, handle it
         Map<String, PlutoCell> rowCells = {
-          'no': PlutoCell(value: cells.length > 0 ? cells[0] : ''),
+          'no': PlutoCell(value: cells.isNotEmpty ? cells[0] : ''),
           'date': PlutoCell(value: cells.length > 1 ? cells[1] : DateTime.now().toString().substring(0, 16)),
           'id': PlutoCell(value: cells.length > 2 ? cells[2] : ''),
           'product': PlutoCell(value: cells.length > 3 ? cells[3] : ''),
@@ -225,10 +225,12 @@ class _InputViewState extends State<InputView> {
         }
 
         stateManager.prependRows(newRows);
+        if (!mounted) return;
         AppNotifications.showSuccess(context, "${newRows.length} qator nusxalandi");
       }
     } catch (e) {
       debugPrint("Paste error: $e");
+      if (!mounted) return;
       AppNotifications.showError(context, "Nusxalashda xatolik: Ma'lumot formati mos emas");
     }
   }
