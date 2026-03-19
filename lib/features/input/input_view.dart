@@ -8,6 +8,8 @@ import '../../core/database/database_helper.dart';
 import '../../core/utils/app_notifications.dart';
 import '../../core/theme/grid_theme.dart';
 
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
 class InputView extends StatefulWidget {
   const InputView({super.key});
 
@@ -33,11 +35,19 @@ class _InputViewState extends State<InputView> {
 
   PlutoRow _createEmptyRow() {
     return PlutoRow(cells: {
-      'date': PlutoCell(value: DateTime.now().toString().substring(0, 10)),
+      'no': PlutoCell(value: ''),
+      'date': PlutoCell(value: DateTime.now().toString().substring(0, 16)), // Includes time
+      'id': PlutoCell(value: ''),
       'product': PlutoCell(value: ''),
-      'qty': PlutoCell(value: 0),
-      'price': PlutoCell(value: 0),
+      'price': PlutoCell(value: 0.0),
+      'unit': PlutoCell(value: 'dona'), // Added
+      'qty': PlutoCell(value: 0.0),
+      'tax_pct': PlutoCell(value: 0.0), // Added
+      'tax_sum': PlutoCell(value: 0.0), // Added
+      'surcharge_pct': PlutoCell(value: 0.0), // Added
+      'surcharge_sum': PlutoCell(value: 0.0), // Added
       'supplier': PlutoCell(value: ''),
+      'total': PlutoCell(value: 0.0), // Display only?
     });
   }
 
@@ -47,29 +57,53 @@ class _InputViewState extends State<InputView> {
     try {
       int count = 0;
       for (var row in stateManager.rows) {
-        String product = row.cells['product']?.value.toString() ?? '';
-        double qty = double.tryParse(row.cells['qty']?.value.toString() ?? '0') ?? 0;
-        double price = double.tryParse(row.cells['price']?.value.toString() ?? '0') ?? 0;
-        String supplier = row.cells['supplier']?.value.toString() ?? '';
-        String date = row.cells['date']?.value.toString() ?? DateTime.now().toIso8601String();
+        String product = row.cells['product']?.value?.toString().trim() ?? '';
+        if (product.isEmpty) continue;
 
-        if (product.isNotEmpty && qty > 0) {
-          await DatabaseHelper.instance.insertStockIn({
-             'id': DateTime.now().millisecondsSinceEpoch.toString() + count.toString(),
-             'product_id': await _resolveProductId(product), 
-             'date_time': date,
-             'quantity': qty,
-             'price_per_unit': price,
-             'total_amount': qty * price,
-             'supplier_name': supplier,
-             'created_at': DateTime.now().toIso8601String(),
-          });
-          count++;
-        }
+        double qty = double.tryParse(row.cells['qty']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+        if (qty <= 0) continue;
+
+        double price = double.tryParse(row.cells['price']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+        String supplier = row.cells['supplier']?.value?.toString() ?? '';
+        String unit = row.cells['unit']?.value?.toString() ?? 'dona';
+        String excelId = row.cells['id']?.value?.toString() ?? '';
+        
+        // Preserve Pasted Date
+        String rawDate = row.cells['date']?.value?.toString() ?? '';
+        String dateStr = _parseDate(rawDate);
+
+        double taxPct = double.tryParse(row.cells['tax_pct']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+        double taxSum = double.tryParse(row.cells['tax_sum']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+        double surchargePct = double.tryParse(row.cells['surcharge_pct']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+        double surchargeSum = double.tryParse(row.cells['surcharge_sum']?.value?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '0') ?? 0;
+
+        String productId = await _resolveAndSyncProduct(excelId, product, unit);
+
+        await DatabaseHelper.instance.insertStockIn({
+           'id': 'MAN_${DateTime.now().millisecondsSinceEpoch}_$count',
+           'product_id': productId, 
+           'date_time': dateStr,
+           'quantity': qty,
+           'price_per_unit': price,
+           'total_amount': qty * price + taxSum + surchargeSum,
+           'supplier_name': supplier,
+           'tax_percent': taxPct,
+           'tax_sum': taxSum,
+           'surcharge_percent': surchargePct,
+           'surcharge_sum': surchargeSum,
+           'created_at': DateTime.now().toIso8601String(),
+        });
+        count++;
       }
       if (count > 0) {
         if (!mounted) return;
         AppNotifications.showSuccess(context, "$count ${t.text('msg_saved')}");
+        // Refresh grid
+        setState(() {
+          rows = List.generate(100, (index) => _createEmptyRow());
+        });
+        stateManager.removeAllRows();
+        stateManager.appendRows(rows);
       }
     } catch (e) {
       if (!mounted) return;
@@ -79,21 +113,67 @@ class _InputViewState extends State<InputView> {
     }
   }
 
-  Future<String> _resolveProductId(String name) async {
+  String _parseDate(String raw) {
+    if (raw.isEmpty) return DateTime.now().toIso8601String();
+    
+    // Check if it's already ISO
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) return iso.toIso8601String();
+
+    try {
+      // 12/01/2026 format detection
+      String clean = raw.trim().replaceAll('.', '/').replaceAll('-', '/');
+      if (clean.contains('/')) {
+        final pts = clean.split('/');
+        if (pts.length == 3) {
+          int p0 = int.parse(pts[0]);
+          int p1 = int.parse(pts[1]);
+          int p2 = int.parse(pts[2]);
+
+          if (p2 > 2000) {
+            // Assume dd/MM/yyyy (standard for UZ)
+            // But if p0 > 12, it must be day. If p1 > 12, p0 must be month (US format)
+            if (p0 > 12) {
+               return DateTime(p2, p1, p0).toIso8601String();
+            } else {
+               // Standard dd/MM/yyyy
+               return DateTime(p2, p1, p0).toIso8601String();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    
+    return raw; // Result as is if failed, DB might handle it or it's already a string
+  }
+
+  Future<String> _resolveAndSyncProduct(String excelId, String name, String unit) async {
     final db = await DatabaseHelper.instance.database;
+    
+    // 1. Try Find by Name
     final res = await db.query('products', where: 'name = ?', whereArgs: [name], limit: 1);
     if (res.isNotEmpty) {
-      return res.first['id'] as String;
-    } else {
-      final newId = DateTime.now().millisecondsSinceEpoch.toString() + (name.hashCode % 1000).toString();
-      await db.insert('products', {
-        'id': newId,
-        'name': name,
-        'unit': 'dona',
-        'created_at': DateTime.now().toIso8601String(),
-      });
-      return newId;
-    }
+      final pid = res.first['id'] as String;
+      // Update unit if needed
+      if (unit.isNotEmpty && res.first['unit'] != unit) {
+         await db.update('products', {'unit': unit}, where: 'id = ?', whereArgs: [pid]);
+      }
+      return pid;
+    } 
+    
+    // 2. Create New
+    final newId = excelId.isNotEmpty && excelId.length > 2 
+        ? excelId 
+        : 'P_${DateTime.now().millisecondsSinceEpoch}_${name.hashCode % 100}';
+        
+    await db.insert('products', {
+      'id': newId,
+      'name': name,
+      'unit': unit.isEmpty ? 'dona' : unit,
+      'created_at': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    
+    return newId;
   }
 
   @override
@@ -102,10 +182,22 @@ class _InputViewState extends State<InputView> {
     
     final columns = [
       PlutoColumn(
+        title: t.text('col_no'), 
+        field: 'no', 
+        type: PlutoColumnType.text(),
+        width: 80,
+      ),
+      PlutoColumn(
         title: t.text('col_date'), 
         field: 'date', 
-        type: PlutoColumnType.date(format: 'yyyy-MM-dd'),
-        width: 120,
+        type: PlutoColumnType.text(), // text type is better for pasting mixed formats
+        width: 150,
+      ),
+      PlutoColumn(
+        title: t.text('col_id'), 
+        field: 'id', 
+        type: PlutoColumnType.text(),
+        width: 100,
       ),
       PlutoColumn(
         title: t.text('col_product'), 
@@ -114,22 +206,59 @@ class _InputViewState extends State<InputView> {
         width: 300,
       ),
       PlutoColumn(
-        title: t.text('label_quantity'), 
+        title: t.text('col_price'), 
+        field: 'price', 
+        type: PlutoColumnType.number(),
+        width: 150,
+      ),
+      PlutoColumn(
+        title: t.text('col_unit'), 
+        field: 'unit', 
+        type: PlutoColumnType.text(),
+        width: 100,
+      ),
+      PlutoColumn(
+        title: t.text('col_qty'), 
         field: 'qty', 
         type: PlutoColumnType.number(),
         width: 100,
       ),
       PlutoColumn(
-        title: t.text('col_price'), 
-        field: 'price', 
-        type: PlutoColumnType.currency(symbol: '', decimalDigits: 0),
-        width: 150,
+        title: t.text('col_tax_percent'), 
+        field: 'tax_pct', 
+        type: PlutoColumnType.number(),
+        width: 100,
+      ),
+      PlutoColumn(
+        title: t.text('col_tax_sum'), 
+        field: 'tax_sum', 
+        type: PlutoColumnType.number(),
+        width: 120,
+      ),
+      PlutoColumn(
+        title: t.text('col_surcharge_percent'), 
+        field: 'surcharge_pct', 
+        type: PlutoColumnType.number(),
+        width: 100,
+      ),
+      PlutoColumn(
+        title: t.text('col_surcharge_sum'), 
+        field: 'surcharge_sum', 
+        type: PlutoColumnType.number(),
+        width: 120,
       ),
       PlutoColumn(
         title: t.text('col_from'), 
         field: 'supplier', 
         type: PlutoColumnType.text(),
         width: 200,
+      ),
+      PlutoColumn(
+        title: t.text('col_total_amount'), 
+        field: 'total', 
+        type: PlutoColumnType.number(),
+        width: 150,
+        readOnly: true,
       ),
     ];
 
