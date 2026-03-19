@@ -21,6 +21,8 @@ import 'core/services/notification_provider.dart';
 import 'features/setup/database_setup_screen.dart';
 import 'dart:ui';
 
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class AppScrollBehavior extends MaterialScrollBehavior {
   @override
   Set<PointerDeviceKind> get dragDevices => {
@@ -174,6 +176,7 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     
     return MaterialApp(
+      scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       scrollBehavior: AppScrollBehavior(),
       title: 'Omborxona Boshqaruv Tizimi',
