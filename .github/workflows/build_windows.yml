@@ -17,13 +17,9 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
-    env:
-      HAS_MSIX: 'false'
-      MSIX_PATH: ''
-      RELEASE_PATH: ''
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -44,7 +40,6 @@ jobs:
         id: build_output
         shell: powershell
         run: |
-          # Priority to x64 path
           $msixFile = Get-ChildItem -Path "build\windows\x64\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $msixFile) {
             $msixFile = Get-ChildItem -Path "build\windows\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -53,10 +48,8 @@ jobs:
           if ($msixFile) {
             echo "MSIX_PATH=$($msixFile.FullName)" >> $env:GITHUB_ENV
             echo "HAS_MSIX=true" >> $env:GITHUB_ENV
-            Write-Host "Found MSIX: $($msixFile.FullName)"
           } else {
             echo "HAS_MSIX=false" >> $env:GITHUB_ENV
-            Write-Host "MSIX not found"
           }
           
           if (Test-Path "build\windows\x64\runner\Release") {
@@ -69,7 +62,7 @@ jobs:
         run: Compress-Archive -Path "$env:RELEASE_PATH\*" -DestinationPath clinical_warehouse_portable.zip
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
@@ -77,12 +70,10 @@ jobs:
             clinical_warehouse_portable.zip
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
             build/windows/x64/runner/Release/*.msix
             build/windows/runner/Release/*.msix
             clinical_warehouse_portable.zip
-
-
