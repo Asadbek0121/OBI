@@ -6,12 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import '../../main.dart'; // To access scaffoldMessengerKey
+import '../../main.dart'; // To access scaffoldMessengerKey and navigatorKey
 
 class UpdateService {
   static const String _githubUser = 'Asadbek0121';
   static const String _githubRepo = 'OBI';
-  static bool _isUpdatePrompted = false; // To prevent multiple banners
+  static bool _isUpdatePrompted = false; 
 
   static Future<void> checkUpdate(BuildContext context, {bool showNoUpdate = false}) async {
     if (!Platform.isWindows && !Platform.isMacOS) return;
@@ -106,8 +106,7 @@ class UpdateService {
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.blueAccent.shade700,
+              backgroundColor: Colors.white, foregroundColor: Colors.blueAccent.shade700,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
@@ -120,7 +119,6 @@ class UpdateService {
           TextButton(
             onPressed: () {
               scaffoldMessengerKey.currentState?.hideCurrentMaterialBanner();
-              // Prevent it from popping back up instantly
               Future.delayed(const Duration(hours: 1), () => _isUpdatePrompted = false);
             },
             child: const Text('KEYINROQ', style: TextStyle(color: Colors.white70)),
@@ -131,10 +129,11 @@ class UpdateService {
   }
 
   static void _showDownloadProgress(String url, String fileName, String notes, String version) {
-    // We need a context for full-screen dialog, so we use the navigatorKey or just a local check.
-    // Since we don't have a global navigator key easily in main (we can add it), but for now:
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
     showGeneralDialog(
-      context: navigatorKey.currentContext!,
+      context: context,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 300),
@@ -177,9 +176,16 @@ class _BeautifulProgressViewState extends State<_BeautifulProgressView> with Sin
 
   Future<void> _startDownload() async {
     try {
-      final dio = Dio();
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(minutes: 5),
+      ));
+      
       final tempDir = await getTemporaryDirectory();
       final savePath = p.join(tempDir.path, widget.fileName);
+      
+      debugPrint("🚀 [Downloader] URL: ${widget.url}");
+      debugPrint("🚀 [Downloader] Path: $savePath");
 
       await dio.download(widget.url, savePath, onReceiveProgress: (count, total) {
         if (total != -1) {
@@ -203,7 +209,8 @@ class _BeautifulProgressViewState extends State<_BeautifulProgressView> with Sin
       }
       exit(0);
     } catch (e) {
-      setState(() { _isError = true; _status = "Xatolik: $e"; });
+      debugPrint("❌ [Downloader] Error: $e");
+      setState(() { _isError = true; _status = "Yuklashda xatolik yuz berdi: $e"; });
     }
   }
 
@@ -216,23 +223,18 @@ class _BeautifulProgressViewState extends State<_BeautifulProgressView> with Sin
           width: 450,
           padding: const EdgeInsets.all(32),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
+            color: Colors.white, borderRadius: BorderRadius.circular(30),
             boxShadow: [BoxShadow(color: Colors.black.withAlpha(50), blurRadius: 40, offset: const Offset(0, 20))],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Stack(
                 alignment: Alignment.center,
                 children: [
                   ScaleTransition(
                     scale: Tween(begin: 1.0, end: 1.15).animate(_pulseController),
-                    child: Container(
-                      width: 100, height: 100,
-                      decoration: BoxDecoration(color: Colors.blueAccent.withAlpha(20), shape: BoxShape.circle),
-                    ),
+                    child: Container(width: 100, height: 100, decoration: BoxDecoration(color: Colors.blueAccent.withAlpha(20), shape: BoxShape.circle)),
                   ),
                   const Icon(Icons.cloud_download_rounded, color: Colors.blueAccent, size: 50),
                 ],
@@ -240,50 +242,45 @@ class _BeautifulProgressViewState extends State<_BeautifulProgressView> with Sin
               const SizedBox(height: 24),
               Text("Yangilanish (v${widget.version})", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(_status, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+              Text(_status, textAlign: TextAlign.center, style: TextStyle(color: _isError ? Colors.red : Colors.grey, fontSize: 14)),
               
               const SizedBox(height: 32),
               
-              // Custom Progress Bar
-              Container(
-                height: 12,
-                width: double.infinity,
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: _progress,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Colors.blueAccent, Colors.cyanAccent]),
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [BoxShadow(color: Colors.blueAccent.withAlpha(100), blurRadius: 8, offset: const Offset(0, 2))],
+              if (!_isError) ...[
+                Container(
+                  height: 12,
+                  width: double.infinity,
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: _progress,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Colors.blueAccent, Colors.cyanAccent]),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [BoxShadow(color: Colors.blueAccent.withAlpha(100), blurRadius: 8, offset: const Offset(0, 2))],
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 32),
+              ],
 
-              const SizedBox(height: 32),
-              
-              // Release Notes
               if (widget.notes.isNotEmpty) ...[
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text("YANGILIKLAR:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.1)),
-                ),
+                const Align(alignment: Alignment.centerLeft, child: Text("YANGILIKLAR:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.1))),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey.shade200)),
                   constraints: const BoxConstraints(maxHeight: 180),
-                  child: SingleChildScrollView(
-                    child: Text(widget.notes, style: const TextStyle(fontSize: 13, height: 1.5, color: Colors.black87)),
-                  ),
+                  child: SingleChildScrollView(child: Text(widget.notes, style: const TextStyle(fontSize: 13, height: 1.5, color: Colors.black87))),
                 ),
               ],
               
               if (_isError) ...[
                 const SizedBox(height: 24),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   onPressed: () => Navigator.pop(context),
                   child: const Text("YOPISH"),
                 ),
