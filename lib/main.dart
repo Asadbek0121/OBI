@@ -22,6 +22,7 @@ import 'features/setup/database_setup_screen.dart';
 import 'dart:ui';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class AppScrollBehavior extends MaterialScrollBehavior {
   @override
@@ -177,6 +178,7 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
     
     return MaterialApp(
       scaffoldMessengerKey: scaffoldMessengerKey,
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       scrollBehavior: AppScrollBehavior(),
       title: 'Omborxona Boshqaruv Tizimi',

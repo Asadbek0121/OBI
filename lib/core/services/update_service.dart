@@ -134,7 +134,7 @@ class UpdateService {
     // We need a context for full-screen dialog, so we use the navigatorKey or just a local check.
     // Since we don't have a global navigator key easily in main (we can add it), but for now:
     showGeneralDialog(
-      context: scaffoldMessengerKey.currentContext!,
+      context: navigatorKey.currentContext!,
       barrierDismissible: false,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 300),
