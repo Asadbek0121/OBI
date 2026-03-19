@@ -13,6 +13,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/excel_service.dart';
 import '../../core/services/update_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -24,6 +25,22 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  String _currentVersion = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+     try {
+       final info = await PackageInfo.fromPlatform();
+       setState(() {
+         _currentVersion = "v${info.version}+${info.buildNumber}";
+       });
+     } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -489,7 +506,7 @@ class _SettingsViewState extends State<SettingsView> {
           Center(
             child: Column(
               children: [
-                const Text("Omborxona Boshqaruv Tizimi v2.2.4", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text("Omborxona Boshqaruv Tizimi $_currentVersion", style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text("© 2026 OMBORXONA SYSTEMS", style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 11)),
                 const SizedBox(height: 4),

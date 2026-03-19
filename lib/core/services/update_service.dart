@@ -50,7 +50,7 @@ class UpdateService {
             fileName = asset['name'];
 
             if (downloadUrl.isNotEmpty && context.mounted) {
-              _showUpdateBanner(context, latestVersion, downloadUrl, fileName);
+              _showUpdateBanner(context, latestVersion, downloadUrl, fileName, data['body'] ?? '');
             }
           }
         } else if (showNoUpdate && context.mounted) {
@@ -81,7 +81,7 @@ class UpdateService {
     return false;
   }
 
-  static void _showUpdateBanner(BuildContext context, String version, String url, String fileName) {
+  static void _showUpdateBanner(BuildContext context, String version, String url, String fileName, String notes) {
      ScaffoldMessenger.of(context).showMaterialBanner(
       MaterialBanner(
         backgroundColor: Colors.blueAccent.withAlpha(50),
@@ -91,7 +91,7 @@ class UpdateService {
           TextButton(
             onPressed: () {
               ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
-              _showDownloadProgress(context, url, fileName);
+              _showDownloadProgress(context, url, fileName, notes);
             },
             child: const Text('YANGILASH', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
           ),
@@ -104,11 +104,11 @@ class UpdateService {
     );
   }
 
-  static void _showDownloadProgress(BuildContext context, String url, String fileName) {
+  static void _showDownloadProgress(BuildContext context, String url, String fileName, String notes) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _DownloadProgressDialog(url: url, fileName: fileName),
+      builder: (context) => _DownloadProgressDialog(url: url, fileName: fileName, notes: notes),
     );
   }
 }
@@ -116,7 +116,8 @@ class UpdateService {
 class _DownloadProgressDialog extends StatefulWidget {
   final String url;
   final String fileName;
-  const _DownloadProgressDialog({required this.url, required this.fileName});
+  final String notes;
+  const _DownloadProgressDialog({required this.url, required this.fileName, required this.notes});
 
   @override
   State<_DownloadProgressDialog> createState() => _DownloadProgressDialogState();
@@ -159,20 +160,15 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (Platform.isWindows) {
-        // Try Silent install via PowerShell
         try {
-           final res = await Process.run('powershell', [
+           // PowerShell attempt for background install
+           await Process.run('powershell', [
              '-Command', 
              'Add-AppxPackage', '-Path', '"$savePath"', '-ForceUpdateFromAnyVersion'
            ], runInShell: true);
-           
-           if (res.exitCode != 0) {
-              // Fallback to standard UI install if powershell fails
-              await Process.run('start', [savePath], runInShell: true);
-           }
-        } catch (e) {
-           await Process.run('start', [savePath], runInShell: true);
-        }
+        } catch (_) {}
+        // Fallback or secondary trigger: Launch UI if PowerShell was silent but app didn't exit yet
+        await Process.run('start', [savePath], runInShell: true);
       } else if (Platform.isMacOS) {
         await Process.run('open', [savePath]);
       }
@@ -193,9 +189,22 @@ class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
       title: const Text("Tizimni yangilash"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (widget.notes.isNotEmpty) ...[
+            const Text("Yangiliklar:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 5),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 120),
+              width: double.maxFinite,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.grey.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+              child: SingleChildScrollView(child: Text(widget.notes, style: const TextStyle(fontSize: 12))),
+            ),
+            const SizedBox(height: 15),
+          ],
           Text(_status, style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 15),
           if (!_isError)
             LinearProgressIndicator(
               value: _progress,
