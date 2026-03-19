@@ -12,6 +12,7 @@ import '../../core/widgets/app_dialogs.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/excel_service.dart';
+import '../../core/services/update_service.dart';
 
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
@@ -442,6 +443,14 @@ class _SettingsViewState extends State<SettingsView> {
                 color: Colors.teal,
                 onTap: () => _importExcel(context),
               ),
+               _SettingCard(
+                width: 350,
+                icon: Icons.system_update_alt_rounded,
+                title: "Yangilanishni tekshirish",
+                subtitle: "Tizimning oxirgi talqinini yuklab olish",
+                color: Colors.blueAccent,
+                onTap: () => UpdateService.checkUpdate(context),
+              ),
             ],
           ),
 
@@ -480,7 +489,7 @@ class _SettingsViewState extends State<SettingsView> {
           Center(
             child: Column(
               children: [
-                const Text("Omborxona Boshqaruv Tizimi v2.0.4", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const Text("Omborxona Boshqaruv Tizimi v2.2.4", style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 Text("© 2026 OMBORXONA SYSTEMS", style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 11)),
                 const SizedBox(height: 4),
