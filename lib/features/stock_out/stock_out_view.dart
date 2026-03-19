@@ -6,6 +6,7 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
+import 'package:flutter/services.dart';
 
 class StockOutView extends StatefulWidget {
   const StockOutView({super.key});
@@ -190,6 +191,108 @@ class _StockOutViewState extends State<StockOutView> {
       );
   }
 
+  Future<void> _pasteFromClipboard() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    
+    if (text == null || text.isEmpty) {
+      if (mounted) AppNotifications.showError(context, "Clipboard bo'sh");
+      return;
+    }
+
+    try {
+      stateManager.setShowLoading(true);
+      final lines = text.trim().split('\n');
+      List<PlutoRow> newRows = [];
+      
+      final inventory = await DatabaseHelper.instance.getInventorySummary();
+
+      for (var line in lines) {
+        if (line.trim().isEmpty) continue;
+        final cells = line.split('\t'); 
+        
+        // Match columns order: #, Sana, ID, Mahsulot, Birlik, Miqdori, Kimga
+        final row = _createEmptyRow(stateManager.rows.length + newRows.length + 1);
+        
+        if (cells.isNotEmpty) row.cells['no']?.value = cells[0];
+        if (cells.length > 1) row.cells['date']?.value = _parseExcelDate(cells[1]);
+        if (cells.length > 2) row.cells['product_id']?.value = cells[2];
+        if (cells.length > 3) row.cells['product_name']?.value = cells[3];
+        if (cells.length > 4) row.cells['unit']?.value = cells[4];
+        if (cells.length > 5) row.cells['quantity']?.value = cells[5].replaceAll(RegExp(r'[^0-9.]'), '');
+        if (cells.length > 6) row.cells['receiver']?.value = cells[6];
+
+        // Verify product ID/Name
+        final pIdVal = row.cells['product_id']?.value?.toString() ?? '';
+        final pNameVal = row.cells['product_name']?.value?.toString() ?? '';
+
+        if (pIdVal.isEmpty && pNameVal.isNotEmpty) {
+           final p = await DatabaseHelper.instance.getProductByName(pNameVal);
+           if (p != null) {
+              row.cells['product_id']?.value = p['id'];
+              row.cells['unit']?.value = p['unit'] ?? '';
+           }
+        } else if (pIdVal.isNotEmpty) {
+           final p = await DatabaseHelper.instance.getProductById(pIdVal);
+           if (p != null) {
+              row.cells['product_name']?.value = p['name'];
+              row.cells['unit']?.value = p['unit'] ?? '';
+           }
+        }
+        
+        // Check Stock
+        final finalPid = row.cells['product_id']?.value?.toString() ?? '';
+        if (finalPid.isNotEmpty) {
+           final stockItem = inventory.firstWhere((e) => e['id'].toString().toLowerCase() == finalPid.toLowerCase(), orElse: () => {'stock': 0.0});
+           row.cells['current_stock']?.value = stockItem['stock'] ?? 0.0;
+        }
+
+        newRows.add(row);
+      }
+
+      if (newRows.isNotEmpty) {
+        // Remove header if copied
+        final firstRowVal = newRows.first.cells['product_name']?.value?.toString().toLowerCase() ?? '';
+        if (firstRowVal.contains('product') || firstRowVal.contains('mahsulot')) {
+           newRows.removeAt(0);
+        }
+        
+        // Remove default empty row
+        if (stateManager.rows.length == 1) {
+           final firstCell = stateManager.rows.first.cells['product_id']?.value?.toString() ?? '';
+           if (firstCell.isEmpty) {
+              stateManager.removeAllRows();
+           }
+        }
+
+        stateManager.appendRows(newRows);
+        if (mounted) AppNotifications.showSuccess(context, "${newRows.length} qator nusxalandi");
+      }
+    } catch (e) {
+      debugPrint("Paste error: $e");
+      if (mounted) AppNotifications.showError(context, "Nusxalashda xatolik");
+    } finally {
+      stateManager.setShowLoading(false);
+    }
+  }
+
+  String _parseExcelDate(String raw) {
+    if (raw.isEmpty) return DateTime.now().toString().substring(0, 10);
+    try {
+      String clean = raw.trim().replaceAll('.', '/').replaceAll('-', '/');
+      if (clean.contains('/')) {
+        final pts = clean.split('/');
+        if (pts.length == 3) {
+          int p0 = int.parse(pts[0]);
+          int p1 = int.parse(pts[1]);
+          int p2 = int.parse(pts[2]);
+          if (p2 > 2000) return DateTime(p2, p1, p0).toString().substring(0, 10);
+        }
+      }
+    } catch (_) {}
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -258,13 +361,25 @@ class _StockOutViewState extends State<StockOutView> {
                   textColor: AppColors.textPrimary,
                 ),
                 const SizedBox(width: 12),
-                _HeaderButton(
-                  onPressed: _saveStockOut, 
-                  icon: Icons.check_circle_rounded, 
-                  label: t.text('btn_out'),
-                  color: AppColors.primary, 
-                  textColor: Colors.white,
-                  isPrimary: true,
+                Row(
+                  children: [
+                    _HeaderButton(
+                      onPressed: _pasteFromClipboard,
+                      icon: Icons.content_paste_rounded,
+                      label: "Smart Paste",
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      textColor: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    _HeaderButton(
+                      onPressed: _saveStockOut, 
+                      icon: Icons.check_circle_rounded, 
+                      label: t.text('btn_out'),
+                      color: AppColors.primary, 
+                      textColor: Colors.white,
+                      isPrimary: true,
+                    ),
+                  ],
                 ),
               ],
             ),

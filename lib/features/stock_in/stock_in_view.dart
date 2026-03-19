@@ -379,6 +379,14 @@ class _StockInViewState extends State<StockInView> {
            newRows.removeAt(0);
         }
         
+        // Remove the default empty row if it's the only one and it's untouched
+        if (stateManager.rows.length == 1) {
+           final firstCell = stateManager.rows.first.cells['product_id']?.value?.toString() ?? '';
+           if (firstCell.isEmpty) {
+              stateManager.removeAllRows();
+           }
+        }
+
         stateManager.appendRows(newRows);
         if (mounted) AppNotifications.showSuccess(context, "${newRows.length} qator nusxalandi");
       }

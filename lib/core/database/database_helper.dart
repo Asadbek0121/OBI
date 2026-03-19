@@ -538,7 +538,7 @@ class DatabaseHelper {
   // --- Product Logic ---
   Future<Map<String, dynamic>?> getProductById(String id) async {
     final db = await instance.database;
-    final results = await db.query('products', where: 'id = ? AND is_deleted = 0', whereArgs: [id], limit: 1);
+    final results = await db.query('products', where: 'id = ? COLLATE NOCASE AND is_deleted = 0', whereArgs: [id], limit: 1);
     return results.isNotEmpty ? results.first : null;
   }
   Future<Map<String, dynamic>?> getProductByName(String name) async {
