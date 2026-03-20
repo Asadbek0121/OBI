@@ -358,6 +358,14 @@ class AppTranslations extends ChangeNotifier {
       'ai_predictor_title': 'AI BASHORATCHI',
       'ai_risk_count': 'ta xavf',
       'ai_days_left': 'kun qoldi',
+      'set_pin_enable': 'PIN Kod bilan Kirish',
+      'set_pin_desc': 'Ilovaga tezkor kirishni yoqish',
+      'set_pin_change': 'PIN Kodni O\'zgartirish',
+      'set_pin_change_desc': 'Kirish kodini yangilash',
+      'msg_pin_saved': 'PIN kod saqlandi',
+      'msg_pin_error': '4 xona bo\'lishi shart',
+      'enter_pin': 'PIN kodni kiriting',
+      'btn_auth_password': 'Parol orqali kirish',
     },
     'ru': {
       // Sidebar
@@ -667,6 +675,14 @@ class AppTranslations extends ChangeNotifier {
       'ai_predictor_title': 'AI ПРОГНОЗ',
       'ai_risk_count': 'рисков',
       'ai_days_left': 'дней осталось',
+      'set_pin_enable': 'Вход по PIN-коду',
+      'set_pin_desc': 'Включить быстрый доступ',
+      'set_pin_change': 'Изменить PIN-код',
+      'set_pin_change_desc': 'Обновить код доступа',
+      'msg_pin_saved': 'PIN-код сохранен',
+      'msg_pin_error': 'Должно быть 4 цифры',
+      'enter_pin': 'Введите PIN-код',
+      'btn_auth_password': 'Войти по паролю',
     },
     'tr': {
       // Sidebar
@@ -971,6 +987,14 @@ class AppTranslations extends ChangeNotifier {
       'ai_predictor_title': 'AI TAHMİNİ',
       'ai_risk_count': 'risk var',
       'ai_days_left': 'gün kaldı',
+      'set_pin_enable': 'PIN Kodu ile Giriş',
+      'set_pin_desc': 'Hızlı erişimi etkinleştir',
+      'set_pin_change': 'PIN Kodunu Değiştir',
+      'set_pin_change_desc': 'Giriş kodunu güncelle',
+      'msg_pin_saved': 'PIN kodu kaydedildi',
+      'msg_pin_error': '4 haneli olmalı',
+      'enter_pin': 'PIN kodunu girin',
+      'btn_auth_password': 'Şifre ile giriş',
     },
   };
 }

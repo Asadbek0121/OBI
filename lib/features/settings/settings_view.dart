@@ -216,6 +216,26 @@ class _SettingsViewState extends State<SettingsView> {
                 crossAxisSpacing: 8,
                 childAspectRatio: 5.5,
                 children: [
+                   _buildToggleCard(
+                    title: trans.text("set_pin_enable"),
+                    subtitle: trans.text("set_pin_desc"),
+                    icon: Icons.dialpad_rounded,
+                    value: context.watch<AuthProvider>().isPinEnabled,
+                    onChanged: (v) async {
+                      if (v && !context.read<AuthProvider>().hasPin) {
+                        _showPinSetupDialog(context, trans);
+                      } else {
+                        await context.read<AuthProvider>().togglePin(v);
+                      }
+                    },
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_pin_change"),
+                    subtitle: trans.text("set_pin_change_desc"),
+                    icon: Icons.lock_reset_rounded,
+                    color: Colors.blueAccent,
+                    onTap: () => _showPinSetupDialog(context, trans),
+                  ),
                   _buildActionCard(
                     title: trans.text("set_auth_title"),
                     subtitle: trans.text("set_auth_subtitle"),
@@ -604,6 +624,74 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         );
       },
+    );
+  }
+
+  void _showPinSetupDialog(BuildContext dialogCtx, AppTranslations trans) {
+    final pinController = TextEditingController();
+    final auth = dialogCtx.read<AuthProvider>();
+    
+    showDialog(
+      context: dialogCtx,
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      builder: (c) => Center(
+        child: GlassContainer(
+          width: 340,
+          padding: const EdgeInsets.all(32),
+          borderRadius: 32,
+          opacity: 0.1,
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.dialpad_rounded, size: 48, color: AppColors.primary),
+                const SizedBox(height: 16),
+                Text(trans.text("set_pin_change"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                Text(trans.text("set_pin_change_desc"), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: pinController,
+                  obscureText: true,
+                  maxLength: 4,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 16),
+                  decoration: const InputDecoration(
+                    counterText: "",
+                    border: InputBorder.none,
+                    hintText: "••••",
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
+                    const SizedBox(width: 12),
+                    _buildModalBtn(trans.text("btn_save"), AppColors.primary, Colors.white, () async {
+                      if (pinController.text.length == 4) {
+                        final successMsg = trans.text("msg_pin_saved");
+                        await auth.updatePin(pinController.text);
+                        await auth.togglePin(true);
+                        
+                        if (!mounted) return;
+                        if (c.mounted) Navigator.pop(c);
+                        if (!mounted) return;
+                        
+                        AppNotifications.showSuccess(context, successMsg);
+                      } else {
+                        AppNotifications.showError(context, trans.text("msg_pin_error"));
+                      }
+                    }),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

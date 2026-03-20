@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:clinical_warehouse/core/services/auth_provider.dart';
 import 'package:clinical_warehouse/features/dashboard/dashboard_screen.dart';
+import 'package:clinical_warehouse/features/auth/pin_entry_screen.dart';
 import '../../core/localization/app_translations.dart';
 import '../../core/widgets/window_buttons.dart';
 import 'dart:io';
@@ -24,6 +25,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   bool _showLogin = false;
   bool _isLoading = false;
+  bool _isPinMode = false;
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   String _errorText = '';
@@ -61,10 +63,14 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   void _runSequence() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
     // Initial loading phase
     await Future.delayed(const Duration(milliseconds: 2000));
     
     if (mounted) {
+      if (auth.isPinEnabled) {
+        setState(() => _isPinMode = true);
+      }
       setState(() => _showLogin = true);
       _layoutController.forward();
     }
@@ -305,24 +311,28 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                  : Row(
                                    mainAxisAlignment: MainAxisAlignment.center,
                                    children: [
-                                     Text(t.text('set_lang_title').contains('Til') ? "KIRISH" : (t.text('set_lang_title').contains('Настройки') ? "ВОЙТИ" : "GİRİŞ"), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                     Text(t.text('set_lang_title').contains('Til') ? "KIRISH" : (t.text('set_lang_title').contains('Настройки') ? "ВОЙTI" : "GİRİŞ"), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
                                      const SizedBox(width: 8),
                                      const Icon(Icons.login_rounded),
-                                   ],
-                                 ),
+                                    ],
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+                );
+              },
+            ),
+          ],
+        ),
+          if (_isPinMode)
+            PinEntryScreen(
+              onCancel: () => setState(() => _isPinMode = false),
+            ),
           if (!Platform.isMacOS)
             const Positioned(
               top: 0,
