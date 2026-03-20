@@ -152,6 +152,53 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
+  Future<void> _clearHistory() async {
+    final trans = AppTranslations();
+    final confirmed = await AppDialogs.showConfirmDialog(
+      context: context,
+      title: trans.text("set_clear_data"),
+      content: "${trans.text("set_clear_data_desc")}?",
+      confirmText: trans.text("btn_confirm"),
+      cancelText: trans.text("btn_cancel"),
+    );
+
+    if (confirmed == true) {
+      try {
+        await DatabaseHelper.instance.clearAllData();
+        if (mounted) {
+          AppNotifications.showSuccess(context, trans.text("msg_saved"));
+        }
+      } catch (e) {
+        if (mounted) {
+          AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
+        }
+      }
+    }
+  }
+
+  Future<void> _factoryReset() async {
+    final trans = AppTranslations();
+    final confirm = await AppDialogs.showConfirmDialog(
+      context: context,
+      title: trans.text("dlg_factory_reset_title"),
+      content: trans.text("dlg_factory_reset_content"),
+      confirmText: trans.text("btn_confirm"),
+      cancelText: trans.text("btn_cancel"),
+    );
+    if (confirm == true) {
+      try {
+        await DatabaseHelper.instance.factoryReset();
+        if (mounted) {
+          AppNotifications.showSuccess(context, trans.text("msg_factory_reset_done"));
+        }
+      } catch (e) {
+        if (mounted) {
+          AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final trans = context.watch<AppTranslations>();
@@ -300,36 +347,14 @@ class _SettingsViewState extends State<SettingsView> {
                     subtitle: trans.text("set_clear_data_desc"),
                     icon: Icons.delete_sweep_rounded,
                     color: Colors.orange,
-                    onTap: () {
-                       AppNotifications.showInfo(context, trans.text("msg_error"));
-                    },
+                    onTap: _clearHistory,
                   ),
                   _buildActionCard(
                     title: trans.text("set_reset_title"),
                     subtitle: trans.text("set_factory_reset_desc"),
                     icon: Icons.factory_rounded,
                     color: Colors.red,
-                    onTap: () async {
-                      final confirm = await AppDialogs.showConfirmDialog(
-                        context: context,
-                        title: trans.text("dlg_factory_reset_title"),
-                        content: trans.text("dlg_factory_reset_content"),
-                        confirmText: trans.text("btn_confirm"),
-                        cancelText: trans.text("btn_cancel"),
-                      );
-                      if (confirm == true) {
-                        try {
-                          await DatabaseHelper.instance.factoryReset();
-                          if (context.mounted) {
-                            AppNotifications.showSuccess(context, trans.text("msg_factory_reset_done"));
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
-                          }
-                        }
-                      }
-                    },
+                    onTap: _factoryReset,
                   ),
                 ],
               ),
