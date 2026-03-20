@@ -15,6 +15,8 @@ jobs:
   build:
     name: Build Windows Release
     runs-on: windows-latest
+    env:
+      MSIX_PATH: ""
     permissions:
       contents: write
 
@@ -46,10 +48,10 @@ jobs:
           }
           
           if ($msixFile) {
-            echo "MSIX_PATH=$($msixFile.FullName)" >> $env:GITHUB_ENV
-            echo "HAS_MSIX=true" >> $env:GITHUB_ENV
+            Add-Content -Path $env:GITHUB_ENV -Value "MSIX_PATH=$($msixFile.FullName)"
+            Add-Content -Path $env:GITHUB_ENV -Value "HAS_MSIX=true"
           } else {
-            echo "HAS_MSIX=false" >> $env:GITHUB_ENV
+            Add-Content -Path $env:GITHUB_ENV -Value "HAS_MSIX=false"
             exit 1
           }
 
