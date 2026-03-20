@@ -1354,6 +1354,10 @@ class DatabaseHelper {
        await txn.delete('suppliers');
        await txn.delete('receivers');
     });
+    
+    // Clear sync history so it pulls EVERYTHING from cloud on next run
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('last_successful_sync');
   }
 
   // Transaction Management (Edit/Delete)

@@ -59,13 +59,13 @@ flutter:
     - assets/logo.png
 
 msix_config:
-  display_name: OBI Clinical Warehouse
+  display_name: Clinical Warehouse
   publisher_display_name: OBI
-  identity_name: uz.asadbek.obi.clinicalwarehouse
-  msix_version: 2.2.20.0
+  identity_name: com.obi.clinicalwarehouse
+  msix_version: 1.0.0
   logo_path: assets/logo.png
   capabilities: internetClient, internetClientServer, privateNetworkClientServer
   architecture: x64
   install: false
-  publisher: 'CN=OBI'
-  store: false
+  publisher: CN=OBI, O=OBI, L=Tashkent, S=Tashkent, C=UZ
+  install_certificate: true

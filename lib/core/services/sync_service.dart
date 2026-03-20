@@ -70,6 +70,14 @@ class SyncService {
     }
   }
 
+  /// Clears the last sync timestamp and performs a deep pull from Supabase.
+  /// This ensures ALL data from the cloud is fetched to the local machine.
+  Future<void> fullResync() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_lastSyncKey);
+    await startSync();
+  }
+
   Future<void> pushLocalChanges() async {
     final db = await DatabaseHelper.instance.database;
 
