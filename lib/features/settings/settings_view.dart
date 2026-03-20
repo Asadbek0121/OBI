@@ -466,7 +466,7 @@ class _SettingsViewState extends State<SettingsView> {
                 title: "Yangilanishni tekshirish",
                 subtitle: "Tizimning oxirgi talqinini yuklab olish",
                 color: Colors.blueAccent,
-                onTap: () => UpdateService.checkUpdate(context),
+                onTap: () => UpdateService.checkUpdate(forceShowNoUpdate: true),
               ),
             ],
           ),

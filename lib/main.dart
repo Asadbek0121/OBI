@@ -157,12 +157,12 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService.checkUpdate(context);
+      UpdateService.checkUpdate();
     });
     
-    // Check every 10 minutes for updates while app is open
-    _updateTimer = Timer.periodic(const Duration(minutes: 10), (timer) {
-      if (mounted) UpdateService.checkUpdate(context);
+    // Check every 5 minutes for updates while app is open
+    _updateTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (mounted) UpdateService.checkUpdate();
     });
   }
 
