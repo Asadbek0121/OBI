@@ -16,10 +16,10 @@ class GlassContainer extends StatelessWidget {
   const GlassContainer({
     super.key,
     required this.child,
-    this.borderRadius = 16.0,
-    this.blur = 10.0,
-    this.opacity = 0.65,
-    this.padding = const EdgeInsets.all(16.0),
+    this.borderRadius = AppColors.borderRadius,
+    this.blur = 14.0,
+    this.opacity = 0.7,
+    this.padding = const EdgeInsets.all(AppColors.cardPadding),
     this.color,
     this.width,
     this.height,
@@ -30,8 +30,10 @@ class GlassContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    final surfaceColor = color ?? (isDark ? const Color(0xFF1E1E1E) : AppColors.glassSurface);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.glassBorder.withValues(alpha: 0.5);
+    final surfaceColor = color ?? (isDark ? const Color(0xFF1E222A) : AppColors.glassSurface);
+    final borderColor = isDark 
+        ? Colors.white.withValues(alpha: 0.08) 
+        : AppColors.glassBorder.withValues(alpha: 0.6);
 
     Widget content = Container(
       width: width,
@@ -42,8 +44,9 @@ class GlassContainer extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
           color: borderColor,
-          width: 1.0,
+          width: 1.5,
         ),
+        boxShadow: isDark ? [] : AppColors.softShadow,
       ),
       child: child,
     );

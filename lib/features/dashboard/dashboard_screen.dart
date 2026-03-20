@@ -600,18 +600,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 32),
           if (!_isLoadingDashboard && _aiPredictions.isNotEmpty)
             Container(
-              margin: const EdgeInsets.only(bottom: 24),
+              margin: const EdgeInsets.only(bottom: 32),
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: Theme.of(context).brightness == Brightness.dark 
-                    ? [const Color(0xFF2C3E50), const Color(0xFF000000)]
-                    : [const Color(0xFF6A11CB), const Color(0xFF2575FC)]
-                ), 
-                borderRadius: BorderRadius.circular(20),
+                gradient: AppColors.auraGradient,
+                borderRadius: BorderRadius.circular(24),
                 boxShadow: [
-                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10))
+                  BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 30, offset: const Offset(0, 15))
                 ]
               ),
               child: Column(
@@ -619,52 +615,66 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.auto_awesome, color: Colors.white, size: 20), 
-                      const SizedBox(width: 12), 
-                      Text(t.text('ai_predictor_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), 
-                      const Spacer(), 
-                      Text("${_aiPredictions.length} ${t.text('ai_risk_count')}", style: const TextStyle(color: Colors.white70, fontSize: 12))
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(t.text('ai_predictor_title'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18, letterSpacing: 0.5)),
+                      const Spacer(),
+                      GlassContainer(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        borderRadius: 12,
+                        opacity: 0.2,
+                        child: Text("${_aiPredictions.length} ${t.text('ai_risk_count')}", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                      )
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   SizedBox(
-                    height: 100,
+                    height: 120,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _aiPredictions.length,
-                      separatorBuilder: (c,i) => const SizedBox(width: 12),
+                      separatorBuilder: (c,i) => const SizedBox(width: 16),
                       itemBuilder: (context, index) {
                          final item = _aiPredictions[index];
                          final isStatic = item['reason'] == 'low_stock_static';
-                         final color = isStatic ? Colors.orangeAccent : Colors.redAccent;
+                         final color = isStatic ? const Color(0xFFFFD60A) : const Color(0xFFFF375F);
 
                          return Container(
-                           width: 180, 
-                           padding: const EdgeInsets.all(12), 
+                           width: 220,
+                           padding: const EdgeInsets.all(16),
                            decoration: BoxDecoration(
-                             color: Colors.white.withValues(alpha: 0.1), 
-                             borderRadius: BorderRadius.circular(16),
-                             border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                           ), 
+                             color: Colors.white.withValues(alpha: 0.1),
+                             borderRadius: BorderRadius.circular(20),
+                             border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                           ),
                            child: Column(
-                             crossAxisAlignment: CrossAxisAlignment.start, 
-                             mainAxisAlignment: MainAxisAlignment.center, 
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             mainAxisAlignment: MainAxisAlignment.center,
                              children: [
-                               Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis), 
-                               const SizedBox(height: 4),
+                               Text(item['name'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                               const Spacer(),
                                Row(
                                  children: [
-                                   Icon(isStatic ? Icons.warning_amber_rounded : Icons.trending_down_rounded, size: 14, color: color),
-                                   const SizedBox(width: 6),
+                                   Container(
+                                     padding: const EdgeInsets.all(4),
+                                     decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle),
+                                     child: Icon(isStatic ? Icons.warning_amber_rounded : Icons.trending_down_rounded, size: 14, color: color),
+                                   ),
+                                   const SizedBox(width: 8),
                                    Text(
-                                     isStatic ? "${item['current_stock']} ${item['unit']}" : "${item['days_left']} ${t.text('ai_days_left')}", 
-                                     style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)
+                                     isStatic ? "${item['current_stock']} ${item['unit']}" : "${item['days_left']} ${t.text('ai_days_left')}",
+                                     style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)
                                    ),
                                  ],
                                ),
+                               const SizedBox(height: 4),
                                Text(
-                                 isStatic ? t.text('status_critical') : t.text('ai_daily_use').replaceAll('{}', item['daily_use']), 
-                                 style: const TextStyle(color: Colors.white60, fontSize: 10)
+                                 isStatic ? t.text('status_critical') : t.text('ai_daily_use').replaceAll('{}', item['daily_use']),
+                                 style: const TextStyle(color: Colors.white70, fontSize: 11)
                                ),
                              ],
                            ),
@@ -679,28 +689,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
              Container(
                margin: const EdgeInsets.only(bottom: 32),
                padding: const EdgeInsets.all(24),
-               decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.05), borderRadius: BorderRadius.circular(24), border: Border.all(color: AppColors.primary.withValues(alpha: 0.1))),
+               decoration: BoxDecoration(
+                 color: AppColors.surface,
+                 borderRadius: BorderRadius.circular(24),
+                 border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.1)),
+                 boxShadow: [
+                   BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 20, offset: const Offset(0, 10))
+                 ],
+               ),
                child: Row(children: [
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_income'), 
-                   value: "${_formatNum(_todayStats['in_count'])} ${t.text('unit_items')}", 
+                   value: _formatNum(_todayStats['in_count']), 
                    subvalue: "${_formatNum(_todayStats['in_sum'])} ${t.text('unit_currency')}", 
-                   icon: Icons.arrow_downward_rounded, 
-                   color: Colors.green
+                   icon: Icons.south_west_rounded, 
+                   color: AppColors.success
                  )),
+                 _StatDivider(),
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_outcome'), 
-                   value: "${_formatNum(_todayStats['out_count'])} ${t.text('unit_items')}", 
+                   value: _formatNum(_todayStats['out_count']), 
                    subvalue: t.text('dash_distributed'), 
-                   icon: Icons.arrow_upward_rounded, 
-                   color: Colors.orange
+                   icon: Icons.north_east_rounded, 
+                   color: AppColors.warning
                  )),
+                 _StatDivider(),
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_activity'), 
                    value: _formatNum((_todayStats['in_count'] ?? 0) + (_todayStats['out_count'] ?? 0)), 
                    subvalue: t.text('dash_total_ops'), 
-                   icon: Icons.timeline, 
-                   color: Colors.blue
+                   icon: Icons.bolt_rounded, 
+                   color: AppColors.primary
                  )),
                ]),
              ),
@@ -708,28 +727,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           else ...[
             if (_branchAnalytics.isNotEmpty) ...[
               const SizedBox(height: 32),
-              SizedBox(height: 150, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: _branchAnalytics.length, separatorBuilder: (c,i)=>const SizedBox(width: 16), itemBuilder: (context, index) {
+              SizedBox(height: 160, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: _branchAnalytics.length, separatorBuilder: (c,i)=>const SizedBox(width: 20), itemBuilder: (context, index) {
                 final b = _branchAnalytics[index];
-                return SizedBox(width: 260, child: GlassContainer(padding: const EdgeInsets.all(16), borderRadius: 20, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(b['branch_name'] ?? 'Filial', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [_BranchSmallStat(label: "Jami", value: "${b['total_orders'] ?? 0}"), _BranchSmallStat(label: "Kutilmoqda", value: "${b['pending_count'] ?? 0}", color: Colors.orange)])])));
+                return SizedBox(width: 280, child: GlassContainer(padding: const EdgeInsets.all(20), borderRadius: 24, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(b['branch_name'] ?? 'Filial', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)), const Spacer(), const Divider(height: 32), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [_BranchSmallStat(label: "Jami", value: "${b['total_orders'] ?? 0}"), _BranchSmallStat(label: "Kutilmoqda", value: "${b['pending_count'] ?? 0}", color: AppColors.warning)])])));
               })),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
             LayoutBuilder(builder: (context, constraints) {
               final width = constraints.maxWidth;
-              return Wrap(spacing: 16, runSpacing: 16, children: [
+              return Wrap(spacing: 20, runSpacing: 20, children: [
                 _FancyStatCard(
                   title: t.text('dash_total_value'), 
                   value: "${_formatNum(_stats['total_value'])} ${t.text('unit_currency')}", 
-                  icon: Icons.monetization_on_rounded, 
-                  color: Colors.blue, 
-                  width: (width - 48)/3
+                  icon: Icons.account_balance_wallet_rounded, 
+                  color: AppColors.primary, 
+                  width: (width - 40)/3
                 ),
                 _FancyStatCard(
                   title: t.text('dash_low_stock'), 
                   value: _formatNum(_stats['low_stock']), 
-                  icon: Icons.warning_rounded, 
-                  color: Colors.orange, 
-                  width: (width - 48)/3, 
+                  icon: Icons.analytics_rounded, 
+                  color: AppColors.warning, 
+                  width: (width - 40)/3, 
                   onTap: () async { 
                     final items = await DatabaseHelper.instance.getLowStockProducts(); 
                     _showProductList(t.text('dash_low_stock'), items); 
@@ -739,8 +758,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   title: t.text('dash_expiring'), 
                   value: _formatNum(_stats['finished']), 
                   icon: Icons.timer_off_rounded, 
-                  color: Colors.red, 
-                  width: (width - 48)/3, 
+                  color: AppColors.error, 
+                  width: (width - 40)/3, 
                   onTap: () async { 
                     final items = await DatabaseHelper.instance.getFinishedProducts(); 
                     _showProductList(t.text('dash_expiring'), items); 
@@ -748,17 +767,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ]);
             }),
-            const SizedBox(height: 32),
-            Text(t.text('dash_list_title'), style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            GlassContainer(padding: const EdgeInsets.all(0), child: Column(children: List.generate(_activities.length, (index) {
+            const SizedBox(height: 48),
+            Row(
+              children: [
+                Container(width: 4, height: 24, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+                const SizedBox(width: 12),
+                Text(t.text('dash_list_title'), style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+              ],
+            ),
+            const SizedBox(height: 24),
+            GlassContainer(
+              padding: const EdgeInsets.all(0), 
+              child: Column(children: List.generate(_activities.length, (index) {
                 final activity = _activities[index];
-                return _ActivityItem(
-                  title: activity['product_name'] ?? '', 
-                  subtitle: "${activity['quantity'] ?? 0} ${activity['unit'] ?? ''}", 
-                  time: activity['date'] ?? '', 
-                  icon: activity['type'] == 'IN' ? Icons.arrow_downward : Icons.arrow_upward, 
-                  color: activity['type'] == 'IN' ? Colors.green : Colors.orange
+                return Column(
+                  children: [
+                    _ActivityItem(
+                      title: activity['product_name'] ?? '', 
+                      subtitle: "${activity['quantity'] ?? 0} ${activity['unit'] ?? ''}", 
+                      time: activity['date'] ?? '', 
+                      icon: activity['type'] == 'IN' ? Icons.add_rounded : Icons.remove_rounded, 
+                      color: activity['type'] == 'IN' ? AppColors.success : AppColors.warning
+                    ),
+                    if (index < _activities.length - 1) 
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Divider(color: AppColors.glassBorder.withValues(alpha: 0.1), height: 1),
+                      ),
+                  ],
                 );
             }))),
           ],
@@ -768,16 +804,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _FancyStatCard extends StatelessWidget {
+class _FancyStatCard extends StatefulWidget {
   final String title, value; final IconData icon; final Color color; final double width; final VoidCallback? onTap;
   const _FancyStatCard({required this.title, required this.value, required this.icon, required this.color, required this.width, this.onTap});
-  @override Widget build(BuildContext context) {
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(24), child: GlassContainer(width: width, padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(icon, color: color)),
-        const SizedBox(height: 20),
-        Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-    ])));
+
+  @override
+  State<_FancyStatCard> createState() => _FancyStatCardState();
+}
+
+class _FancyStatCardState extends State<_FancyStatCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedScale(
+        scale: _isHovered ? 1.02 : 1.0,
+        duration: const Duration(milliseconds: 200),
+        child: InkWell(
+          onTap: widget.onTap, 
+          borderRadius: BorderRadius.circular(24), 
+          child: GlassContainer(
+            width: widget.width, 
+            padding: const EdgeInsets.all(28), 
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14), 
+                      decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)), 
+                      child: Icon(widget.icon, color: widget.color, size: 24)
+                    ),
+                    if (widget.onTap != null)
+                      Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textTertiary.withValues(alpha: 0.5)),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                Text(widget.title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(widget.value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -1)),
+              ]
+            )
+          )
+        ),
+      ),
+    );
   }
 }
 
@@ -789,12 +865,111 @@ class _ActivityItem extends StatelessWidget {
   }
 }
 
-class _SidebarItem extends StatelessWidget {
+class _SidebarItem extends StatefulWidget {
   final IconData icon; final String label; final bool isActive; final VoidCallback onTap; final int badgeCount;
   const _SidebarItem({required this.icon, required this.label, required this.isActive, required this.onTap, this.badgeCount = 0});
-  @override Widget build(BuildContext context) {
-    final color = isActive ? AppColors.primary : Colors.grey[600];
-    return Padding(padding: const EdgeInsets.only(bottom: 4), child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(color: isActive ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent, borderRadius: BorderRadius.circular(12)), child: Row(children: [Icon(icon, color: color, size: 22), const SizedBox(width: 16), Expanded(child: Text(label, style: TextStyle(color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.w500))), if (badgeCount > 0) Container(padding: const EdgeInsets.all(6), decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle), child: Text("$badgeCount", style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))]))));
+
+  @override
+  State<_SidebarItem> createState() => _SidebarItemState();
+}
+
+class _SidebarItemState extends State<_SidebarItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.isActive ? AppColors.primary : AppColors.textSecondary;
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: InkWell(
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: widget.isActive 
+                  ? AppColors.primary.withValues(alpha: 0.1) 
+                  : (_isHovered ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                AnimatedScale(
+                  scale: widget.isActive || _isHovered ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(widget.icon, color: color, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    widget.label, 
+                    style: TextStyle(
+                      color: color, 
+                      fontSize: 14,
+                      fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (widget.badgeCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.error.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))
+                      ],
+                    ),
+                    child: Text(
+                      "${widget.badgeCount}", 
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                if (widget.isActive)
+                  Container(
+                    width: 4,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.primary.withValues(alpha: 0.5), blurRadius: 4)
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            AppColors.glassBorder.withValues(alpha: 0.1),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -802,15 +977,33 @@ class _TodayStatItem extends StatelessWidget {
   final String label, value, subvalue; final IconData icon; final Color color;
   const _TodayStatItem({required this.label, required this.value, required this.subvalue, required this.icon, required this.color});
   @override Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Icon(icon, color: color, size: 16), const SizedBox(width: 8), Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12))]), const SizedBox(height: 8), Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), Text(subvalue, style: TextStyle(color: Colors.grey[400], fontSize: 11))]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start, 
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 14),
+            ),
+            const SizedBox(width: 10),
+            Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+        Text(subvalue, style: const TextStyle(color: AppColors.textTertiary, fontSize: 12, fontWeight: FontWeight.w400)),
+      ],
+    );
   }
 }
 
 class _BranchSmallStat extends StatelessWidget {
   final String label, value; final Color color;
-  const _BranchSmallStat({required this.label, required this.value, this.color = Colors.blue});
+  const _BranchSmallStat({required this.label, required this.value, this.color = AppColors.primary});
   @override Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: TextStyle(color: Colors.grey[500], fontSize: 10)), Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14))]);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(color: AppColors.textTertiary, fontSize: 10)), Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15))]);
   }
 }
 
