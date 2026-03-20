@@ -24,6 +24,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/notification_provider.dart';
+import '../../core/services/profile_provider.dart';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -149,34 +150,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   SizedBox(
                     width: 260,
                     child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        border: const Border(right: BorderSide(color: AppColors.glassBorder)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 10,
-                            offset: const Offset(4, 0),
-                          )
-                        ],
+                      decoration: const BoxDecoration(
+                        border: Border(right: BorderSide(color: AppColors.glassBorder, width: 0.5)),
                       ),
                       child: Column(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(24.0),
+                            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
                             child: Column(
                               children: [
-                                Image.asset('assets/logo.png', width: 100, height: 100),
-                                const SizedBox(height: 12),
+                                Image.asset('assets/logo.png', width: 80, height: 80),
+                                const SizedBox(height: 16),
                                 Text(
                                   t.text('title_app'), 
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
                           Expanded(
                             child: Scrollbar(
                               controller: _sidebarController,
@@ -247,7 +239,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                            child: Consumer<ProfileProvider>(
+                              builder: (context, profile, _) => InkWell(
+                                onTap: () => setState(() => _selectedIndex = 7),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
+                                          ),
+                                          image: profile.imagePath != null
+                                              ? DecorationImage(
+                                                  image: FileImage(File(profile.imagePath!)),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null,
+                                        ),
+                                        child: profile.imagePath == null
+                                            ? const Icon(Icons.person_rounded, color: Colors.white, size: 16)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              profile.name,
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              profile.email,
+                                              style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                             child: _SidebarItem(
                               icon: Icons.logout_rounded, 
                               label: t.text('menu_logout'), 
@@ -483,13 +536,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStatusBar() {
     final t = Provider.of<AppTranslations>(context);
-    return Container(
+    return GlassContainer(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        border: const Border(top: BorderSide(color: AppColors.glassBorder)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      borderRadius: 0,
+      opacity: 0.02,
       child: Row(
         children: [
           StatusIndicator(label: t.text('menu_database').toUpperCase(), status: "SQLite", icon: Icons.storage_rounded, color: Colors.blue),
@@ -516,7 +567,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Spacer(),
           const Icon(Icons.circle, color: AppColors.success, size: 8),
           const SizedBox(width: 8),
-          Text(t.text('system_active'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+          Text(t.text('system_active'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
         ],
       ),
     );
@@ -686,17 +737,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           if (!_isLoadingDashboard && _todayStats.isNotEmpty)
-             Container(
-               margin: const EdgeInsets.only(bottom: 32),
+             GlassContainer(
                padding: const EdgeInsets.all(24),
-               decoration: BoxDecoration(
-                 color: AppColors.surface,
-                 borderRadius: BorderRadius.circular(24),
-                 border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.1)),
-                 boxShadow: [
-                   BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 20, offset: const Offset(0, 10))
-                 ],
-               ),
+               borderRadius: 24,
+               opacity: 0.03,
                child: Row(children: [
                  Expanded(child: _TodayStatItem(
                    label: t.text('dash_income'), 
@@ -888,15 +932,13 @@ class _SidebarItemState extends State<_SidebarItem> {
         child: InkWell(
           onTap: widget.onTap,
           borderRadius: BorderRadius.circular(16),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+          splashFactory: NoSplash.splashFactory,
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          child: GlassContainer(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: widget.isActive 
-                  ? AppColors.primary.withValues(alpha: 0.1) 
-                  : (_isHovered ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent),
-              borderRadius: BorderRadius.circular(16),
-            ),
+            borderRadius: 16,
+            blur: (widget.isActive || _isHovered) ? 20 : 0,
+            opacity: widget.isActive ? 0.08 : (_isHovered ? 0.04 : 0),
             child: Row(
               children: [
                 AnimatedScale(
@@ -911,7 +953,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                     style: TextStyle(
                       color: color, 
                       fontSize: 14,
-                      fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: widget.isActive ? FontWeight.w800 : FontWeight.w500,
                     ),
                   ),
                 ),

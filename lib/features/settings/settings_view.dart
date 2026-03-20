@@ -7,11 +7,16 @@ import 'package:clinical_warehouse/core/services/profile_provider.dart';
 import 'package:clinical_warehouse/core/services/sync_service.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/widgets/app_dialogs.dart';
-import 'package:clinical_warehouse/core/services/excel_service.dart';
+import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/services/update_service.dart';
+import 'package:clinical_warehouse/core/widgets/glass_container.dart';
+import 'package:clinical_warehouse/core/theme/app_colors.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 
 class SettingsView extends StatefulWidget {
-  const SettingsView({super.key});
+  final bool showHeader;
+  const SettingsView({super.key, this.showHeader = true});
 
   @override
   State<SettingsView> createState() => _SettingsViewState();
@@ -63,178 +68,624 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _fullCloudSync() async {
+    final trans = AppTranslations();
     final confirmed = await AppDialogs.showConfirmDialog(
       context: context,
-      title: 'Bulutdan to\'liq yuklash',
-      content: 'Barcha mahalliy ma\'lumotlar o\'chiriladi va bulutdagilar bilan yangilanadi. Davom etasizmi?',
-      confirmText: 'Ha, yuklash',
-      cancelText: 'Bekor qilish',
+      title: trans.text("set_restore_title"),
+      content: trans.text("set_sync_subtitle"),
+      confirmText: trans.text("btn_confirm"),
+      cancelText: trans.text("btn_cancel"),
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
+      AppNotifications.showInfo(context, trans.text("msg_restart_required"));
       try {
         await SyncService().fullResync();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ma\'lumotlar muvaffaqiyatli yangilandi')),
-          );
+          AppNotifications.showSuccess(context, trans.text("msg_saved"));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Xatolik: $e')),
-          );
+          AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
         }
       }
     }
   }
 
-  Future<void> _factoryReset() async {
-    final confirmed = await AppDialogs.showConfirmDialog(
-      context: context,
-      title: 'Zavod sozlamalariga qaytarish',
-      content: 'Diqqat! Barcha ma\'lumotlar to\'liq o\'chib ketadi. Bu amalni qaytarib bo\'lmaydi.',
-      confirmText: 'To\'liq o\'chirish',
-      cancelText: 'Bekor qilish',
+  Future<void> _pickProfileImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
     );
 
-    if (confirmed == true) {
-      await DatabaseHelper.instance.factoryReset();
+    if (result != null && result.files.single.path != null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tizim tozalandi')),
-        );
+        await context.read<ProfileProvider>().updateImage(result.files.single.path!);
+      }
+    }
+  }
+
+  void _createBackup() async {
+    final trans = AppTranslations();
+    try {
+      final path = await DatabaseHelper.instance.createBackup(null);
+      if (path != null && mounted) {
+        AppNotifications.showSuccess(context, "${trans.text("msg_backup_ok")}: $path");
+      }
+    } catch (e) {
+      if (mounted) {
+        AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
+      }
+    }
+  }
+
+  Future<void> _restoreLocalBackup() async {
+    final trans = AppTranslations();
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      allowMultiple: false,
+    );
+
+    if (result != null && result.files.single.path != null) {
+      if (!mounted) return;
+      final confirmed = await AppDialogs.showConfirmDialog(
+        context: context,
+        title: trans.text("set_restore_local_title"),
+        content: trans.text("set_restore_local_desc"),
+        confirmText: trans.text("btn_confirm"),
+        cancelText: trans.text("btn_cancel"),
+      );
+
+      if (confirmed == true) {
+        try {
+          final success = await DatabaseHelper.instance.restoreBackup(result.files.single.path!);
+          if (success && mounted) {
+            AppNotifications.showSuccess(context, trans.text("msg_factory_reset_done"));
+          }
+        } catch (e) {
+          if (mounted) {
+            AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
+          }
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.watch<ThemeProvider>();
-    final trans = AppTranslations();
+    final trans = context.watch<AppTranslations>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(trans.text('menu_settings')),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        if (widget.showHeader)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Text(
+              trans.text('menu_settings'), 
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16), // Restored some padding
+            children: [
+              // PROFIL
+              _buildSectionTitle(trans.text("set_profil")),
+              _buildProfileCard(),
+              
+              const SizedBox(height: 12),
+
+              // UMUMIY
+              _buildSectionTitle(trans.text("set_umumiy")),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 5.5,
+                children: [
+                  _buildToggleCard(
+                    title: trans.text("dark_mode"),
+                    subtitle: trans.text(context.watch<ThemeProvider>().isDarkMode ? "set_theme_on" : "set_theme_off"),
+                    icon: Icons.dark_mode_rounded,
+                    value: context.watch<ThemeProvider>().isDarkMode,
+                    onChanged: (v) => context.read<ThemeProvider>().toggleTheme(v),
+                  ),
+                  _buildLanguageCard(),
+                ],
+              ),
+              
+              const SizedBox(height: 12),
+
+              // XAVFSIZLIK
+              _buildSectionTitle(trans.text("set_xavfsizlik")),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 5.5,
+                children: [
+                  _buildActionCard(
+                    title: trans.text("set_auth_title"),
+                    subtitle: trans.text("set_auth_subtitle"),
+                    icon: Icons.security_rounded,
+                    color: Colors.orange,
+                    onTap: () => _showCredentialsDialog(context, trans),
+                  ),
+                  _buildActionCard(
+                    title: trans.text("menu_backup"),
+                    subtitle: trans.text("set_backup_subtitle"),
+                    icon: Icons.cloud_upload_rounded,
+                    color: Colors.green,
+                    onTap: _createBackup,
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_restore_title"),
+                    subtitle: trans.text("set_sync_subtitle"),
+                    icon: Icons.cloud_download_rounded,
+                    color: Colors.orange,
+                    onTap: _fullCloudSync,
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_excel_import"),
+                    subtitle: trans.text("set_excel_import_desc"),
+                    icon: Icons.upload_file_rounded,
+                    color: Colors.teal,
+                    onTap: () {
+                       AppNotifications.showInfo(context, trans.text("set_excel_import"));
+                    },
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_restore_local_title"),
+                    subtitle: trans.text("set_restore_local_desc"),
+                    icon: Icons.restore_rounded,
+                    color: Colors.purple,
+                    onTap: _restoreLocalBackup,
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_update_title"),
+                    subtitle: trans.text("set_update_subtitle"),
+                    icon: Icons.system_update_rounded,
+                    color: Colors.blue,
+                    onTap: () => UpdateService.checkUpdate(forceShowNoUpdate: true),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // XODISA VA XAVFLAR
+              _buildSectionTitle(trans.text("set_danger_zone"), color: Colors.red),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 5.5,
+                children: [
+                  _buildActionCard(
+                    title: trans.text("set_clear_data"),
+                    subtitle: trans.text("set_clear_data_desc"),
+                    icon: Icons.delete_sweep_rounded,
+                    color: Colors.orange,
+                    onTap: () {
+                       AppNotifications.showInfo(context, trans.text("msg_error"));
+                    },
+                  ),
+                  _buildActionCard(
+                    title: trans.text("set_reset_title"),
+                    subtitle: trans.text("set_factory_reset_desc"),
+                    icon: Icons.factory_rounded,
+                    color: Colors.red,
+                    onTap: () async {
+                      final confirm = await AppDialogs.showConfirmDialog(
+                        context: context,
+                        title: trans.text("dlg_factory_reset_title"),
+                        content: trans.text("dlg_factory_reset_content"),
+                        confirmText: trans.text("btn_confirm"),
+                        cancelText: trans.text("btn_cancel"),
+                      );
+                      if (confirm == true) {
+                        try {
+                          await DatabaseHelper.instance.factoryReset();
+                          if (context.mounted) {
+                            AppNotifications.showSuccess(context, trans.text("msg_factory_reset_done"));
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            AppNotifications.showError(context, "${trans.text("msg_error")}: $e");
+                          }
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
+      child: Text(
+        title, 
+        style: TextStyle(
+          fontSize: 10, 
+          fontWeight: FontWeight.w800, 
+          color: color ?? AppColors.primary,
+          letterSpacing: 1.2,
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+    );
+  }
+
+  Widget _buildProfileCard() {
+    final profile = context.watch<ProfileProvider>();
+    return GlassContainer(
+      padding: const EdgeInsets.all(12),
+      borderRadius: 16,
+      opacity: 0.05,
+      child: Row(
         children: [
-          _SectionHeader(title: trans.text('profile')),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    decoration: InputDecoration(labelText: trans.text('name')),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _emailController,
-                    decoration: InputDecoration(labelText: trans.text('email')),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _updateProfile,
-                    child: Text(trans.text('save')),
-                  ),
-                ],
+          InkWell(
+            onTap: _pickProfileImage,
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                image: profile.imagePath != null
+                    ? DecorationImage(
+                        image: FileImage(File(profile.imagePath!)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
               ),
+              child: profile.imagePath == null
+                  ? const Icon(Icons.person_rounded, color: Colors.white, size: 24)
+                  : null,
             ),
           ),
-          const SizedBox(height: 24),
-          _SectionHeader(title: trans.text('security')),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _loginController,
-                    decoration: const InputDecoration(labelText: 'Login'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Parol'),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _updateLogin,
-                    child: Text(trans.text('update')),
-                  ),
-                ],
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  profile.name, 
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                ),
+                Text(
+                  profile.email, 
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary.withValues(alpha: 0.7)),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
-          _SectionHeader(title: trans.text('appearance')),
-          ListTile(
-            title: Text(trans.text('dark_mode')),
-            trailing: Switch(
-              value: theme.isDarkMode,
-              onChanged: (val) => theme.toggleTheme(val),
-              activeThumbColor: Theme.of(context).colorScheme.primary,
+          IconButton(
+            onPressed: () => _showProfileEditDialog(context),
+            icon: const Icon(Icons.edit_rounded, color: AppColors.primary, size: 14),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              padding: const EdgeInsets.all(5),
             ),
-          ),
-          ListTile(
-            title: Text(trans.text('language')),
-            subtitle: Text(trans.currentLocale == 'uz' ? 'O\'zbekcha' : 'Русский'),
-            onTap: () {
-              final newLocale = trans.currentLocale == 'uz' ? 'ru' : 'uz';
-              trans.setLocale(newLocale);
-            },
-          ),
-          const SizedBox(height: 24),
-          _SectionHeader(title: 'Sinxronizatsiya va Yangilanish'),
-          ListTile(
-            leading: const Icon(Icons.cloud_download, color: Colors.blue),
-            title: const Text('Bulutdan to\'liq yuklash (Full Resync)'),
-            subtitle: const Text('Local ma\'lumotlarni o\'chirib, bulutdan qayta tortish'),
-            onTap: _fullCloudSync,
-          ),
-          ListTile(
-            leading: const Icon(Icons.file_download, color: Colors.green),
-            title: const Text('Jihozlarni eksport qilish (Excel)'),
-            onTap: () => ExcelService.exportAssetsHierarchy(),
-          ),
-          ListTile(
-            leading: const Icon(Icons.system_update, color: Colors.orange),
-            title: const Text('Yangilanishlarni tekshirish'),
-            onTap: () => UpdateService.checkUpdate(forceShowNoUpdate: true),
-          ),
-          const SizedBox(height: 24),
-          _SectionHeader(title: 'Tizim'),
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text('Zavod sozlamalariga qaytarish', style: TextStyle(color: Colors.red)),
-            onTap: _factoryReset,
           ),
         ],
       ),
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
+  Widget _buildToggleCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return GlassContainer(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      borderRadius: 16,
+      opacity: 0.05,
+      child: Row(
+        children: [
+          _buildIconBox(icon, AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2)),
+                Text(subtitle, style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          Transform.scale(
+            scale: 0.7,
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: value,
+              onChanged: onChanged,
+              activeThumbColor: AppColors.primary,
+              activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
-          letterSpacing: 1.2,
+  Widget _buildLanguageCard() {
+    final trans = AppTranslations();
+    return GlassContainer(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      borderRadius: 16,
+      opacity: 0.05,
+      child: Row(
+        children: [
+          _buildIconBox(Icons.language_rounded, Colors.purple),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Til Sozlamalari", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2)),
+                Text("Interfeys tilini tanlang", style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildLangBtn("uz", trans.currentLocale == 'uz', () => trans.setLocale('uz')),
+              const SizedBox(width: 4),
+              _buildLangBtn("ru", trans.currentLocale == 'ru', () => trans.setLocale('ru')),
+              const SizedBox(width: 4),
+              _buildLangBtn("tr", trans.currentLocale == 'tr', () => trans.setLocale('tr')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLangBtn(String label, bool isActive, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary : Colors.transparent,
+          border: Border.all(color: isActive ? AppColors.primary : AppColors.glassBorder.withValues(alpha: 0.15)),
+          borderRadius: BorderRadius.circular(10),
         ),
+        child: Text(
+          label, 
+          style: TextStyle(
+            color: isActive ? Colors.white : AppColors.textSecondary, 
+            fontSize: 13, 
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCard({required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
+    return GlassContainer(
+      onTap: onTap,
+      padding: const EdgeInsets.all(10),
+      borderRadius: 20,
+      opacity: 0.03,
+      child: Row(
+        children: [
+          _buildIconBox(icon, color),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                Text(subtitle, style: const TextStyle(color: AppColors.textTertiary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconBox(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+      child: Icon(icon, size: 24, color: color),
+    );
+  }
+
+  void _showProfileEditDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      builder: (c) {
+        final profile = c.watch<ProfileProvider>();
+        final trans = c.watch<AppTranslations>();
+        return Center(
+          child: GlassContainer(
+            width: 360,
+            padding: const EdgeInsets.all(32),
+            borderRadius: 32,
+            opacity: 0.08,
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(trans.text("set_profile"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                  const SizedBox(height: 24),
+                  // Image Preview
+                  InkWell(
+                    onTap: _pickProfileImage,
+                    borderRadius: BorderRadius.circular(40),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        image: profile.imagePath != null
+                            ? DecorationImage(
+                                image: FileImage(File(profile.imagePath!)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: profile.imagePath == null
+                          ? const Icon(Icons.person_rounded, color: Colors.white, size: 40)
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _pickProfileImage,
+                    child: Text(trans.currentLocale == 'uz' ? "Rasmni o'zgartirish" : "Change Photo", style: const TextStyle(fontSize: 11)),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildModalInput(controller: _nameController, label: trans.text("col_name"), icon: Icons.badge_outlined),
+                  const SizedBox(height: 16),
+                  _buildModalInput(controller: _emailController, label: "Email", icon: Icons.email_outlined),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
+                      const SizedBox(width: 12),
+                      _buildModalBtn(trans.text("btn_save"), AppColors.primary, Colors.white, () {
+                        _updateProfile();
+                        Navigator.pop(c);
+                      }),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCredentialsDialog(BuildContext context, AppTranslations trans) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      builder: (c) => Center(
+        child: GlassContainer(
+          width: 360,
+          padding: const EdgeInsets.all(32),
+          borderRadius: 32,
+          opacity: 0.08,
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(trans.text("set_auth_title"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                const SizedBox(height: 24),
+                _buildModalInput(controller: _loginController, label: trans.text("login"), icon: Icons.alternate_email_rounded),
+                const SizedBox(height: 16),
+                _buildModalInput(controller: _passwordController, label: trans.text("password"), icon: Icons.lock_outline_rounded, isPassword: true),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
+                    const SizedBox(width: 12),
+                    _buildModalBtn(trans.text("btn_save"), AppColors.primary, Colors.white, () {
+                      _updateLogin();
+                      Navigator.pop(c);
+                    }),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModalInput({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textTertiary)),
+        ),
+        GlassContainer(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          borderRadius: 12,
+          opacity: 0.03,
+          child: TextField(
+            controller: controller,
+            obscureText: isPassword,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              icon: Icon(icon, size: 16, color: AppColors.primary.withValues(alpha: 0.4)),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModalBtn(String label, Color bg, Color text, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: bg != Colors.transparent ? [BoxShadow(color: bg.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))] : [],
+        ),
+        child: Text(label, style: TextStyle(color: text, fontSize: 11, fontWeight: FontWeight.w900)),
       ),
     );
   }

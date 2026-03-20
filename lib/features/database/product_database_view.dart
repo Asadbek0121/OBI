@@ -6,6 +6,7 @@ import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
+import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:flutter/services.dart';
 
 class ProductDatabaseView extends StatefulWidget {
@@ -37,64 +38,32 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.text('db_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                )),
-                const SizedBox(height: 4),
-                Container(
-                  width: 60,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: AppColors.primary,
-                ),
-                dividerColor: Colors.transparent,
-                tabs: [
-                  Tab(text: t.text('db_products')),
-                  Tab(text: t.text('db_suppliers')),
-                  Tab(text: t.text('db_receivers')),
-                  Tab(text: t.text('db_payment_types')),
-                ],
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            bool isMobile = constraints.maxWidth < 800;
+            return isMobile 
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(t),
+                    const SizedBox(height: 20),
+                    _buildTabs(t),
+                  ],
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: _buildHeader(t)),
+                    const SizedBox(width: 24),
+                    Flexible(child: _buildTabs(t)),
+                  ],
+                );
+          }
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 40),
         Expanded(
           child: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
             controller: _tabController,
             children: const [
               _ProductGrid(),
@@ -105,6 +74,124 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildHeader(AppTranslations t) {
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            borderRadius: BorderRadius.circular(3),
+            boxShadow: [
+              BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(t.text('db_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              )),
+              Text(t.text('inventory_desc'), 
+                style: const TextStyle(color: AppColors.textTertiary, fontSize: 13, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabs(AppTranslations t) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(2),
+      borderRadius: 16,
+      blur: 20,
+      opacity: 0.02,
+      child: SizedBox(
+        height: 48,
+        width: 580, // Optimized for 4 tabs
+        child: AnimatedBuilder(
+          animation: _tabController.animation!,
+          builder: (context, child) {
+            return Stack(
+              children: [
+                // Sliding Indicator (Floating effect)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final tabWidth = constraints.maxWidth / 4;
+                    return AnimatedPositioned(
+                      duration: const Duration(milliseconds: 300), // Snappier
+                      curve: Curves.easeOutCubic, 
+                      left: _tabController.index * tabWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: tabWidth,
+                      child: Container(
+                        margin: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white, // Solid feel like in reference
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08), 
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Tab Labels
+                Row(
+                  children: [
+                    _buildTabItem(0, t.text('db_products')),
+                    _buildTabItem(1, t.text('db_suppliers')),
+                    _buildTabItem(2, t.text('db_receivers')),
+                    _buildTabItem(3, t.text('db_payment_types')),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabItem(int index, String label) {
+    bool isActive = _tabController.index == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _tabController.animateTo(index)),
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
+              color: isActive ? AppColors.primary : Colors.black.withValues(alpha: 0.4),
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -325,72 +412,45 @@ class _ProductGridState extends State<_ProductGrid> {
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
+            GlassContainer(
+              onTap: _pasteFromClipboard,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              borderRadius: 12,
+              opacity: 0.05,
+              child: Row(
+                children: [
+                  Icon(Icons.content_paste_rounded, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.7)),
+                  const SizedBox(width: 10),
+                  Text("Smart Paste", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
                 ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: _pasteFromClipboard, 
-                icon: const Icon(Icons.content_paste_rounded, size: 20), 
-                label: const Text("Smart Paste"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  foregroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
               ),
             ),
             const SizedBox(width: 12),
-            Container(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
+            GlassContainer(
+              onTap: _saveChanges, 
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              borderRadius: 12,
+              opacity: 0.1,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.save_rounded, size: 18, color: AppColors.primary), 
+                  const SizedBox(width: 10),
+                  Text(t.text('db_save_products'), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 13)),
                 ],
-              ),
-              child: ElevatedButton.icon(
-                onPressed: _saveChanges, 
-                icon: const Icon(Icons.save_rounded, size: 20), 
-                label: Text(t.text('db_save_products')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 20),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-            ),
+          child: GlassContainer(
+            borderRadius: 24,
+            blur: 20,
+            opacity: 0.05,
+            padding: const EdgeInsets.all(2),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(22),
               child: PlutoGrid(
                 key: ValueKey(t.currentLocale),
                 columns: columns,
@@ -607,21 +667,13 @@ class _SimpleListGridState extends State<_SimpleListGrid> {
         ),
         const SizedBox(height: 20),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-            ),
+          child: GlassContainer(
+            borderRadius: 24,
+            blur: 20,
+            opacity: 0.05,
+            padding: const EdgeInsets.all(2),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(22),
               child: PlutoGrid(
                 key: ValueKey(t.currentLocale),
                 columns: columns,

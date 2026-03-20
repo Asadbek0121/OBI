@@ -30,40 +30,61 @@ class GlassContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    // Advanced color palette for "Aura Glass"
     final surfaceColor = color ?? (isDark ? const Color(0xFF1E222A) : AppColors.glassSurface);
-    final borderColor = isDark 
-        ? Colors.white.withValues(alpha: 0.08) 
-        : AppColors.glassBorder.withValues(alpha: 0.6);
-
-    Widget content = Container(
-      width: width,
-      height: height,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: surfaceColor.withValues(alpha: opacity),
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: borderColor,
-          width: 1.5,
-        ),
-        boxShadow: isDark ? [] : AppColors.softShadow,
-      ),
-      child: child,
-    );
-
-    if (onTap != null) {
-      content = InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: content,
-      );
-    }
+    final actualOpacity = opacity > 0.6 ? 0.05 : opacity; // Force ultra-glass look if not set specifically
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: content,
+        child: Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius),
+            color: surfaceColor.withValues(alpha: actualOpacity),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: isDark ? 0.08 : 0.12),
+                Colors.white.withValues(alpha: 0.02),
+                Colors.black.withValues(alpha: isDark ? 0.05 : 0.01),
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: isDark ? 0.12 : 0.25),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+              // Simulating Inner Glow/Edge Highlight
+              BoxShadow(
+                color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.15),
+                blurRadius: 0,
+                spreadRadius: 0,
+                offset: const Offset(1, 1),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: Padding(
+                padding: padding,
+                child: child,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

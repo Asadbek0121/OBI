@@ -69,19 +69,10 @@ class AppTheme {
       ),
       
       // Button Theme
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: AppColors.primary.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
-        ),
-      ),
+      elevatedButtonTheme: _elevatedButtonTheme(false),
+      filledButtonTheme: _filledButtonTheme(false),
+      outlinedButtonTheme: _outlinedButtonTheme(false),
+      textButtonTheme: _textButtonTheme(false),
     );
   }
 
@@ -145,18 +136,71 @@ class AppTheme {
         bodyMedium: TextStyle(color: Color(0xFF94A3B8)),
       ),
       
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
-        ),
-      ),
+      // Button Theme
+      elevatedButtonTheme: _elevatedButtonTheme(true),
+      filledButtonTheme: _filledButtonTheme(true),
+      outlinedButtonTheme: _outlinedButtonTheme(true),
+      textButtonTheme: _textButtonTheme(true),
     );
   }
+
+  static ElevatedButtonThemeData _elevatedButtonTheme(bool isDark) => ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      shadowColor: AppColors.primary.withValues(alpha: 0.4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      textStyle: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5, fontSize: 14),
+      animationDuration: const Duration(milliseconds: 300),
+    ).copyWith(
+      mouseCursor: WidgetStateProperty.resolveWith((states) => 
+        states.contains(WidgetState.disabled) ? SystemMouseCursors.basic : SystemMouseCursors.click
+      ),
+      overlayColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.1)),
+    ),
+  );
+
+  static FilledButtonThemeData _filledButtonTheme(bool isDark) => FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+      animationDuration: const Duration(milliseconds: 300),
+    ).copyWith(
+      mouseCursor: WidgetStateProperty.resolveWith((states) => 
+        states.contains(WidgetState.disabled) ? SystemMouseCursors.basic : SystemMouseCursors.click
+      ),
+    ),
+  );
+
+  static OutlinedButtonThemeData _outlinedButtonTheme(bool isDark) => OutlinedButtonThemeData(
+    style: OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primary,
+      side: const BorderSide(color: AppColors.primary, width: 1.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      animationDuration: const Duration(milliseconds: 300),
+    ).copyWith(
+      mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+      overlayColor: WidgetStateProperty.all(AppColors.primary.withValues(alpha: 0.05)),
+    ),
+  );
+
+  static TextButtonThemeData _textButtonTheme(bool isDark) => TextButtonThemeData(
+    style: TextButton.styleFrom(
+      foregroundColor: AppColors.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+      animationDuration: const Duration(milliseconds: 300),
+    ).copyWith(
+      mouseCursor: WidgetStateProperty.all(SystemMouseCursors.click),
+      overlayColor: WidgetStateProperty.all(AppColors.primary.withValues(alpha: 0.05)),
+    ),
+  );
 }

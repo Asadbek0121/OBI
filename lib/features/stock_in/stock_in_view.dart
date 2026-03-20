@@ -6,6 +6,7 @@ import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
+import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:flutter/services.dart';
 
 class StockInView extends StatefulWidget {
@@ -98,78 +99,80 @@ class _StockInViewState extends State<StockInView> {
         title: t.text('col_no'),
         field: 'no',
         type: PlutoColumnType.text(),
-        width: 50,
+        width: 80,
         enableEditingMode: false,
+        textAlign: PlutoColumnTextAlign.center,
+        titleTextAlign: PlutoColumnTextAlign.center,
       ),
       PlutoColumn(
         title: t.text('col_date'),
         field: 'date',
         type: PlutoColumnType.date(format: 'yyyy-MM-dd'),
-        width: 110,
+        width: 140,
       ),
       PlutoColumn(
         title: t.text('col_id'),
         field: 'product_id',
         type: PlutoColumnType.text(),
-        width: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: t.text('col_product'),
         field: 'product_name',
         type: PlutoColumnType.text(),
-        width: 200,
+        width: 250,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: t.text('col_price'),
         field: 'price',
         type: PlutoColumnType.text(),
-        width: 140,
+        width: 160,
       ),
       PlutoColumn(
         title: t.text('col_unit'),
         field: 'unit',
         type: PlutoColumnType.text(),
-        width: 80,
+        width: 100,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: t.text('col_qty'),
         field: 'quantity',
         type: PlutoColumnType.text(),
-        width: 100,
+        width: 120,
       ),
       PlutoColumn(
         title: t.text('col_tax_percent'),
         field: 'tax_percent',
         type: PlutoColumnType.text(),
-        width: 80,
+        width: 100,
       ),
       PlutoColumn(
         title: t.text('col_tax_sum'),
         field: 'tax_sum',
         type: PlutoColumnType.text(),
-        width: 120,
+        width: 150,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: t.text('col_surcharge_percent'),
         field: 'surcharge_percent',
         type: PlutoColumnType.text(),
-        width: 110,
+        width: 130,
       ),
       PlutoColumn(
         title: t.text('col_surcharge_sum'),
         field: 'surcharge_sum',
         type: PlutoColumnType.text(),
-        width: 140,
+        width: 160,
         enableEditingMode: false,
       ),
       PlutoColumn(
         title: t.text('col_from'),
         field: 'supplier',
         type: PlutoColumnType.text(), 
-        width: 150,
+        width: 180,
         enableEditingMode: false,
         renderer: (rendererContext) {
           return InkWell(
@@ -183,8 +186,8 @@ class _StockInViewState extends State<StockInView> {
             ),
             child: Row(
               children: [
-                Expanded(child: Text(rendererContext.cell.value.toString())),
-                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+                Expanded(child: Text(rendererContext.cell.value.toString(), style: const TextStyle(fontWeight: FontWeight.w600))),
+                const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.primary),
               ],
             ),
           );
@@ -194,7 +197,7 @@ class _StockInViewState extends State<StockInView> {
         title: t.text('col_payment_status'),
         field: 'payment_status',
         type: PlutoColumnType.text(), 
-        width: 150,
+        width: 180,
         enableEditingMode: false,
         renderer: (rendererContext) {
           return InkWell(
@@ -208,8 +211,8 @@ class _StockInViewState extends State<StockInView> {
             ),
             child: Row(
               children: [
-                Expanded(child: Text(rendererContext.cell.value.toString())),
-                const Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey),
+                Expanded(child: Text(rendererContext.cell.value.toString(), style: const TextStyle(fontWeight: FontWeight.w600))),
+                const Icon(Icons.arrow_drop_down, size: 20, color: AppColors.primary),
               ],
             ),
           );
@@ -219,7 +222,7 @@ class _StockInViewState extends State<StockInView> {
         title: t.text('col_total_amount'),
         field: 'total_amount',
         type: PlutoColumnType.text(),
-        width: 160,
+        width: 180,
         enableEditingMode: false,
       ),
     ];
@@ -474,75 +477,89 @@ class _StockInViewState extends State<StockInView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.text('header_check_in'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                )),
-                const SizedBox(height: 8),
-                Text(t.text('inp_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
-              ],
-            ),
-            
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HeaderButton(
-                  onPressed: () {
-                     if (mounted) {
-                        stateManager.removeAllRows();
-                        stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
-                     }
-                  }, 
-                  icon: Icons.refresh_rounded,
-                  label: t.text('btn_cancel'),
-                  color: Colors.grey[200]!,
-                  textColor: AppColors.textPrimary,
-                ),
-                const SizedBox(width: 12),
-                _HeaderButton(
-                  onPressed: _pasteFromClipboard, 
-                  icon: Icons.content_paste_rounded, 
-                  label: "Smart Paste",
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  textColor: AppColors.primary,
-                ),
-                const SizedBox(width: 12),
-                _HeaderButton(
-                  onPressed: _saveStockIn, 
-                  icon: Icons.save_rounded, 
-                  label: t.text('btn_save'),
-                  color: AppColors.success,
-                  textColor: Colors.white,
-                  isPrimary: true,
-                ),
-              ],
-            ),
-          ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.text('header_check_in'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
+                  )),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(width: 4, height: 16, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 8),
+                      Text(t.text('inp_desc'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 13, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ],
+              ),
+              
+              Row(
+                children: [
+                  GlassContainer(
+                    onTap: () {
+                       if (mounted) {
+                          stateManager.removeAllRows();
+                          stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
+                       }
+                    }, 
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    borderRadius: 12,
+                    opacity: 0.05,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.refresh_rounded, size: 18, color: AppColors.textPrimary),
+                        const SizedBox(width: 10),
+                        Text(t.text('btn_cancel'), style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GlassContainer(
+                    onTap: _pasteFromClipboard, 
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    borderRadius: 12,
+                    opacity: 0.05,
+                    child: Row(
+                      children: [
+                        Icon(Icons.content_paste_rounded, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.7)),
+                        const SizedBox(width: 10),
+                        const Text("Smart Paste", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  GlassContainer(
+                    onTap: _saveStockIn, 
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    borderRadius: 12,
+                    opacity: 0.1,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.save_rounded, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 10),
+                        Text(t.text('btn_save'), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
+        
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-            ),
+          child: GlassContainer(
+            borderRadius: 20,
+            blur: 20,
+            opacity: 0.03,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: PlutoGrid(
@@ -558,7 +575,6 @@ class _StockInViewState extends State<StockInView> {
                   
                   // Auto-append row if the last row is modified
                   if (event.rowIdx == stateManager.rows.length - 1) {
-                    // Check if 'product_id' was entered, or generally if the row is being used
                     if (event.column.field == 'product_id' && event.value.toString().isNotEmpty) {
                        stateManager.appendRows([_createEmptyRow(stateManager.rows.length + 1)]);
                     }
@@ -597,14 +613,8 @@ class _StockInViewState extends State<StockInView> {
                       final surPct = double.tryParse(row.cells['surcharge_percent']?.value?.toString() ?? '0') ?? 0;
 
                       final baseTotal = qty * price;
-                      
-                      // Tax is calculated on base amounts
                       final taxSum = baseTotal * (taxPct / 100);
-                      
-                      // Surcharge is calculated on (Base + Tax) as per user request definition
-                      // Formula: ((PRICE * QTY) + TAXSUM) * SURCHARGE%
                       final surSum = (baseTotal + taxSum) * (surPct / 100);
-                      
                       final finalTotal = baseTotal + taxSum + surSum;
 
                       row.cells['tax_sum']?.value = finalTotal > 0 ? taxSum.toStringAsFixed(0) : '';
@@ -685,48 +695,3 @@ class _StockInViewState extends State<StockInView> {
   }
 }
 
-class _HeaderButton extends StatelessWidget {
-  final VoidCallback? onPressed;
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color textColor;
-  final bool isPrimary;
-
-  const _HeaderButton({
-    required this.onPressed,
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.textColor,
-    this.isPrimary = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        boxShadow: isPrimary ? [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ] : null,
-      ),
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: textColor,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 0,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-      ),
-    );
-  }
-}
