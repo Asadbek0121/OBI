@@ -81,7 +81,7 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Premium Dark
+      backgroundColor: const Color(0xFF0A0D14), // Vibrant Premium Dark
       body: Stack(
         children: [
           Center(
