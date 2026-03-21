@@ -50,7 +50,9 @@ class UpdateService {
               version: latestVersion,
               url: asset['browser_download_url'],
               fileName: asset['name'],
-              notes: data['body'] ?? 'Yangi versiya tayyor!',
+            notes: data['body'] != null && data['body'].toString().length > 10 
+                ? data['body'] 
+                : "🚀 Yangi Premium Dizayn • 💎 Shaffof 3D Logotip • 🔄 Tezkor Sinxronizatsiya • 📊 Excel Hisobotlar Tizimi • 🔧 Ma'lumotlar Bazasi Migratsiyasi • 🤖 Telegram Bot Backup • ⚡️ Ishlash Tezligi Oshirildi • 🛡 Xavfsizlik Tizimi Takomillashdi",
             );
             _prompted = true;
           }
@@ -399,7 +401,7 @@ class _MarqueeWidgetState extends State<_MarqueeWidget> {
 
       await _scrollController.animateTo(
         maxScroll,
-        duration: Duration(milliseconds: (maxScroll * 40).toInt()),
+        duration: Duration(milliseconds: (maxScroll * 80).toInt()), // 80ms per pixel (Slower for readability)
         curve: Curves.linear,
       );
       
