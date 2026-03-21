@@ -341,11 +341,14 @@ class _DownloadViewState extends State<_DownloadView> {
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(20),
+                  height: 60, // Fixed height for carousel
                   decoration: BoxDecoration(color: Colors.white.withAlpha(10), borderRadius: BorderRadius.circular(20)),
-                  constraints: const BoxConstraints(maxHeight: 200),
-                  child: SingleChildScrollView(
-                    child: Text(widget.notes, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.6)),
+                  clipBehavior: Clip.antiAlias,
+                  child: Center(
+                    child: _MarqueeWidget(
+                      text: widget.notes.replaceAll('\n', ' • '),
+                      style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ),
               ],
@@ -366,3 +369,66 @@ class _DownloadViewState extends State<_DownloadView> {
     );
   }
 }
+
+class _MarqueeWidget extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+  const _MarqueeWidget({required this.text, required this.style});
+
+  @override
+  State<_MarqueeWidget> createState() => _MarqueeWidgetState();
+}
+
+class _MarqueeWidgetState extends State<_MarqueeWidget> {
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    Future.delayed(const Duration(milliseconds: 500), () => _startScrolling());
+  }
+
+  void _startScrolling() async {
+    while (mounted && _scrollController.hasClients) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted || !_scrollController.hasClients) break;
+      
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      if (maxScroll <= 0) break; 
+
+      await _scrollController.animateTo(
+        maxScroll,
+        duration: Duration(milliseconds: (maxScroll * 40).toInt()),
+        curve: Curves.linear,
+      );
+      
+      if (!mounted || !_scrollController.hasClients) break;
+      _scrollController.jumpTo(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Text(
+          "${widget.text}      •      ${widget.text}      •      ${widget.text}      •      ${widget.text}",
+          style: widget.style,
+          maxLines: 1,
+        ),
+      ),
+    );
+  }
+}
+
