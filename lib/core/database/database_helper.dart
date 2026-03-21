@@ -201,6 +201,11 @@ class DatabaseHelper {
       try {
         await db.execute("ALTER TABLE $table ADD COLUMN deleted_at TEXT");
       } catch (_) {}
+
+      // 🛡️ CRITICAL: 'created_at' is sometimes missing in existing local tables
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN created_at TEXT");
+      } catch (_) {}
     }
 
 
@@ -355,6 +360,7 @@ class DatabaseHelper {
         surcharge_percent REAL DEFAULT 0,
         surcharge_sum REAL DEFAULT 0,
         payment_status TEXT, -- 'Naqd', 'Qarzga', 'O'tkazma'
+        created_at TEXT,
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
@@ -368,6 +374,7 @@ class DatabaseHelper {
         receiver_name TEXT, 
         batch_reference TEXT,
         notes TEXT,
+        created_at TEXT,
         FOREIGN KEY (product_id) REFERENCES products (id)
       )
     ''');
