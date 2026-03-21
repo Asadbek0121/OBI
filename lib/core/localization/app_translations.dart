@@ -355,6 +355,7 @@ class AppTranslations extends ChangeNotifier {
       'notif_mark_all': 'Hammasini o\'qish',
       'notif_no_data': 'Hozircha bildirishnomalar yo\'q',
       'search_hint': 'Qidirish (Cmd+K)',
+      'search_input_hint': 'Qidiruv... (Mahsulot, Xodim, Tarix)',
       'ai_predictor_title': 'AI BASHORATCHI',
       'ai_risk_count': 'ta xavf',
       'ai_days_left': 'kun qoldi',
@@ -366,6 +367,7 @@ class AppTranslations extends ChangeNotifier {
       'msg_pin_error': '4 xona bo\'lishi shart',
       'enter_pin': 'PIN kodni kiriting',
       'btn_auth_password': 'Parol orqali kirish',
+      'set_change_photo': 'Rasmni o\'zgartirish',
     },
     'ru': {
       // Sidebar
@@ -672,6 +674,7 @@ class AppTranslations extends ChangeNotifier {
       'notif_mark_all': 'Прочитать все',
       'notif_no_data': 'Пока нет уведомлений',
       'search_hint': 'Поиск (Cmd+K)',
+      'search_input_hint': 'Поиск... (Товар, Сотрудник, Дата)',
       'ai_predictor_title': 'AI ПРОГНОЗ',
       'ai_risk_count': 'рисков',
       'ai_days_left': 'дней осталось',
@@ -683,6 +686,7 @@ class AppTranslations extends ChangeNotifier {
       'msg_pin_error': 'Должно быть 4 цифры',
       'enter_pin': 'Введите PIN-код',
       'btn_auth_password': 'Войти по паролю',
+      'set_change_photo': 'Изменить фото',
     },
     'tr': {
       // Sidebar
@@ -984,6 +988,7 @@ class AppTranslations extends ChangeNotifier {
       'notif_mark_all': 'Hepsini oku',
       'notif_no_data': 'Henüz bildirim yok',
       'search_hint': 'Arama (Cmd+K)',
+      'search_input_hint': 'Arama... (Ürün, Personel, Tarih)',
       'ai_predictor_title': 'AI TAHMİNİ',
       'ai_risk_count': 'risk var',
       'ai_days_left': 'gün kaldı',
@@ -995,6 +1000,7 @@ class AppTranslations extends ChangeNotifier {
       'msg_pin_error': '4 haneli olmalı',
       'enter_pin': 'PIN kodunu girin',
       'btn_auth_password': 'Şifre ile giriş',
+      'set_change_photo': 'Fotoğrafı Değiştir',
     },
   };
 }

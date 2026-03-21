@@ -5,8 +5,10 @@ import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
-import 'package:clinical_warehouse/core/utils/app_notifications.dart';
-import 'package:clinical_warehouse/core/widgets/app_dialogs.dart';
+import '../../../core/utils/app_notifications.dart';
+import '../../../core/widgets/app_dialogs.dart';
+import '../../../core/widgets/glass_container.dart';
+import '../../../core/widgets/liquid_glass.dart';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
@@ -181,81 +183,79 @@ class _InventoryViewState extends State<InventoryView> {
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 16,
-          runSpacing: 16,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Text(t.text('header_inventory'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                )),
-                const SizedBox(height: 8),
-                Text(t.text('inventory_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.text('header_inventory'), style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: LiquidColors.of(context).title,
+                      letterSpacing: -0.5,
+                    )),
+                    const SizedBox(height: 8),
+                    Text(t.text('inventory_desc'), style: TextStyle(color: LiquidColors.of(context).subtitle)),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                     _HeaderBtn(
+                      onPressed: _loadInventory, 
+                      icon: Icons.refresh_rounded, 
+                      label: "Yangilash",
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      textColor: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    _HeaderBtn(
+                      onPressed: _loadInventory, 
+                      icon: Icons.download_rounded, 
+                      label: "Excel",
+                      color: AppColors.success,
+                      textColor: Colors.white,
+                      isPrimary: true,
+                    ),
+                  ],
+                ),
               ],
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                 _HeaderBtn(
-                  onPressed: _loadInventory, 
-                  icon: Icons.refresh_rounded, 
-                  label: "Yangilash",
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  textColor: AppColors.primary,
+            const SizedBox(height: 24),
+            Expanded(
+            child: GlassContainer(
+              borderRadius: 20,
+              opacity: 0.05,
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: PlutoGrid(
+                    key: ValueKey(t.currentLocale),
+                    columns: columns,
+                    rows: rows,
+                    onLoaded: (PlutoGridOnLoadedEvent event) {
+                      stateManager = event.stateManager;
+                      stateManager.setShowColumnFilter(true); 
+                    },
+                    mode: PlutoGridMode.readOnly,
+                    configuration: gridConfig,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                _HeaderBtn(
-                  onPressed: _loadInventory, 
-                  icon: Icons.download_rounded, 
-                  label: "Excel",
-                  color: AppColors.success,
-                  textColor: Colors.white,
-                  isPrimary: true,
-                ),
-              ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        Expanded(
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-            border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
-          ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: PlutoGrid(
-                key: ValueKey(t.currentLocale),
-                columns: columns,
-                rows: rows,
-                onLoaded: (PlutoGridOnLoadedEvent event) {
-                  stateManager = event.stateManager;
-                  stateManager.setShowColumnFilter(true); 
-                },
-                mode: PlutoGridMode.readOnly,
-                configuration: gridConfig,
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

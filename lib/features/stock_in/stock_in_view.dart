@@ -8,6 +8,7 @@ import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:flutter/services.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class StockInView extends StatefulWidget {
   const StockInView({super.key});
@@ -445,7 +446,7 @@ class _StockInViewState extends State<StockInView> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator()));
     }
     
     final t = Provider.of<AppTranslations>(context);
@@ -473,7 +474,11 @@ class _StockInViewState extends State<StockInView> {
       ),
     );
 
-    return Column(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Header
@@ -485,9 +490,10 @@ class _StockInViewState extends State<StockInView> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(t.text('header_check_in'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                   Text(t.text('header_check_in'), style: TextStyle(
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
+                    color: LiquidColors.of(context).title,
                     letterSpacing: -0.5,
                   )),
                   const SizedBox(height: 4),
@@ -495,7 +501,7 @@ class _StockInViewState extends State<StockInView> {
                     children: [
                       Container(width: 4, height: 16, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
                       const SizedBox(width: 8),
-                      Text(t.text('inp_desc'), style: const TextStyle(color: AppColors.textTertiary, fontSize: 13, fontWeight: FontWeight.w500)),
+                       Text(t.text('inp_desc'), style: TextStyle(color: LiquidColors.of(context).subtitle, fontSize: 13, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ],
@@ -515,9 +521,9 @@ class _StockInViewState extends State<StockInView> {
                     opacity: 0.05,
                     child: Row(
                       children: [
-                        const Icon(Icons.refresh_rounded, size: 18, color: AppColors.textPrimary),
+                        Icon(Icons.refresh_rounded, size: 18, color: LiquidColors.of(context).body),
                         const SizedBox(width: 10),
-                        Text(t.text('btn_cancel'), style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                        Text(t.text('btn_cancel'), style: TextStyle(color: LiquidColors.of(context).body, fontWeight: FontWeight.w700, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -529,9 +535,9 @@ class _StockInViewState extends State<StockInView> {
                     opacity: 0.05,
                     child: Row(
                       children: [
-                        Icon(Icons.content_paste_rounded, size: 18, color: AppColors.textPrimary.withValues(alpha: 0.7)),
+                         Icon(Icons.content_paste_rounded, size: 18, color: LiquidColors.of(context).body.withValues(alpha: 0.7)),
                         const SizedBox(width: 10),
-                        const Text("Smart Paste", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                        Text("Smart Paste", style: TextStyle(color: LiquidColors.of(context).body, fontWeight: FontWeight.w700, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -629,7 +635,9 @@ class _StockInViewState extends State<StockInView> {
             ),
           ),
         ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
+import 'package:clinical_warehouse/core/localization/app_translations.dart';
 
 class GlobalSearchModal extends StatefulWidget {
   const GlobalSearchModal({super.key});
@@ -9,15 +11,24 @@ class GlobalSearchModal extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Search',
-      barrierColor: Colors.black54,
-      transitionDuration: const Duration(milliseconds: 200),
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, anim1, anim2) {
         return const GlobalSearchModal();
       },
       transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic),
-          child: FadeTransition(opacity: anim1, child: child),
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: ScaleTransition(
+            scale: CurvedAnimation(
+              parent: anim1,
+              curve: Curves.easeOutBack,
+            ),
+            child: FadeTransition(
+              opacity: anim1,
+              child: child,
+            ),
+          ),
         );
       },
     );
@@ -74,96 +85,143 @@ class _GlobalSearchModalState extends State<GlobalSearchModal> {
         child: Material(
           color: Colors.transparent,
           child: Container(
-            width: 600,
-            constraints: const BoxConstraints(maxHeight: 600),
+            width: 800, // Widened for PC
+            constraints: const BoxConstraints(maxHeight: 650),
             decoration: BoxDecoration(
               color: Theme.of(context).brightness == Brightness.dark 
-                 ? const Color(0xFF1E1E1E) 
-                 : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black26, blurRadius: 40, spreadRadius: 0, offset: Offset(0, 20))
+                 ? const Color(0xFF1E1E1E).withValues(alpha: 0.6)
+                 : Colors.white.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark 
+                    ? Colors.white.withValues(alpha: 0.2) 
+                    : Colors.black.withValues(alpha: 0.12),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15), 
+                  blurRadius: 50, 
+                  spreadRadius: 0, 
+                  offset: const Offset(0, 25)
+                )
               ],
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header / Input
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, size: 28, color: Colors.grey),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          onChanged: _onSearch,
-                          style: const TextStyle(fontSize: 20),
-                          decoration: InputDecoration.collapsed(
-                            hintText: "Qidiruv... (Mahsulot, Xodim, Tarix)",
-                            hintStyle: TextStyle(color: Colors.grey.shade400)
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Modern Header / Input
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).brightness == Brightness.dark 
+                            ? Colors.white.withValues(alpha: 0.05) 
+                            : Colors.black.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.search_rounded, size: 28, color: Colors.grey),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              onChanged: _onSearch,
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ).copyWith(
+                                  hintText: AppTranslations().text('search_input_hint'),
+                                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 18),
+                                ),
+                              ),
                           ),
-                        ),
+                          if (_isLoading)
+                            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.grey)),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+                            ),
+                            child: const Text("ESC", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey, letterSpacing: 0.5)),
+                          ),
+                        ],
                       ),
-                      if (_isLoading)
-                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text("ESC", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                
-                // Results
-                if (_results.isEmpty && _controller.text.isNotEmpty && !_isLoading)
-                   Padding(
-                     padding: const EdgeInsets.all(32.0),
-                     child: Text("Hech narsa topilmadi", style: TextStyle(color: Colors.grey.shade500)),
-                   )
-                else if (_results.isNotEmpty)
-                  Flexible(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      shrinkWrap: true,
-                      itemCount: _results.length,
-                      separatorBuilder: (c, i) => const Divider(height: 1, indent: 60),
-                      itemBuilder: (context, index) {
-                         final item = _results[index];
-                         return _SearchResultItem(item: item);
-                      },
                     ),
-                  )
-                else
-                   // Initial State Shortcuts
-                   Padding(
-                     padding: const EdgeInsets.all(16.0),
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                         Text("YORDAM", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
-                         const SizedBox(height: 8),
-                         _ShortcutHelpRow(icon: Icons.inventory_2, text: "Mahsulot nomini yozing (masalan, 'Aspirin')"),
-                         _ShortcutHelpRow(icon: Icons.chair, text: "Jihoz nomini yozing (masalan, 'Stol', 'Kompyuter')"), // NEW
-                         _ShortcutHelpRow(icon: Icons.person, text: "Xodim ismini yozing (masalan, 'Valijon')"),
-                         _ShortcutHelpRow(icon: Icons.history, text: "Tarixni ko'rish uchun sana yoki nom yozing"),
-                       ],
+                  ),
+                  const Divider(height: 1, color: Colors.transparent),
+                  
+                  // Results
+                  if (_results.isEmpty && _controller.text.isNotEmpty && !_isLoading)
+                     Padding(
+                       padding: const EdgeInsets.all(48.0),
+                       child: Column(
+                         children: [
+                           Icon(Icons.search_off_rounded, size: 48, color: Colors.grey.withValues(alpha: 0.3)),
+                           const SizedBox(height: 16),
+                           Text("Hech narsa topilmadi", style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                         ],
+                       ),
+                     )
+                  else if (_results.isNotEmpty)
+                    Flexible(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shrinkWrap: true,
+                        itemCount: _results.length,
+                        separatorBuilder: (c, i) => Divider(height: 1, indent: 72, color: Colors.grey.withValues(alpha: 0.1)),
+                        itemBuilder: (context, index) {
+                           final item = _results[index];
+                           return _SearchResultItem(item: item);
+                        },
+                      ),
+                    )
+                  else
+                     // Initial State Shortcuts
+                     Padding(
+                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           Text("YORDAM", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey.shade500, letterSpacing: 1.2)),
+                           const SizedBox(height: 12),
+                           const Row(
+                             children: [
+                               Expanded(child: _ShortcutHelpRow(icon: Icons.inventory_2_rounded, text: "Mahsulot nomi")),
+                               Expanded(child: _ShortcutHelpRow(icon: Icons.chair_rounded, text: "Jihoz nomi")),
+                             ],
+                           ),
+                           const Row(
+                             children: [
+                               Expanded(child: _ShortcutHelpRow(icon: Icons.person_rounded, text: "Xodim ismi")),
+                               Expanded(child: _ShortcutHelpRow(icon: Icons.history_rounded, text: "Tarix (YYYY-MM-DD)")),
+                             ],
+                           ),
+                         ],
+                       ),
                      ),
-                   ),
-
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
+    ),
     );
   }
 }

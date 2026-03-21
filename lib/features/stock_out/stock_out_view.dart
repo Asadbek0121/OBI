@@ -7,6 +7,8 @@ import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/theme/grid_theme.dart';
 import 'package:flutter/services.dart';
+import '../../core/widgets/glass_container.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class StockOutView extends StatefulWidget {
   const StockOutView({super.key});
@@ -304,7 +306,7 @@ class _StockOutViewState extends State<StockOutView> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(backgroundColor: Colors.transparent, body: Center(child: CircularProgressIndicator()));
     }
 
     final t = Provider.of<AppTranslations>(context);
@@ -332,140 +334,138 @@ class _StockOutViewState extends State<StockOutView> {
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 16,
-          runSpacing: 16,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Text(t.text('header_check_out'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                )),
-                const SizedBox(height: 8),
-                Text(t.text('out_desc'), style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey[600])),
-              ],
-            ),
-            
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HeaderButton(
-                  onPressed: () {
-                    if (mounted) {
-                      stateManager.removeAllRows();
-                      stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
-                    }
-                  }, 
-                  icon: Icons.refresh_rounded,
-                  label: t.text('btn_cancel'),
-                  color: Colors.grey[200]!,
-                  textColor: AppColors.textPrimary,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.text('header_check_out'), style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: LiquidColors.of(context).title,
+                      letterSpacing: -0.5,
+                    )),
+                    const SizedBox(height: 8),
+                    Text(t.text('out_desc'), style: TextStyle(color: LiquidColors.of(context).subtitle)),
+                  ],
                 ),
-                const SizedBox(width: 12),
+                
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     _HeaderButton(
-                      onPressed: _pasteFromClipboard,
-                      icon: Icons.content_paste_rounded,
-                      label: "Smart Paste",
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      textColor: AppColors.primary,
+                      onPressed: () {
+                        if (mounted) {
+                          stateManager.removeAllRows();
+                          stateManager.appendRows(List.generate(1, (i) => _createEmptyRow(i + 1)));
+                        }
+                      }, 
+                      icon: Icons.refresh_rounded,
+                      label: t.text('btn_cancel'),
+                      color: LiquidColors.of(context).statusBg,
+                      textColor: LiquidColors.of(context).body,
                     ),
                     const SizedBox(width: 12),
-                    _HeaderButton(
-                      onPressed: _saveStockOut, 
-                      icon: Icons.check_circle_rounded, 
-                      label: t.text('btn_out'),
-                      color: AppColors.primary, 
-                      textColor: Colors.white,
-                      isPrimary: true,
+                    Row(
+                      children: [
+                        _HeaderButton(
+                          onPressed: _pasteFromClipboard,
+                          icon: Icons.content_paste_rounded,
+                          label: "Smart Paste",
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          textColor: AppColors.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        _HeaderButton(
+                          onPressed: _saveStockOut, 
+                          icon: Icons.check_circle_rounded, 
+                          label: t.text('btn_out'),
+                          color: AppColors.primary, 
+                          textColor: Colors.white,
+                          isPrimary: true,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ],
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: PlutoGrid(
-                key: ValueKey(t.currentLocale),
-                columns: columns,
-                rows: rows,
-                onLoaded: (PlutoGridOnLoadedEvent event) {
-                  stateManager = event.stateManager;
-                  stateManager.setShowColumnFilter(false);
-                },
-                onChanged: (PlutoGridOnChangedEvent event) async {
-                   if (event.rowIdx == stateManager.rows.length - 1) {
-                     if (event.column.field == 'product_id' && event.value.toString().isNotEmpty) {
-                        stateManager.appendRows([_createEmptyRow(stateManager.rows.length + 1)]);
-                     }
-                   }
-
-                   if (event.column.field == 'product_id') {
-                      final id = event.value.toString();
-                      if (id.isNotEmpty) {
-                         final product = await DatabaseHelper.instance.getProductById(id);
-                         if (product != null) {
-                            event.row.cells['product_name']?.value = product['name'];
-                            event.row.cells['unit']?.value = product['unit'] ?? '';
-                            
-                            final inventory = await DatabaseHelper.instance.getInventorySummary();
-                            final stockItem = inventory.firstWhere((e) => e['id'] == id, orElse: () => {'stock': 0.0});
-                            event.row.cells['current_stock']?.value = stockItem['stock'] ?? 0;
-                         } else {
-                            event.row.cells['product_name']?.value = '❌ ${t.text('msg_not_found')}';
-                            event.row.cells['unit']?.value = '';
-                            event.row.cells['current_stock']?.value = 0;
+            const SizedBox(height: 24),
+    
+            Expanded(
+              child: GlassContainer(
+              borderRadius: 20,
+              opacity: 0.05,
+              child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: PlutoGrid(
+                    key: ValueKey(t.currentLocale),
+                    columns: columns,
+                    rows: rows,
+                    onLoaded: (PlutoGridOnLoadedEvent event) {
+                      stateManager = event.stateManager;
+                      stateManager.setShowColumnFilter(false);
+                    },
+                    onChanged: (PlutoGridOnChangedEvent event) async {
+                       if (event.rowIdx == stateManager.rows.length - 1) {
+                         if (event.column.field == 'product_id' && event.value.toString().isNotEmpty) {
+                            stateManager.appendRows([_createEmptyRow(stateManager.rows.length + 1)]);
                          }
-                         setState((){});
-                      }
-                   }
-
-                  if (event.column.field == 'quantity') {
-                    final qty = double.tryParse(event.row.cells['quantity']?.value.toString() ?? '0') ?? 0;
-                    final stock = double.tryParse(event.row.cells['current_stock']?.value.toString() ?? '0') ?? 0;
-                    
-                    if (qty > stock) {
-                       event.row.cells['quantity']?.value = stock;
-                       if (context.mounted) {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(content: Text("Omborda yetarli emas! Mavjud: $stock"), duration: const Duration(seconds: 1)),
-                         );
                        }
-                    }
-                  }
-                },
-                configuration: gridConfig,
+    
+                       if (event.column.field == 'product_id') {
+                          final id = event.value.toString();
+                          if (id.isNotEmpty) {
+                             final product = await DatabaseHelper.instance.getProductById(id);
+                             if (product != null) {
+                                event.row.cells['product_name']?.value = product['name'];
+                                event.row.cells['unit']?.value = product['unit'] ?? '';
+                                
+                                final inventory = await DatabaseHelper.instance.getInventorySummary();
+                                final stockItem = inventory.firstWhere((e) => e['id'] == id, orElse: () => {'stock': 0.0});
+                                event.row.cells['current_stock']?.value = stockItem['stock'] ?? 0;
+                             } else {
+                                event.row.cells['product_name']?.value = '❌ ${t.text('msg_not_found')}';
+                                event.row.cells['unit']?.value = '';
+                                event.row.cells['current_stock']?.value = 0;
+                             }
+                             setState((){});
+                          }
+                       }
+    
+                      if (event.column.field == 'quantity') {
+                        final qty = double.tryParse(event.row.cells['quantity']?.value.toString() ?? '0') ?? 0;
+                        final stock = double.tryParse(event.row.cells['current_stock']?.value.toString() ?? '0') ?? 0;
+                        
+                        if (qty > stock) {
+                           event.row.cells['quantity']?.value = stock;
+                           if (context.mounted) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(content: Text("Omborda yetarli emas! Mavjud: $stock"), duration: const Duration(seconds: 1)),
+                             );
+                           }
+                        }
+                      }
+                    },
+                    configuration: gridConfig,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

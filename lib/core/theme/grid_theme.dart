@@ -24,19 +24,19 @@ class GridTheme {
       enableRowColorAnimation: true,
       
       // Headers
-      columnHeight: 52,
+      columnHeight: 60,
       columnTextStyle: TextStyle(
         color: AppColors.primary,
-        fontWeight: FontWeight.w600,
-        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        fontSize: 15,
         letterSpacing: 0.5,
       ),
       
       // Cells
-      rowHeight: 50,
+      rowHeight: 52,
       cellTextStyle: TextStyle(
         color: textPrimary,
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: FontWeight.w400,
       ),
       
@@ -51,7 +51,7 @@ class GridTheme {
     return PlutoGridConfiguration(
       style: getStyle(context),
       columnSize: const PlutoGridColumnSizeConfig(
-        autoSizeMode: PlutoAutoSizeMode.equal,
+        autoSizeMode: PlutoAutoSizeMode.scale,
       ),
       scrollbar: const PlutoGridScrollbarConfig(
         isAlwaysShown: true,

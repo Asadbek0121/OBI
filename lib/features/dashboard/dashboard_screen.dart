@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../main.dart';
 import 'package:provider/provider.dart';
+import '../../core/widgets/liquid_glass.dart';
 import '../../core/widgets/glass_container.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/localization/app_translations.dart';
@@ -142,23 +144,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          body: Stack(
-            children: [
-              Container(color: Theme.of(context).scaffoldBackgroundColor),
-              Row(
-                children: [
-                  SizedBox(
-                    width: 260,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        border: Border(right: BorderSide(color: AppColors.glassBorder, width: 0.5)),
-                      ),
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-                            child: Column(
-                              children: [
+          body: LiquidBackground(
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 260,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          border: Border(right: BorderSide(color: AppColors.glassBorder, width: 0.5)),
+                        ),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                              child: Column(
+                                children: [
                                 Image.asset('assets/logo.png', width: 80, height: 80),
                                 const SizedBox(height: 16),
                                 Text(
@@ -239,28 +241,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             child: Consumer<ProfileProvider>(
                               builder: (context, profile, _) => InkWell(
                                 onTap: () => setState(() => _selectedIndex = 7),
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                                  ),
+                                borderRadius: BorderRadius.circular(24),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                                   child: Row(
                                     children: [
                                       Container(
-                                        width: 32,
-                                        height: 32,
+                                        width: 36,
+                                        height: 36,
                                         decoration: BoxDecoration(
+                                          color: AppColors.primary,
                                           shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
-                                          ),
                                           image: profile.imagePath != null
                                               ? DecorationImage(
                                                   image: FileImage(File(profile.imagePath!)),
@@ -269,10 +264,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               : null,
                                         ),
                                         child: profile.imagePath == null
-                                            ? const Icon(Icons.person_rounded, color: Colors.white, size: 16)
+                                            ? const Icon(Icons.person_rounded, color: Colors.white, size: 18)
                                             : null,
                                       ),
-                                      const SizedBox(width: 10),
+                                      const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,13 +275,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           children: [
                                             Text(
                                               profile.name,
-                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                              style: const TextStyle(
+                                                fontSize: 12.5, 
+                                                fontWeight: FontWeight.w800,
+                                                letterSpacing: -0.3,
+                                              ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             Text(
                                               profile.email,
-                                              style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                                              style: TextStyle(
+                                                fontSize: 10, 
+                                                color: AppColors.textSecondary.withValues(alpha: 0.6),
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -352,8 +355,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showNotificationCenter(BuildContext context) {
     showDialog(
@@ -483,23 +487,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
+          initialChildSize: items.isEmpty ? 0.3 : 0.6,
+          minChildSize: 0.2,
           maxChildSize: 0.9,
+          expand: false,
           builder: (context, myscrollController) {
              final t = Provider.of<AppTranslations>(context);
              return GlassContainer(
-               padding: const EdgeInsets.all(20),
+               padding: const EdgeInsets.all(24),
+               opacity: 0.5,
                child: Column(
                  crossAxisAlignment: CrossAxisAlignment.start,
+                 mainAxisSize: MainAxisSize.max,
                  children: [
                     Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2)))),
                     const SizedBox(height: 16),
                     Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 16),
-                    Expanded(
+                    Flexible(
                       child: items.isEmpty 
-                      ? Center(child: Text(t.text('msg_no_data')))
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.withValues(alpha: 0.3)),
+                              const SizedBox(height: 12),
+                              Text(t.text('msg_no_data'), style: const TextStyle(color: Colors.grey)),
+                            ],
+                          )
+                        )
                         : ListView.separated(
                             controller: myscrollController,
                             itemCount: items.length,
@@ -547,8 +563,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(width: 24),
           GestureDetector(
             onTap: () {
-              SyncService().startSync();
-              AppNotifications.showInfo(context, t.text('msg_loading'));
+              if (SyncService().currentStatus == "Error") {
+                 scaffoldMessengerKey.currentState?.showSnackBar(
+                   SnackBar(
+                    content: Text("Sync Error: ${SyncService().lastError}"),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 10),
+                   )
+                 );
+              } else {
+                 SyncService().startSync();
+                 AppNotifications.showInfo(context, t.text('msg_loading'));
+              }
             },
             child: StreamBuilder<String>(
               stream: SyncService().syncStatusStream,
@@ -609,14 +635,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                    GlassContainer(
                      onTap: () => GlobalSearchModal.show(context),
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                     padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                      borderRadius: 30,
-                     child: Row(
-                       children: [
-                         const Icon(Icons.search, size: 20, color: Colors.grey),
-                         const SizedBox(width: 8),
-                         Text(t.text('search_hint'), style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
-                       ],
+                     child: IntrinsicWidth(
+                       child: Row(
+                         children: [
+                           const Icon(Icons.search_rounded, size: 20, color: AppColors.primary),
+                           const SizedBox(width: 12),
+                           Text(
+                             t.text('search_hint').replaceAll('(Cmd+K)', '').trim(),
+                             style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w700),
+                           ),
+                           const SizedBox(width: 20),
+                           Container(
+                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                             decoration: BoxDecoration(
+                               color: AppColors.primary.withValues(alpha: 0.1),
+                               borderRadius: BorderRadius.circular(20),
+                             ),
+                             child: const Text(
+                               "CMD+K",
+                               style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.primary, letterSpacing: 0.5),
+                             ),
+                           ),
+                         ],
+                       ),
                      ),
                    ),
                    const SizedBox(width: 12),
@@ -743,26 +786,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                opacity: 0.03,
                child: Row(children: [
                  Expanded(child: _TodayStatItem(
-                   label: t.text('dash_income'), 
-                   value: _formatNum(_todayStats['in_count']), 
-                   subvalue: "${_formatNum(_todayStats['in_sum'])} ${t.text('unit_currency')}", 
-                   icon: Icons.south_west_rounded, 
+                   label: t.text('dash_income'),
+                   value: _formatNum(_todayStats['in_count']),
+                   subvalue: "${_formatNum(_todayStats['in_sum'])} ${t.text('unit_currency')}",
+                   icon: Icons.south_west_rounded,
                    color: AppColors.success
                  )),
                  _StatDivider(),
                  Expanded(child: _TodayStatItem(
-                   label: t.text('dash_outcome'), 
-                   value: _formatNum(_todayStats['out_count']), 
-                   subvalue: t.text('dash_distributed'), 
-                   icon: Icons.north_east_rounded, 
+                   label: t.text('dash_outcome'),
+                   value: _formatNum(_todayStats['out_count']),
+                   subvalue: t.text('dash_distributed'),
+                   icon: Icons.north_east_rounded,
                    color: AppColors.warning
                  )),
                  _StatDivider(),
                  Expanded(child: _TodayStatItem(
-                   label: t.text('dash_activity'), 
-                   value: _formatNum((_todayStats['in_count'] ?? 0) + (_todayStats['out_count'] ?? 0)), 
-                   subvalue: t.text('dash_total_ops'), 
-                   icon: Icons.bolt_rounded, 
+                   label: t.text('dash_activity'),
+                   value: _formatNum((_todayStats['in_count'] ?? 0) + (_todayStats['out_count'] ?? 0)),
+                   subvalue: t.text('dash_total_ops'),
+                   icon: Icons.bolt_rounded,
                    color: AppColors.primary
                  )),
                ]),
@@ -781,32 +824,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final width = constraints.maxWidth;
               return Wrap(spacing: 20, runSpacing: 20, children: [
                 _FancyStatCard(
-                  title: t.text('dash_total_value'), 
-                  value: "${_formatNum(_stats['total_value'])} ${t.text('unit_currency')}", 
-                  icon: Icons.account_balance_wallet_rounded, 
-                  color: AppColors.primary, 
+                  title: t.text('dash_total_value'),
+                  value: "${_formatNum(_stats['total_value'])} ${t.text('unit_currency')}",
+                  icon: Icons.account_balance_wallet_rounded,
+                  color: AppColors.primary,
                   width: (width - 40)/3
                 ),
                 _FancyStatCard(
-                  title: t.text('dash_low_stock'), 
-                  value: _formatNum(_stats['low_stock']), 
-                  icon: Icons.analytics_rounded, 
-                  color: AppColors.warning, 
-                  width: (width - 40)/3, 
-                  onTap: () async { 
-                    final items = await DatabaseHelper.instance.getLowStockProducts(); 
-                    _showProductList(t.text('dash_low_stock'), items); 
+                  title: t.text('dash_low_stock'),
+                  value: _formatNum(_stats['low_stock']),
+                  icon: Icons.analytics_rounded,
+                  color: AppColors.warning,
+                  width: (width - 40)/3,
+                  onTap: () async {
+                    final items = await DatabaseHelper.instance.getLowStockProducts();
+                    _showProductList(t.text('dash_low_stock'), items);
                   }
                 ),
                 _FancyStatCard(
-                  title: t.text('dash_expiring'), 
-                  value: _formatNum(_stats['finished']), 
-                  icon: Icons.timer_off_rounded, 
-                  color: AppColors.error, 
-                  width: (width - 40)/3, 
-                  onTap: () async { 
-                    final items = await DatabaseHelper.instance.getFinishedProducts(); 
-                    _showProductList(t.text('dash_expiring'), items); 
+                  title: t.text('dash_expiring'),
+                  value: _formatNum(_stats['finished']),
+                  icon: Icons.timer_off_rounded,
+                  color: AppColors.error,
+                  width: (width - 40)/3,
+                  onTap: () async {
+                    final items = await DatabaseHelper.instance.getFinishedProducts();
+                    _showProductList(t.text('dash_expiring'), items);
                   }
                 ),
               ]);
@@ -821,19 +864,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 24),
             GlassContainer(
-              padding: const EdgeInsets.all(0), 
+              padding: const EdgeInsets.all(0),
               child: Column(children: List.generate(_activities.length, (index) {
                 final activity = _activities[index];
                 return Column(
                   children: [
                     _ActivityItem(
-                      title: activity['product_name'] ?? '', 
-                      subtitle: "${activity['quantity'] ?? 0} ${activity['unit'] ?? ''}", 
-                      time: activity['date'] ?? '', 
-                      icon: activity['type'] == 'IN' ? Icons.add_rounded : Icons.remove_rounded, 
+                      title: activity['product_name'] ?? '',
+                      subtitle: "${activity['quantity'] ?? 0} ${activity['unit'] ?? ''}",
+                      time: activity['date'] ?? '',
+                      icon: activity['type'] == 'IN' ? Icons.add_rounded : Icons.remove_rounded,
                       color: activity['type'] == 'IN' ? AppColors.success : AppColors.warning
                     ),
-                    if (index < _activities.length - 1) 
+                    if (index < _activities.length - 1)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Divider(color: AppColors.glassBorder.withValues(alpha: 0.1), height: 1),
@@ -868,20 +911,20 @@ class _FancyStatCardState extends State<_FancyStatCard> {
         scale: _isHovered ? 1.02 : 1.0,
         duration: const Duration(milliseconds: 200),
         child: InkWell(
-          onTap: widget.onTap, 
-          borderRadius: BorderRadius.circular(24), 
+          onTap: widget.onTap,
+          borderRadius: BorderRadius.circular(24),
           child: GlassContainer(
-            width: widget.width, 
-            padding: const EdgeInsets.all(28), 
+            width: widget.width,
+            padding: const EdgeInsets.all(28),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, 
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(14), 
-                      decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)), 
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: widget.color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
                       child: Icon(widget.icon, color: widget.color, size: 24)
                     ),
                     if (widget.onTap != null)
@@ -923,22 +966,33 @@ class _SidebarItemState extends State<_SidebarItem> {
   @override
   Widget build(BuildContext context) {
     final color = widget.isActive ? AppColors.primary : AppColors.textSecondary;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
-        child: InkWell(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: LiquidInkWell(
           onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(16),
-          splashFactory: NoSplash.splashFactory,
-          overlayColor: WidgetStateProperty.all(Colors.transparent),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
+            bottomRight: Radius.circular(28),
+            bottomLeft: Radius.circular(8),
+          ),
           child: GlassContainer(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            borderRadius: 16,
-            blur: (widget.isActive || _isHovered) ? 20 : 0,
-            opacity: widget.isActive ? 0.08 : (_isHovered ? 0.04 : 0),
+            showBorder: true,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(28),
+              topRight: Radius.circular(28),
+              bottomRight: Radius.circular(28),
+              bottomLeft: Radius.circular(8),
+            ),
+            opacity: widget.isActive ? 0.35 : 0.15,
+            blur: 25,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 AnimatedScale(
@@ -949,9 +1003,9 @@ class _SidebarItemState extends State<_SidebarItem> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
-                    widget.label, 
+                    widget.label,
                     style: TextStyle(
-                      color: color, 
+                      color: color,
                       fontSize: 14,
                       fontWeight: widget.isActive ? FontWeight.w800 : FontWeight.w500,
                     ),
@@ -968,7 +1022,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                       ],
                     ),
                     child: Text(
-                      "${widget.badgeCount}", 
+                      "${widget.badgeCount}",
                       style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -988,6 +1042,7 @@ class _SidebarItemState extends State<_SidebarItem> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

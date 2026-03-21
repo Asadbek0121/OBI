@@ -198,32 +198,38 @@ class _AssetsViewState extends State<AssetsView> {
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
     
-    return Row(
-      children: [
-        // Sidebar Filters
-        _buildFilterSidebar(t),
-        const SizedBox(width: 24),
-        
-        // Main Content
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(t),
-              const SizedBox(height: 24),
-              Expanded(
-                child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
-                  : _shouldShowLocationCards()
-                    ? _buildHierarchyGrid(t)
-                    : _filteredAssets.isEmpty 
-                      ? _buildEmptyState(t)
-                      : _buildGrid(t),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Row(
+          children: [
+            // Sidebar Filters
+            _buildFilterSidebar(t),
+            const SizedBox(width: 24),
+            
+            // Main Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(t),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: _isLoading 
+                      ? const Center(child: CircularProgressIndicator())
+                      : _shouldShowLocationCards()
+                        ? _buildHierarchyGrid(t)
+                        : _filteredAssets.isEmpty 
+                          ? _buildEmptyState(t)
+                          : _buildGrid(t),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -1154,7 +1160,6 @@ class _LocationManagerDialogState extends State<_LocationManagerDialog> {
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
     return Dialog(
-      backgroundColor: Colors.transparent,
       child: GlassContainer(
         width: 500,
         height: 600,
@@ -1303,7 +1308,6 @@ Widget _buildBaseManager(BuildContext context, String title, TextEditingControll
   final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
   return Dialog(
-    backgroundColor: Colors.transparent,
     child: Container(
       width: 400,
       height: 500,
@@ -1334,8 +1338,10 @@ Widget _buildBaseManager(BuildContext context, String title, TextEditingControll
                   decoration: InputDecoration(
                     hintText: t.text('col_name'),
                     filled: true,
-                    fillColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey[100],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.grey[300]!, width: 1.0),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14)
                   )
                 )
@@ -1546,7 +1552,6 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
     final t = Provider.of<AppTranslations>(context);
     
     return Dialog(
-      backgroundColor: Colors.transparent,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 800, maxHeight: MediaQuery.of(context).size.height * 0.9),
         child: GlassContainer(
@@ -1696,7 +1701,25 @@ class _AddAssetDialogState extends State<_AddAssetDialog> {
   );
 }
 
-  InputDecoration _deco(String l) => InputDecoration(labelText: l, filled: true, fillColor: Colors.white.withValues(alpha: 0.05), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
+  InputDecoration _deco(String l) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    return InputDecoration(
+        labelText: l,
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.05),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12, width: 1.0),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black12, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? Colors.blueAccent.withValues(alpha: 0.5) : Colors.blueAccent, width: 1.5),
+        ));
+  }
 }
 
 // ASSET PASSPORT DIALOG (Stateful to load history)
@@ -1780,7 +1803,6 @@ class _AssetPassportDialogState extends State<_AssetPassportDialog> {
     final t = Provider.of<AppTranslations>(context);
 
     return Dialog(
-      backgroundColor: Colors.transparent,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 600, maxHeight: MediaQuery.of(context).size.height * 0.9),
         child: GlassContainer(
@@ -2219,7 +2241,6 @@ class _TransferAssetDialogState extends State<_TransferAssetDialog> {
     final t = Provider.of<AppTranslations>(context);
 
     return Dialog(
-      backgroundColor: Colors.transparent,
       child: GlassContainer(
         width: 450,
         padding: const EdgeInsets.all(32),

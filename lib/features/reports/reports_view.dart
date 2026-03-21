@@ -12,6 +12,7 @@ import '../../core/widgets/app_dialogs.dart';
 import 'package:excel/excel.dart' as excel_pkg;
 import 'package:file_picker/file_picker.dart';
 import '../../core/services/telegram_service.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class ReportsView extends StatefulWidget {
   const ReportsView({super.key});
@@ -752,132 +753,140 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       ),
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.end,
-          spacing: 16,
-          runSpacing: 16,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 16,
+              runSpacing: 16,
               children: [
-                Text(t.text('rep_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                )),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Text(
-                        "${_startDate.toString().substring(0,10)} — ${_endDate.toString().substring(0,10)}",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(t.text('rep_title'), style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: LiquidColors.of(context).title,
+                      letterSpacing: -0.5,
+                    )),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            "${_startDate.toString().substring(0,10)} — ${_endDate.toString().substring(0,10)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _HeaderBtn(
+                      onPressed: _selectDateRange,
+                      icon: Icons.date_range_rounded,
+                      label: t.text('rep_select_date'),
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      textColor: AppColors.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    _HeaderBtn(
+                      onPressed: _exportToExcel,
+                      icon: Icons.download_rounded,
+                      label: "Excel",
+                      color: AppColors.success,
+                      textColor: Colors.white,
+                      isPrimary: true,
+                    ),
+                    const SizedBox(width: 12),
+                    _HeaderBtn(
+                      onPressed: _sendToTelegram,
+                      icon: Icons.send_rounded,
+                      label: "Telegram",
+                      color: const Color(0xFF229ED9), // Telegram Blue
+                      textColor: Colors.white,
+                      isPrimary: true,
+                    ),
+                  ],
                 ),
               ],
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _HeaderBtn(
-                  onPressed: _selectDateRange,
-                  icon: Icons.date_range_rounded,
-                  label: t.text('rep_select_date'),
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  textColor: AppColors.primary,
+            const SizedBox(height: 24),
+            Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: TabBar(
+                controller: _tabController,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                _HeaderBtn(
-                  onPressed: _exportToExcel,
-                  icon: Icons.download_rounded,
-                  label: "Excel",
-                  color: AppColors.success,
-                  textColor: Colors.white,
-                  isPrimary: true,
-                ),
-                const SizedBox(width: 12),
-                _HeaderBtn(
-                  onPressed: _sendToTelegram,
-                  icon: Icons.send_rounded,
-                  label: "Telegram",
-                  color: const Color(0xFF229ED9), // Telegram Blue
-                  textColor: Colors.white,
-                  isPrimary: true,
-                ),
-              ],
+                labelColor: AppColors.primary,
+                unselectedLabelColor: Colors.grey[600],
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                tabs: [
+                  Tab(text: t.text('rep_in_report')),
+                  Tab(text: t.text('rep_out_report')),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildGridContainer(
+                    context,
+                    columns: _getInColumns(t), 
+                    rows: _inRows, 
+                    onLoaded: (e) => _inStateManager = e.stateManager,
+                    config: gridConfig,
+                  ),
+                  _buildGridContainer(
+                    context,
+                    columns: _getOutColumns(t), 
+                    rows: _outRows, 
+                    onLoaded: (e) => _outStateManager = e.stateManager,
+                    config: gridConfig,
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          padding: const EdgeInsets.all(4),
-          child: TabBar(
-            controller: _tabController,
-            dividerColor: Colors.transparent,
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            labelColor: AppColors.primary,
-            unselectedLabelColor: Colors.grey[600],
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-            tabs: [
-              Tab(text: t.text('rep_in_report')),
-              Tab(text: t.text('rep_out_report')),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildGridContainer(
-                context,
-                columns: _getInColumns(t), 
-                rows: _inRows, 
-                onLoaded: (e) => _inStateManager = e.stateManager,
-                config: gridConfig,
-              ),
-              _buildGridContainer(
-                context,
-                columns: _getOutColumns(t), 
-                rows: _outRows, 
-                onLoaded: (e) => _outStateManager = e.stateManager,
-                config: gridConfig,
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 

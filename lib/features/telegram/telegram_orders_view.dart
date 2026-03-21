@@ -791,7 +791,6 @@ class _TelegramManagementViewState extends State<TelegramManagementView> with Si
     showDialog(
       context: context,
       builder: (c) => Dialog(
-        backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(10),
         child: Column(
           mainAxisSize: MainAxisSize.min,

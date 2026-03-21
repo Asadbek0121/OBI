@@ -24,7 +24,7 @@ class AppColors {
   static const Color error = Color(0xFFEF4444); // Rose
   
   // Translucency (Frosted Glass)
-  static const Color glassBorder = Color(0x1F2D5BFF); // 12% Blue
+  static const Color glassBorder = Color(0x1F7A7A7A); // Neutral 12% 
   static const Color glassSurface = Color.fromRGBO(255, 255, 255, 0.7);
 
   // Premium Gradients

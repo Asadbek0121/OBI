@@ -127,7 +127,6 @@ class _OutputViewState extends State<OutputView> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Column(
         children: [
           Padding(

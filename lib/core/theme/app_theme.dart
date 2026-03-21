@@ -42,7 +42,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: BorderSide(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5),
         ),
         labelStyle: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.normal),
         floatingLabelStyle: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
@@ -111,10 +111,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
-        ),
+        focusedBorder: InputBorder.none, // Changed to borderless
       ),
       
       textTheme: const TextTheme(

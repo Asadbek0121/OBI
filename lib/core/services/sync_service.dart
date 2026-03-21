@@ -18,7 +18,9 @@ class SyncService {
   final _syncStatusController = StreamController<String>.broadcast();
   Stream<String> get syncStatusStream => _syncStatusController.stream;
   String _currentStatus = "Disconnected";
+  String _lastError = "";
   String get currentStatus => _currentStatus;
+  String get lastError => _lastError;
   bool get isSyncing => _isSyncing;
 
   void _updateStatus(String status) {
@@ -63,6 +65,7 @@ class SyncService {
       _updateStatus("Synced");
       debugPrint("✅ SyncService: Synchronization completed successfully.");
     } catch (e) {
+      _lastError = e.toString();
       _updateStatus("Error");
       debugPrint("❌ SyncService Error: $e");
     } finally {

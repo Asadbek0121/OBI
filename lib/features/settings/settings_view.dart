@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:clinical_warehouse/core/theme/theme_provider.dart';
 import 'package:clinical_warehouse/core/localization/app_translations.dart';
@@ -7,12 +8,14 @@ import 'package:clinical_warehouse/core/services/profile_provider.dart';
 import 'package:clinical_warehouse/core/services/sync_service.dart';
 import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/widgets/app_dialogs.dart';
+import 'package:clinical_warehouse/core/widgets/liquid_glass.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/services/update_service.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsView extends StatefulWidget {
   final bool showHeader;
@@ -27,6 +30,7 @@ class _SettingsViewState extends State<SettingsView> {
   final _emailController = TextEditingController();
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
+  String _appVersion = "...";
 
   @override
   void initState() {
@@ -34,6 +38,18 @@ class _SettingsViewState extends State<SettingsView> {
     final profile = context.read<ProfileProvider>();
     _nameController.text = profile.name;
     _emailController.text = profile.email;
+    _getAppInfo();
+  }
+
+  Future<void> _getAppInfo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = "${info.version}+${info.buildNumber}";
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -203,53 +219,53 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final trans = context.watch<AppTranslations>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        if (widget.showHeader)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: Text(
-              trans.text('menu_settings'), 
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16), // Restored some padding
-            children: [
-              // PROFIL
-              _buildSectionTitle(trans.text("set_profil")),
-              _buildProfileCard(),
-              
-              const SizedBox(height: 12),
-
-              // UMUMIY
-              _buildSectionTitle(trans.text("set_umumiy")),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 5.5,
-                children: [
-                  _buildToggleCard(
-                    title: trans.text("dark_mode"),
-                    subtitle: trans.text(context.watch<ThemeProvider>().isDarkMode ? "set_theme_on" : "set_theme_off"),
-                    icon: Icons.dark_mode_rounded,
-                    value: context.watch<ThemeProvider>().isDarkMode,
-                    onChanged: (v) => context.read<ThemeProvider>().toggleTheme(v),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 0), // ListView already has internal padding
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          children: [
+            // Header
+            if (widget.showHeader)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text(
+                  trans.text('menu_settings'), 
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.5,
                   ),
-                  _buildLanguageCard(),
-                ],
+                ),
               ),
+
+            // PROFIL
+            _buildSectionTitle(trans.text("set_profil")),
+            _buildProfileCard(),
+            
+            const SizedBox(height: 12),
+
+                  // UMUMIY
+                  _buildSectionTitle(trans.text("set_umumiy")),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 5.5,
+                    children: [
+                      _buildToggleCard(
+                        title: trans.text("dark_mode"),
+                        subtitle: trans.text(context.watch<ThemeProvider>().isDarkMode ? "set_theme_on" : "set_theme_off"),
+                        icon: Icons.dark_mode_rounded,
+                        value: context.watch<ThemeProvider>().isDarkMode,
+                        onChanged: (v) => context.read<ThemeProvider>().toggleTheme(v),
+                      ),
+                      _buildLanguageCard(),
+                    ],
+                  ),
               
               const SizedBox(height: 12),
 
@@ -358,11 +374,22 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
-            ],
-          ),
+            const SizedBox(height: 32),
+            Center(
+              child: Column(
+                children: [
+                  Text("Clinical Warehouse v$_appVersion", 
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: LiquidColors.of(context).muted.withValues(alpha: 0.4))),
+                  const SizedBox(height: 4),
+                  Text("Powered by Asadbek © 2026", 
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: LiquidColors.of(context).muted.withValues(alpha: 0.3))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -383,24 +410,18 @@ class _SettingsViewState extends State<SettingsView> {
 
   Widget _buildProfileCard() {
     final profile = context.watch<ProfileProvider>();
-    return GlassContainer(
-      padding: const EdgeInsets.all(12),
-      borderRadius: 16,
-      opacity: 0.05,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
       child: Row(
         children: [
           InkWell(
             onTap: _pickProfileImage,
             borderRadius: BorderRadius.circular(24),
             child: Container(
-              width: 48,
-              height: 48,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppColors.primary,
                 shape: BoxShape.circle,
                 image: profile.imagePath != null
                     ? DecorationImage(
@@ -408,34 +429,51 @@ class _SettingsViewState extends State<SettingsView> {
                         fit: BoxFit.cover,
                       )
                     : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: profile.imagePath == null
-                  ? const Icon(Icons.person_rounded, color: Colors.white, size: 24)
+                  ? const Icon(Icons.person_rounded, color: Colors.white, size: 28)
                   : null,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   profile.name, 
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+                  style: TextStyle(
+                    fontSize: 17, 
+                    fontWeight: FontWeight.w800, 
+                    color: LiquidColors.of(context).body,
+                    letterSpacing: -0.5,
+                  ),
                 ),
                 Text(
                   profile.email, 
-                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary.withValues(alpha: 0.7)),
+                  style: TextStyle(
+                    fontSize: 13, 
+                    color: AppColors.textSecondary.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: () => _showProfileEditDialog(context),
-            icon: const Icon(Icons.edit_rounded, color: AppColors.primary, size: 14),
+            icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary),
             style: IconButton.styleFrom(
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              padding: const EdgeInsets.all(5),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.08),
+              padding: const EdgeInsets.all(8),
             ),
           ),
         ],
@@ -453,7 +491,7 @@ class _SettingsViewState extends State<SettingsView> {
     return GlassContainer(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       borderRadius: 16,
-      opacity: 0.05,
+      opacity: 0.03,
       child: Row(
         children: [
           _buildIconBox(icon, AppColors.primary),
@@ -463,19 +501,20 @@ class _SettingsViewState extends State<SettingsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2)),
-                Text(subtitle, style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: LiquidColors.of(context).body)),
+                Text(subtitle, style: TextStyle(fontSize: 9, color: LiquidColors.of(context).muted.withValues(alpha: 0.7))),
               ],
             ),
           ),
           Transform.scale(
             scale: 0.7,
             alignment: Alignment.centerRight,
-            child: Switch(
+            child: CupertinoSwitch(
               value: value,
               onChanged: onChanged,
-              activeThumbColor: AppColors.primary,
-              activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
+              activeTrackColor: Colors.white.withValues(alpha: 0.3),
+              thumbColor: Colors.white,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
             ),
           ),
         ],
@@ -488,7 +527,7 @@ class _SettingsViewState extends State<SettingsView> {
     return GlassContainer(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       borderRadius: 16,
-      opacity: 0.05,
+      opacity: 0.03,
       child: Row(
         children: [
           _buildIconBox(Icons.language_rounded, Colors.purple),
@@ -498,8 +537,8 @@ class _SettingsViewState extends State<SettingsView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text("Til Sozlamalari", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2)),
-                Text("Interfeys tilini tanlang", style: TextStyle(fontSize: 9, color: AppColors.textSecondary.withValues(alpha: 0.6))),
+                Text(trans.text("set_lang_title"), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: LiquidColors.of(context).body)),
+                Text(trans.text("set_lang_desc"), style: TextStyle(fontSize: 9, color: LiquidColors.of(context).muted.withValues(alpha: 0.7))),
               ],
             ),
           ),
@@ -544,26 +583,28 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildActionCard({required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
-    return GlassContainer(
+    return GestureDetector(
       onTap: onTap,
-      padding: const EdgeInsets.all(10),
-      borderRadius: 20,
-      opacity: 0.03,
-      child: Row(
-        children: [
-          _buildIconBox(icon, color),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                Text(subtitle, style: const TextStyle(color: AppColors.textTertiary, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
+      child: GlassContainer(
+        padding: const EdgeInsets.all(10),
+        borderRadius: 20,
+        opacity: 0.03,
+        child: Row(
+          children: [
+            _buildIconBox(icon, color),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: LiquidColors.of(context).body)),
+                  Text(subtitle, style: TextStyle(color: LiquidColors.of(context).muted, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -625,7 +666,7 @@ class _SettingsViewState extends State<SettingsView> {
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _pickProfileImage,
-                    child: Text(trans.currentLocale == 'uz' ? "Rasmni o'zgartirish" : "Change Photo", style: const TextStyle(fontSize: 11)),
+                    child: Text(trans.text("set_change_photo"), style: const TextStyle(fontSize: 11)),
                   ),
                   const SizedBox(height: 16),
                   _buildModalInput(controller: _nameController, label: trans.text("col_name"), icon: Icons.badge_outlined),

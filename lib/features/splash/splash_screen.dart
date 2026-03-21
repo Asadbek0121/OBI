@@ -301,7 +301,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               child: ElevatedButton(
                                 onPressed: _isLoading ? null : _handleLogin,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
                                   foregroundColor: Colors.white,
                                   shadowColor: Colors.transparent,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

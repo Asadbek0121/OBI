@@ -8,6 +8,9 @@ import 'package:clinical_warehouse/core/database/database_helper.dart';
 import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:flutter/services.dart';
+import '../../core/widgets/liquid_glass.dart';
+import 'dart:ui';
+import 'dart:math' as math;
 
 class ProductDatabaseView extends StatefulWidget {
   const ProductDatabaseView({super.key});
@@ -35,45 +38,51 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
   @override
   Widget build(BuildContext context) {
     final t = Provider.of<AppTranslations>(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            bool isMobile = constraints.maxWidth < 800;
-            return isMobile 
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(t),
-                    const SizedBox(height: 20),
-                    _buildTabs(t),
-                  ],
-                )
-              : Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(child: _buildHeader(t)),
-                    const SizedBox(width: 24),
-                    Flexible(child: _buildTabs(t)),
-                  ],
-                );
-          }
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                bool isMobile = constraints.maxWidth < 800;
+                return isMobile 
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(t),
+                        const SizedBox(height: 20),
+                        _buildTabs(t),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: _buildHeader(t)),
+                        const SizedBox(width: 24),
+                        Flexible(child: _buildTabs(t)),
+                      ],
+                    );
+              }
+            ),
+            const SizedBox(height: 40),
+            Expanded(
+              child: TabBarView(
+                physics: const NeverScrollableScrollPhysics(),
+                controller: _tabController,
+                children: const [
+                  _ProductGrid(),
+                  _SimpleListGrid(type: 'supplier'),
+                  _SimpleListGrid(type: 'receiver'),
+                  _SimpleListGrid(type: 'payment_type'),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 40),
-        Expanded(
-          child: TabBarView(
-            physics: const NeverScrollableScrollPhysics(),
-            controller: _tabController,
-            children: const [
-              _ProductGrid(),
-              _SimpleListGrid(type: 'supplier'),
-              _SimpleListGrid(type: 'receiver'),
-              _SimpleListGrid(type: 'payment_type'),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -97,13 +106,14 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(t.text('db_title'), style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              Text(t.text('db_title'), style: TextStyle(
+                fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: AppColors.textPrimary,
+                color: LiquidColors.of(context).title,
                 letterSpacing: -0.5,
               )),
               Text(t.text('inventory_desc'), 
-                style: const TextStyle(color: AppColors.textTertiary, fontSize: 13, fontWeight: FontWeight.w500),
+                style: TextStyle(color: LiquidColors.of(context).subtitle, fontSize: 13, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -114,60 +124,89 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
   }
 
   Widget _buildTabs(AppTranslations t) {
-    return GlassContainer(
-      padding: const EdgeInsets.all(2),
-      borderRadius: 16,
-      blur: 20,
-      opacity: 0.02,
-      child: SizedBox(
-        height: 48,
-        width: 580, // Optimized for 4 tabs
-        child: AnimatedBuilder(
-          animation: _tabController.animation!,
-          builder: (context, child) {
-            return Stack(
-              children: [
-                // Sliding Indicator (Floating effect)
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final tabWidth = constraints.maxWidth / 4;
-                    return AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300), // Snappier
-                      curve: Curves.easeOutCubic, 
-                      left: _tabController.index * tabWidth,
-                      top: 0,
-                      bottom: 0,
-                      width: tabWidth,
-                      child: Container(
-                        margin: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          color: Colors.white, // Solid feel like in reference
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08), 
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.black.withValues(alpha: 0.02)),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Tab Labels
-                Row(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.30),
+              width: 0.5,
+            ),
+          ),
+          child: SizedBox(
+            height: 44, // Slightly taller for better touch
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final totalWidth = constraints.maxWidth;
+                return Stack(
                   children: [
-                    _buildTabItem(0, t.text('db_products')),
-                    _buildTabItem(1, t.text('db_suppliers')),
-                    _buildTabItem(2, t.text('db_receivers')),
-                    _buildTabItem(3, t.text('db_payment_types')),
+                    // Ultimate 'Slow Liquid Droplet' Stretching Indicator
+                    TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: 0.0, end: _tabController.index.toDouble()),
+                      duration: const Duration(milliseconds: 800), // Sekinroq harakat
+                      curve: Curves.easeInOutQuart,
+                      builder: (context, value, child) {
+                        final double tabWidth = totalWidth / 4;
+                        
+                        // Stretch factor based on 'value' progress between integers
+                        final double progress = (value % 1.0);
+                        final double stretchVal = (math.sin(progress * math.pi)) * 75.0; // Stronger stretch (75px)
+                        
+                        // Centered liquid stretch
+                        final double left = (value * tabWidth) + 4 - (stretchVal / 2);
+                        final double width = tabWidth - 8 + stretchVal;
+
+                        return Positioned(
+                          left: left,
+                          width: width.clamp(tabWidth - 8, totalWidth),
+                          top: 4,
+                          bottom: 4,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                width: 0.8,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                                child: Container(color: Colors.transparent),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    // Labels
+                    Row(
+                      children: [
+                        Expanded(child: _buildTabItem(0, t.text('db_products'))),
+                        Expanded(child: _buildTabItem(1, t.text('db_suppliers'))),
+                        Expanded(child: _buildTabItem(2, t.text('db_receivers'))),
+                        Expanded(child: _buildTabItem(3, t.text('db_payment_types'))),
+                      ],
+                    ),
                   ],
-                ),
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -175,19 +214,22 @@ class _ProductDatabaseViewState extends State<ProductDatabaseView> with SingleTi
 
   Widget _buildTabItem(int index, String label) {
     bool isActive = _tabController.index == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _tabController.animateTo(index)),
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
+    return GestureDetector(
+      onTap: () => setState(() => _tabController.animateTo(index)),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4), // Reduced padding
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 300),
             style: TextStyle(
               fontSize: 13,
               fontWeight: isActive ? FontWeight.w900 : FontWeight.w600,
-              color: isActive ? AppColors.primary : Colors.black.withValues(alpha: 0.4),
-              letterSpacing: 0.2,
+              color: isActive ? LiquidColors.of(context).navActiveText : LiquidColors.of(context).muted,
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, textAlign: TextAlign.center, maxLines: 1),
             ),
           ),
         ),

@@ -11,6 +11,7 @@ import '../../core/theme/grid_theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:flutter/services.dart';
+import '../../core/widgets/liquid_glass.dart';
 
 class InputView extends StatefulWidget {
   const InputView({super.key});
@@ -323,7 +324,6 @@ class _InputViewState extends State<InputView> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Column(
         children: [
           Padding(
@@ -331,7 +331,12 @@ class _InputViewState extends State<InputView> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(t.text('inp_title'), style: Theme.of(context).textTheme.headlineMedium),
+                Text(t.text('inp_title'), style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: LiquidColors.of(context).title,
+                  letterSpacing: -0.5,
+                )),
                 Row(
                   children: [
                     ElevatedButton.icon(
@@ -373,6 +378,9 @@ class _InputViewState extends State<InputView> {
                      stateManager.setSelectingMode(PlutoGridSelectingMode.cell);
                   },
                   configuration: GridTheme.getConfig(context).copyWith(
+                    columnSize: const PlutoGridColumnSizeConfig(
+                      autoSizeMode: PlutoAutoSizeMode.scale, // Automatically fits the screen
+                    ),
                     localeText: PlutoGridLocaleText(
                         unfreezeColumn: t.text('grid_unfreeze'),
                         freezeColumnToStart: t.text('grid_freeze_start'),
