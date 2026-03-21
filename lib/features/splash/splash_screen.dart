@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF0038F3), Color(0xFF00D2FF)], // Vibrant New Gradient
+                      colors: [Color(0xFF0F172A), Color(0xFF1E293B)], // Premium Dark Slate/Navy
                     ),
                   ),
                   child: Stack(
@@ -165,7 +165,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             children: [
                               ScaleTransition(
                                 scale: _logoScaleAnimation,
-                                child: Image.asset('assets/logo.png', width: 160, height: 160),
+                                child: Image.asset('assets/logo.png', width: 200, height: 200, fit: BoxFit.contain),
                               ),
                               const SizedBox(height: 32),
                               const Text(

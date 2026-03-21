@@ -81,7 +81,7 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E88E5), // Matched Splash Screen Blue
+      backgroundColor: const Color(0xFF0F172A), // Premium Dark
       body: Stack(
         children: [
           Center(
@@ -96,7 +96,7 @@ class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset('assets/logo.png', width: 100, height: 100),
+                  Image.asset('assets/logo.png', width: 150, height: 150, fit: BoxFit.contain),
                   const SizedBox(height: 24),
                   const Text(
                     "Baza Joylashuvi",

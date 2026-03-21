@@ -161,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
                               child: Column(
                                 children: [
-                                Image.asset('assets/logo.png', width: 80, height: 80),
+                                Image.asset('assets/logo.png', width: 120, height: 120, fit: BoxFit.contain),
                                 const SizedBox(height: 16),
                                 Text(
                                   t.text('title_app'), 
