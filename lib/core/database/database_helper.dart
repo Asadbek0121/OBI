@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -89,6 +90,20 @@ class DatabaseHelper {
     // After opening, ensure optimizations and missing tables
     await _ensureOptimized(db);
 
+    // Audit Logs table
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        action TEXT NOT NULL,
+        table_name TEXT NOT NULL,
+        record_id TEXT,
+        old_data TEXT,
+        new_data TEXT,
+        timestamp TEXT DEFAULT (datetime('now', 'localtime'))
+      )
+    ''');
+
     return db;
   }
 
@@ -174,11 +189,20 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS telegram_users (
+        chat_id TEXT PRIMARY KEY,
+        name TEXT,
+        role TEXT DEFAULT 'pending',
+        created_at TEXT
+      )
+    ''');
+
     // 🚀 STEP 1 for CLOUD SYNC: Ensure ALL tables have 'updated_at' and 'sync_status'
     final tablesToSync = [
       'products', 'stock_in', 'stock_out', 'assets', 
       'asset_locations', 'asset_categories', 'asset_movements',
-      'branch_orders', 'branch_order_items'
+      'branch_orders', 'branch_order_items', 'telegram_users'
     ];
 
     for (var table in tablesToSync) {
@@ -555,7 +579,14 @@ class DatabaseHelper {
 
   Future<void> insertProduct(Map<String, dynamic> product) async {
     final db = await instance.database;
-    await db.insert('products', _prepareInsert(product), conflictAlgorithm: ConflictAlgorithm.replace);
+    final data = _prepareInsert(product);
+    await db.insert('products', data, conflictAlgorithm: ConflictAlgorithm.replace);
+    await addAuditLog(
+      action: 'INSERT',
+      tableName: 'products',
+      recordId: data['id']?.toString(),
+      newData: data,
+    );
   }
   
    Future<List<Map<String, dynamic>>> getAllProducts() async {
@@ -565,21 +596,63 @@ class DatabaseHelper {
 
   Future<void> deleteProduct(String id) async {
     final db = await instance.database;
+    
+    // Get old data for audit
+    final List<Map<String, dynamic>> results = await db.query('products', where: 'id = ?', whereArgs: [id]);
+    final oldData = results.isNotEmpty ? results.first : null;
+
     final deletedAt = DateTime.now().toUtc().toIso8601String();
     await db.update('stock_in', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
     await db.update('stock_out', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'product_id = ?', whereArgs: [id]);
     await db.update('products', {'is_deleted': 1, 'deleted_at': deletedAt, 'sync_status': 'pending_update'}, where: 'id = ?', whereArgs: [id]);
+
+    await addAuditLog(
+      action: 'DELETE',
+      tableName: 'products',
+      recordId: id,
+      oldData: oldData,
+    );
   }
 
   // --- Transactions ---
   Future<void> insertStockIn(Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.insert('stock_in', _prepareInsert(data));
+    final prepared = _prepareInsert(data);
+    
+    // Auto-append time if only date is provided
+    if (prepared['date_time'] != null && prepared['date_time'].toString().length == 10) {
+      final now = DateTime.now();
+      final timeStr = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}:${now.second.toString().padLeft(2,'0')}";
+      prepared['date_time'] = "${prepared['date_time']} $timeStr";
+    }
+
+    await db.insert('stock_in', prepared);
+    await addAuditLog(
+      action: 'INSERT',
+      tableName: 'stock_in',
+      recordId: prepared['id']?.toString(),
+      newData: prepared,
+    );
   }
 
   Future<void> insertStockOut(Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.insert('stock_out', _prepareInsert(data));
+    final prepared = _prepareInsert(data);
+
+    // Auto-append time if only date is provided
+    if (prepared['date_time'] != null && prepared['date_time'].toString().length == 10) {
+      final now = DateTime.now();
+      final timeStr = "${now.hour.toString().padLeft(2,'0')}:${now.minute.toString().padLeft(2,'0')}:${now.second.toString().padLeft(2,'0')}";
+      prepared['date_time'] = "${prepared['date_time']} $timeStr";
+    }
+
+    await db.insert('stock_out', prepared);
+    await addAuditLog(
+      action: 'INSERT',
+      tableName: 'stock_out',
+      recordId: prepared['id']?.toString(),
+      newData: prepared,
+    );
   }
 
   // --- Inventory Logic ---
@@ -1382,30 +1455,74 @@ class DatabaseHelper {
   // Transaction Management (Edit/Delete)
   Future<void> deleteStockIn(dynamic id) async {
     final db = await instance.database;
+    final List<Map<String, dynamic>> results = await db.query('stock_in', where: 'id = ?', whereArgs: [id]);
+    final oldData = results.isNotEmpty ? results.first : null;
+
     await db.update('stock_in', {
       'is_deleted': 1, 
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+
+    await addAuditLog(
+      action: 'DELETE',
+      tableName: 'stock_in',
+      recordId: id?.toString(),
+      oldData: oldData,
+    );
   }
 
   Future<void> deleteStockOut(dynamic id) async {
     final db = await instance.database;
+    final List<Map<String, dynamic>> results = await db.query('stock_out', where: 'id = ?', whereArgs: [id]);
+    final oldData = results.isNotEmpty ? results.first : null;
+
     await db.update('stock_out', {
       'is_deleted': 1, 
       'deleted_at': DateTime.now().toUtc().toIso8601String(),
       'sync_status': 'pending_update'
     }, where: 'id = ?', whereArgs: [id]);
+
+    await addAuditLog(
+      action: 'DELETE',
+      tableName: 'stock_out',
+      recordId: id?.toString(),
+      oldData: oldData,
+    );
   }
 
   Future<void> updateStockIn(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.update('stock_in', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
+    final List<Map<String, dynamic>> results = await db.query('stock_in', where: 'id = ?', whereArgs: [id]);
+    final oldData = results.isNotEmpty ? results.first : null;
+    
+    final prepared = _prepareUpdate(data);
+    await db.update('stock_in', prepared, where: 'id = ?', whereArgs: [id]);
+
+    await addAuditLog(
+      action: 'UPDATE',
+      tableName: 'stock_in',
+      recordId: id,
+      oldData: oldData,
+      newData: prepared,
+    );
   }
 
   Future<void> updateStockOut(String id, Map<String, dynamic> data) async {
     final db = await instance.database;
-    await db.update('stock_out', _prepareUpdate(data), where: 'id = ?', whereArgs: [id]);
+    final List<Map<String, dynamic>> results = await db.query('stock_out', where: 'id = ?', whereArgs: [id]);
+    final oldData = results.isNotEmpty ? results.first : null;
+
+    final prepared = _prepareUpdate(data);
+    await db.update('stock_out', prepared, where: 'id = ?', whereArgs: [id]);
+
+    await addAuditLog(
+      action: 'UPDATE',
+      tableName: 'stock_out',
+      recordId: id,
+      oldData: oldData,
+      newData: prepared,
+    );
   }
 
   Future<double> calculateTotalStockValue() async {
@@ -1475,5 +1592,35 @@ class DatabaseHelper {
       )
     ''');
     return res.first['last_upd']?.toString();
+  }
+
+  // --- Audit Logs ---
+  Future<void> addAuditLog({
+    String? userId,
+    required String action,
+    required String tableName,
+    String? recordId,
+    Map<String, dynamic>? oldData,
+    Map<String, dynamic>? newData,
+  }) async {
+    try {
+      final db = await database;
+      await db.insert('audit_logs', {
+        'user_id': userId ?? 'System',
+        'action': action,
+        'table_name': tableName,
+        'record_id': recordId,
+        'old_data': oldData != null ? jsonEncode(oldData) : null,
+        'new_data': newData != null ? jsonEncode(newData) : null,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint("⚠️ Audit Log Error: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAuditLogs({int limit = 100}) async {
+    final db = await database;
+    return await db.query('audit_logs', orderBy: 'timestamp DESC', limit: limit);
   }
 }

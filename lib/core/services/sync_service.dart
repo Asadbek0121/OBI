@@ -39,7 +39,8 @@ class SyncService {
     'asset_locations',
     'assets',
     'branch_orders',
-    'branch_order_items'
+    'branch_order_items',
+    'telegram_users'
   ];
 
   Future<void> init({bool autoStart = true}) async {

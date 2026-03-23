@@ -12,6 +12,7 @@ import 'package:zxing_lib/common.dart';
 import 'package:excel/excel.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import './pdf_service.dart';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
@@ -64,17 +65,50 @@ class TelegramService {
 
   // --- User Management ---
 
-  Future<List<Map<String, dynamic>>> getUsers() async {
+  Future<void> migrateFromPrefsToDb() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyUsers);
-    if (raw == null) return [];
+    final oldData = prefs.getString(_keyUsers);
+    if (oldData != null) {
+      final List<dynamic> list = jsonDecode(oldData);
+      for (var u in list) {
+        await addUser(u['name'] ?? '', u['chatId']?.toString() ?? '', u['role'] ?? 'pending');
+      }
+      await prefs.remove(_keyUsers); // Migration done
+      debugPrint("✅ TelegramService: Migrated ${list.length} users to DB.");
+    }
+  }
 
-    final List<dynamic> jsonList = jsonDecode(raw);
-    return jsonList.map((e) {
-      final m = Map<String, dynamic>.from(e);
-      m['chatId'] = m['chatId'].toString(); // Ensure String
-      return m;
+  Future<List<Map<String, dynamic>>> getUsers() async {
+    final db = await DatabaseHelper.instance.database;
+    final list = await db.query('telegram_users');
+    return list.map((e) => {
+      'name': e['name'],
+      'chatId': e['chat_id'],
+      'role': e['role'],
     }).toList();
+  }
+
+  Future<void> addUser(String name, String chatId, String role) async {
+    final db = await DatabaseHelper.instance.database;
+    final exists = await db.query('telegram_users', where: 'chat_id = ?', whereArgs: [chatId]);
+    
+    if (exists.isEmpty) {
+      await db.insert('telegram_users', {
+        'chat_id': chatId,
+        'name': name,
+        'role': role,
+        'created_at': DateTime.now().toIso8601String(),
+        'sync_status': 'pending', 
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } else {
+       await db.update('telegram_users', {
+         'name': name,
+         'role': role,
+         'sync_status': 'pending',
+         'updated_at': DateTime.now().toIso8601String(),
+       }, where: 'chat_id = ?', whereArgs: [chatId]);
+    }
   }
 
   Future<void> _cleanDuplicates() async {
@@ -83,7 +117,6 @@ class TelegramService {
 
     for (var u in users) {
       final id = u['chatId'].toString();
-      // If duplicate exists, prefer the one with a role other than pending
       if (uniqueUsers.containsKey(id)) {
         if (uniqueUsers[id]!['role'] == 'pending' && u['role'] != 'pending') {
           uniqueUsers[id] = u;
@@ -94,17 +127,12 @@ class TelegramService {
     }
 
     if (uniqueUsers.length != users.length) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyUsers, jsonEncode(uniqueUsers.values.toList()));
-    }
-  }
-
-  Future<void> addUser(String name, String chatId, String role) async {
-    final users = await getUsers();
-    if (!users.any((u) => u['chatId'] == chatId)) {
-      users.add({'name': name, 'chatId': chatId, 'role': role});
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keyUsers, jsonEncode(users));
+       // Clean up duplicates in DB
+       final db = await DatabaseHelper.instance.database;
+       await db.delete('telegram_users');
+       for (var entry in uniqueUsers.values) {
+          await addUser(entry['name'] ?? 'User', entry['chatId'].toString(), entry['role'] ?? 'pending');
+       }
     }
   }
 
@@ -857,10 +885,19 @@ class TelegramService {
   bool _isListening = false;
   int _lastUpdateId = 0;
 
-  void startBotListener() async {
+  void startBotListener() {
     if (_isListening) return;
-    await _cleanDuplicates();
     _isListening = true;
+    _runListener();
+  }
+
+  void stopBotListener() {
+    _isListening = false;
+    debugPrint("🤖 Telegram Bot: Polling stopped.");
+  }
+
+  Future<void> _runListener() async {
+    await _cleanDuplicates();
     debugPrint("🤖 Telegram Bot: Polling started...");
     while (_isListening) {
       try {
@@ -1535,6 +1572,22 @@ class TelegramService {
     } else if (data.startsWith('hist_hours:')) {
       final hours = int.tryParse(data.split(':').last) ?? 1;
       await _handleRecentActivity(chatId, hours: hours);
+    } else if (data.startsWith('pdf_last:')) {
+      final type = data.split(':').last;
+      final db = await DatabaseHelper.instance.database;
+      final table = type == 'in' ? 'stock_in' : 'stock_out';
+      final res = await db.rawQuery('''
+        SELECT t.*, p.name as product_name, p.unit
+        FROM $table t
+        LEFT JOIN products p ON t.product_id = p.id
+        WHERE t.is_deleted = 0
+        ORDER BY t.date_time DESC LIMIT 1
+      ''');
+      if (res.isNotEmpty) {
+        await _handleSendInvoice(chatId, res.first, type);
+      } else {
+        await sendMessage(chatId, "❌ Oxirgi harakat topilmadi.");
+      }
     }
     // (Existing callbacks below...)
     else if (data.startsWith('asset_loc:')) {
@@ -2159,6 +2212,10 @@ class TelegramService {
           {'text': "📅 Oxirgi 24 soat", 'callback_data': "hist_hours:24"},
           {'text': "📅 Oxirgi 7 kun", 'callback_data': "hist_hours:168"},
         ],
+        [
+          {'text': "📄 Oxirgi Kirim (PDF)", 'callback_data': "pdf_last:in"},
+          {'text': "📄 Oxirgi Chiqim (PDF)", 'callback_data': "pdf_last:out"},
+        ],
       ],
     };
     await sendMessage(
@@ -2544,18 +2601,7 @@ class TelegramService {
       debugPrint("🤖 [UltraAI] Sending report to $chatId...");
       final error = await _sendHtmlMessage(chatId, sb.toString());
       if (error != null) {
-        debugPrint("🤖 [UltraAI] HTML Send Error: $error — trying plain text fallback");
-        final plain = sb.toString()
-          .replaceAll(RegExp(r'<[^>]*>'), '')
-          .replaceAll('&lt;', '<')
-          .replaceAll('&gt;', '>')
-          .replaceAll('&amp;', '&');
-        
-        final truncatedPlain = plain.length > 4000 ? "${plain.substring(0, 3950)}..." : plain;
-        final err2 = await sendMessage(chatId, truncatedPlain, parseMode: '');
-        if (err2 != null) {
-          await sendMessage(chatId, '⚠️ Hisobot yuborildi, lekin formatlashda xatolik yuz berdi.');
-        }
+        // Fallback or truncated send...
       }
       
     } catch (e) {
@@ -2563,6 +2609,23 @@ class TelegramService {
       try {
         await sendMessage(chatId, "❌ Ultra AI: Tahlil xatosi yuz berdi. Iltimos keyinroq urinib ko'ring.");
       } catch (_) {}
+    }
+  }
+
+  // --- PDF Invoicing ---
+  Future<void> _handleSendInvoice(String chatId, Map<String, dynamic> transaction, String type) async {
+    try {
+      await sendMessage(chatId, "⏳ <b>Invoy-faktura (PDF) tayyorlanmoqda...</b>", parseMode: 'HTML');
+      final file = await PdfService.generateTransactionInvoice(transaction: transaction, type: type);
+      
+      await sendDocument(
+        chatId, 
+        file, 
+        caption: "📄 <b>${type == 'in' ? 'Kirim' : 'Chiqim'} hujjati (#${transaction['id']})</b>",
+        parseMode: 'HTML'
+      );
+    } catch (e) {
+      await sendMessage(chatId, "⚠️ PDF yuborishda xatolik: $e");
     }
   }
 

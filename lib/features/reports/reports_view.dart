@@ -13,6 +13,7 @@ import 'package:excel/excel.dart' as excel_pkg;
 import 'package:file_picker/file_picker.dart';
 import '../../core/services/telegram_service.dart';
 import '../../core/widgets/liquid_glass.dart';
+import 'reports_dashboard_view.dart';
 
 class ReportsView extends StatefulWidget {
   const ReportsView({super.key});
@@ -806,6 +807,14 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
                       label: t.text('rep_select_date'),
                       color: AppColors.primary.withValues(alpha: 0.1),
                       textColor: AppColors.primary,
+                    ),
+                    _HeaderBtn(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsDashboardView())),
+                      icon: Icons.analytics_rounded,
+                      label: "Analytics",
+                      color: AppColors.primary,
+                      textColor: Colors.white,
+                      isPrimary: true,
                     ),
                     const SizedBox(width: 12),
                     _HeaderBtn(
