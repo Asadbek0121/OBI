@@ -1162,7 +1162,7 @@ class TelegramService {
     } else if (text.contains("Jihozlar")) {
       await _handleAssetsStatMenu(chatId);
     } else if (text.contains("Oxirgi Harakatlar") && isAdmin) {
-      await _handleRecentActivity(chatId);
+      await _handleRecentActivityMenu(chatId);
     } else if (text.contains("Excel Hisobot") && isAdmin) {
       await _handleExcelExport(chatId);
     } else if (text.contains("Foto Buyurtma") && isBranch) {
@@ -1529,6 +1529,12 @@ class TelegramService {
           await sendMessage(chatId, "⚠️ Xatolik: Hisobot fayli topilmadi. Iltimos, hisobotni qaytadan generatsiya qiling.");
         }
       }
+    } else if (data.startsWith('hist_limit:')) {
+      final limit = int.tryParse(data.split(':').last) ?? 5;
+      await _handleRecentActivity(chatId, limit: limit);
+    } else if (data.startsWith('hist_hours:')) {
+      final hours = int.tryParse(data.split(':').last) ?? 1;
+      await _handleRecentActivity(chatId, hours: hours);
     }
     // (Existing callbacks below...)
     else if (data.startsWith('asset_loc:')) {
@@ -2093,18 +2099,20 @@ class TelegramService {
     }
   }
 
-  Future<void> _handleRecentActivity(String chatId) async {
+  Future<void> _handleRecentActivity(String chatId, {int limit = 5, int? hours}) async {
     try {
       final activity = await DatabaseHelper.instance.getRecentActivity(
-        limit: 5,
+        limit: limit,
+        hours: hours,
       );
       if (activity.isEmpty) {
-        await sendMessage(chatId, "📭 Hozircha harakatlar tarixi bo'sh.");
+        await sendMessage(chatId, "📭 Tanlangan vaqt oralig'ida harakatlar tarixi topilmadi.");
         return;
       }
 
+      String title = hours != null ? "⏳ OXIRGI $hours SOATDAGI HARAKATLAR" : "🔄 OXIRGI $limit TA HARAKAT";
       String list =
-          "🔄 *OXIRGI 5 TA HARAKAT*\n"
+          "*$title*\n"
           "-------------------------\n\n";
 
       for (var item in activity) {
@@ -2118,7 +2126,7 @@ class TelegramService {
         String dateDisplay = dtRaw;
         final parsed = DateTime.tryParse(dtRaw);
         if (parsed != null) {
-          dateDisplay = DateFormat('dd.MM.yyyy HH:mm').format(parsed);
+          dateDisplay = DateFormat('dd.MM.yyyy HH:mm').format(parsed.toLocal());
         }
 
         list +=
@@ -2134,6 +2142,30 @@ class TelegramService {
     } catch (e) {
       await sendMessage(chatId, "⚠️ Tarixni yuklashda xatolik: $e");
     }
+  }
+
+  Future<void> _handleRecentActivityMenu(String chatId) async {
+    final markup = {
+      'inline_keyboard': [
+        [
+          {'text': "🔢 Oxirgi 5 ta", 'callback_data': "hist_limit:5"},
+          {'text': "🔢 Oxirgi 20 ta", 'callback_data': "hist_limit:20"},
+        ],
+        [
+          {'text': "⏱ Oxirgi 1 soat", 'callback_data': "hist_hours:1"},
+          {'text': "⏱ Oxirgi 6 soat", 'callback_data': "hist_hours:6"},
+        ],
+        [
+          {'text': "📅 Oxirgi 24 soat", 'callback_data': "hist_hours:24"},
+          {'text': "📅 Oxirgi 7 kun", 'callback_data': "hist_hours:168"},
+        ],
+      ],
+    };
+    await sendMessage(
+      chatId,
+      "🔍 *Harakatlar tarixi uchun vaqtni tanlang:*",
+      replyMarkup: markup,
+    );
   }
 
   Future<void> _handleSearchProduct(

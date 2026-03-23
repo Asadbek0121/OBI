@@ -663,37 +663,49 @@ class DatabaseHelper {
      }).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getRecentActivity({int limit = 10}) async {
+  Future<List<Map<String, dynamic>>> getRecentActivity({int limit = 10, int? hours}) async {
     final db = await instance.database;
     
+    String timeFilter = "";
+    if (hours != null) {
+      final since = DateTime.now().subtract(Duration(hours: hours)).toUtc().toIso8601String();
+      timeFilter = "AND si.date_time >= '$since'";
+    }
+
+    String timeFilterOut = "";
+    if (hours != null) {
+      final since = DateTime.now().subtract(Duration(hours: hours)).toUtc().toIso8601String();
+      timeFilterOut = "AND so.date_time >= '$since'";
+    }
+
     // Union of Stock In and Stock Out for a unified feed
     final res = await db.rawQuery('''
       SELECT * FROM (
         SELECT 
           'in' as type,
           si.updated_at as date,
-          si.date_time as logic_date,
+          si.date_time as date_time,
           p.name as product_name,
           si.quantity,
           si.supplier_name as party
         FROM stock_in si
         JOIN products p ON LOWER(si.product_id) = LOWER(p.id)
-        WHERE si.is_deleted = 0
+        WHERE si.is_deleted = 0 $timeFilter
         
         UNION ALL
         
         SELECT 
           'out' as type,
           so.updated_at as date,
-          so.date_time as logic_date,
+          so.date_time as date_time,
           p.name as product_name,
           so.quantity,
           so.receiver_name as party
         FROM stock_out so
         JOIN products p ON LOWER(so.product_id) = LOWER(p.id)
-        WHERE so.is_deleted = 0
+        WHERE so.is_deleted = 0 $timeFilterOut
       )
-      ORDER BY date DESC
+      ORDER BY date_time DESC
       LIMIT ?
     ''', [limit]);
     
