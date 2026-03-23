@@ -2,7 +2,7 @@ name: clinical_warehouse
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 2.2.34+3
+version: 2.2.35+4
 
 environment:
   sdk: ^3.10.4
