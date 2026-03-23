@@ -897,6 +897,7 @@ class TelegramService {
   }
 
   Future<void> _runListener() async {
+    await migrateFromPrefsToDb();
     await _cleanDuplicates();
     debugPrint("🤖 Telegram Bot: Polling started...");
     while (_isListening) {
