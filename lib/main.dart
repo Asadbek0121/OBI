@@ -122,7 +122,7 @@ void main() async {
 
         // 🔄 SYNC SERVICE INIT
         final syncService = SyncService();
-        await syncService.init();
+        await syncService.init(autoStart: false);
 
     } catch (e) {
        debugPrint("❌ System: Service Initialization Error: $e");

@@ -42,11 +42,14 @@ class SyncService {
     'branch_order_items'
   ];
 
-  Future<void> init() async {
+  Future<void> init({bool autoStart = true}) async {
     // Start periodic sync every 5 minutes
     _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) => startSync());
-    // Initial sync
-    startSync();
+    
+    // Initial sync - only if autoStart is true
+    if (autoStart) {
+      startSync();
+    }
   }
 
   Future<void> startSync() async {
@@ -75,10 +78,14 @@ class SyncService {
 
   /// Clears the last sync timestamp and performs a deep pull from Supabase.
   /// This ensures ALL data from the cloud is fetched to the local machine.
-  Future<void> fullResync() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_lastSyncKey);
-    await startSync();
+  Future<void> fullResync({List<String>? tables}) async {
+    if (tables == null || tables.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_lastSyncKey);
+      await startSync();
+    } else {
+      await pullCloudChanges(tables: tables, forceFull: true);
+    }
   }
 
   Future<void> pushLocalChanges() async {
@@ -137,17 +144,27 @@ class SyncService {
     }
   }
 
-  Future<void> pullCloudChanges() async {
+  Future<void> pullCloudChanges({List<String>? tables, bool forceFull = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final lastSyncStr = prefs.getString(_lastSyncKey);
+    
+    // 🛡️ SECURITY/UX FIX: If never synced before and not forced, SKIP pulling.
+    // This prevents automatic messy restore after factory reset.
+    if (lastSyncStr == null && !forceFull) {
+      debugPrint("⏭️ SyncService: Skipping automatic pull (No previous sync history). Use Manual Restore.");
+      return;
+    }
+
     final db = await DatabaseHelper.instance.database;
+    final tablesToPull = tables ?? syncTables;
 
-    debugPrint("⬇️ SyncService: Pulling changes from cloud since $lastSyncStr...");
+    debugPrint("⬇️ SyncService: Pulling changes from cloud since ${forceFull ? 'BEGINNING' : lastSyncStr}...");
 
-    for (var table in syncTables) {
+    for (var table in tablesToPull) {
       var query = _supabase.from(table).select();
       
-      if (lastSyncStr != null) {
+      // If we are NOT forcing full, use the last sync timestamp
+      if (lastSyncStr != null && !forceFull) {
         query = query.gt('updated_at', lastSyncStr);
       }
 
@@ -169,7 +186,8 @@ class SyncService {
       }
     }
 
-    // Update last sync timestamp
+    // Update last sync timestamp to the current time.
+    // This allows subsequent periodic syncs to be incremental.
     await prefs.setString(_lastSyncKey, DateTime.now().toUtc().toIso8601String());
   }
 

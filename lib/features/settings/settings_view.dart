@@ -85,19 +85,76 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _fullCloudSync() async {
     final trans = AppTranslations();
-    final confirmed = await AppDialogs.showConfirmDialog(
+    
+    // Initial state for granular selection
+    final selectedTables = <String, bool>{
+      'restore_baza': true,
+      'restore_kirim': true,
+      'restore_chiqim': true,
+      'restore_jihozlar': true,
+      'restore_orders': true,
+    };
+
+    final result = await showDialog<Map<String, bool>>(
       context: context,
-      title: trans.text("set_restore_title"),
-      content: trans.text("set_sync_subtitle"),
-      confirmText: trans.text("btn_confirm"),
-      cancelText: trans.text("btn_cancel"),
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setDialogState) => Center(
+          child: GlassContainer(
+            width: 360,
+            padding: const EdgeInsets.all(32),
+            borderRadius: 32,
+            opacity: 0.12,
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_download_rounded, size: 48, color: Colors.orange),
+                  const SizedBox(height: 16),
+                  Text(trans.text("set_restore_title"), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                  Text(trans.text("set_restore_desc"), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 24),
+                  ...selectedTables.keys.map((key) => _buildRestoreOption(
+                    title: trans.text(key),
+                    value: selectedTables[key]!,
+                    onChanged: (v) => setDialogState(() => selectedTables[key] = v!),
+                  )),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
+                      const SizedBox(width: 12),
+                      _buildModalBtn(trans.text("btn_confirm"), Colors.orange, Colors.white, () => Navigator.pop(c, selectedTables)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
 
-    if (confirmed == true) {
+    if (result != null && result.values.any((v) => v)) {
       if (!mounted) return;
       AppNotifications.showInfo(context, trans.text("msg_restart_required"));
+      
       try {
-        await SyncService().fullResync();
+        final List<String> tablesToSync = [];
+        if (result['restore_baza'] == true) tablesToSync.add('products');
+        if (result['restore_kirim'] == true) tablesToSync.add('stock_in');
+        if (result['restore_chiqim'] == true) tablesToSync.add('stock_out');
+        if (result['restore_jihozlar'] == true) {
+          tablesToSync.addAll(['assets', 'asset_locations', 'asset_categories']);
+        }
+        if (result['restore_orders'] == true) {
+          tablesToSync.addAll(['branch_orders', 'branch_order_items']);
+        }
+
+        await SyncService().fullResync(tables: tablesToSync);
+        
         if (mounted) {
           AppNotifications.showSuccess(context, trans.text("msg_saved"));
         }
@@ -107,6 +164,19 @@ class _SettingsViewState extends State<SettingsView> {
         }
       }
     }
+  }
+
+  Widget _buildRestoreOption({required String title, required bool value, required ValueChanged<bool?> onChanged}) {
+    return CheckboxListTile(
+      value: value,
+      onChanged: onChanged,
+      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      dense: true,
+      activeColor: Colors.orange,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      contentPadding: EdgeInsets.zero,
+    );
   }
 
   Future<void> _pickProfileImage() async {

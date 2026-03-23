@@ -368,6 +368,12 @@ class AppTranslations extends ChangeNotifier {
       'enter_pin': 'PIN kodni kiriting',
       'btn_auth_password': 'Parol orqali kirish',
       'set_change_photo': 'Rasmni o\'zgartirish',
+      'set_restore_desc': 'Bulutdan kerakli qismlarni tiklash',
+      'restore_baza': 'Baza ma\'lumotlari (Mahsulotlar)',
+      'restore_kirim': 'Kirim ma\'lumotlari',
+      'restore_chiqim': 'Chiqim ma\'lumotlari',
+      'restore_jihozlar': 'Jihozlar bo\'limi',
+      'restore_orders': 'Filial buyurtmalari',
     },
     'ru': {
       // Sidebar
@@ -687,6 +693,12 @@ class AppTranslations extends ChangeNotifier {
       'enter_pin': 'Введите PIN-код',
       'btn_auth_password': 'Войти по паролю',
       'set_change_photo': 'Изменить фото',
+      'set_restore_desc': 'Выборочное восстановление из облака',
+      'restore_baza': 'База данных (Товары)',
+      'restore_kirim': 'Данные по приходам',
+      'restore_chiqim': 'Данные по расходам',
+      'restore_jihozlar': 'Раздел имущества',
+      'restore_orders': 'Заказы филиалов',
     },
     'tr': {
       // Sidebar

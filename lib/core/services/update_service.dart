@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../../main.dart'; // To access navigatorKey and scaffoldMessengerKey
+import '../database/database_helper.dart';
 
 class UpdateService {
   static const String _githubUser = 'Asadbek0121';
@@ -258,6 +259,17 @@ class _DownloadViewState extends State<_DownloadView> {
 
   Future<void> _startDownload() async {
     try {
+      // 🛡️ SAFE GUARD: Pre-Update Backup
+      try {
+         final homeDir = await getApplicationDocumentsDirectory();
+         final backupDir = p.join(homeDir.path, 'Clinical Warehouse', 'Update Backups');
+         await Directory(backupDir).create(recursive: true);
+         await DatabaseHelper.instance.createBackup(backupDir);
+         debugPrint("✅ [Updater] Critical Safety Backup created before update.");
+      } catch (e) {
+         debugPrint("⚠️ [Updater] Pre-update backup failed (Non-critical): $e");
+      }
+
       final dio = Dio();
       final tempDir = await getTemporaryDirectory();
       final savePath = p.join(tempDir.path, widget.fileName);
@@ -311,8 +323,18 @@ class _DownloadViewState extends State<_DownloadView> {
               Text("Tizim Yangilanmoqda", style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(_status, style: TextStyle(color: _error ? Colors.redAccent : Colors.white60)),
+              const SizedBox(height: 12),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.security_rounded, color: Colors.greenAccent, size: 14),
+                  SizedBox(width: 6),
+                  Text("Barcha ma'lumotlaringiz xavfsiz saqlanadi", 
+                    style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                ],
+              ),
               
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               
               // Custom Linear Progress
               if (!_error) ...[
