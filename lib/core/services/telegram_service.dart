@@ -137,34 +137,32 @@ class TelegramService {
   }
 
   Future<void> updateUserRole(String chatId, String newRole) async {
-    final users = await getUsers();
-    for (var u in users) {
-      if (u['chatId'] == chatId) {
-        u['role'] = newRole;
-        break;
-      }
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUsers, jsonEncode(users));
+    final db = await DatabaseHelper.instance.database;
+    await db.update(
+      'telegram_users',
+      {'role': newRole},
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+    );
   }
 
   Future<void> updateUserName(String chatId, String newName) async {
-    final users = await getUsers();
-    for (var u in users) {
-      if (u['chatId'] == chatId) {
-        u['name'] = newName;
-        break;
-      }
-    }
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUsers, jsonEncode(users));
+    final db = await DatabaseHelper.instance.database;
+    await db.update(
+      'telegram_users',
+      {'name': newName},
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+    );
   }
 
   Future<void> deleteUser(String chatId) async {
-    final users = await getUsers();
-    users.removeWhere((u) => u['chatId'] == chatId);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyUsers, jsonEncode(users));
+    final db = await DatabaseHelper.instance.database;
+    await db.delete(
+      'telegram_users',
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+    );
   }
 
   Future<void> updateOrderStatus(

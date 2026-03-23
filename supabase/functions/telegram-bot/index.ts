@@ -1,13 +1,18 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7"
 
+// @ts-ignore
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || "";
+// @ts-ignore
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+// @ts-ignore
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-serve(async (req) => {
+serve(async (req: Request) => {
   try {
     const update = await req.json();
     
@@ -20,7 +25,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ ok: true }), {
       headers: { "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
@@ -31,11 +36,13 @@ async function handleMessage(msg: any) {
   const text = msg.text || "";
 
   // 1. Get User
-  const { data: user } = await supabase
+  const { data: users } = await supabase
     .from("telegram_users")
     .select("*")
     .eq("chat_id", chatId)
-    .single();
+    .limit(1);
+    
+  const user = users?.[0] || null;
 
   if (!user) {
     // Register pending
@@ -74,8 +81,8 @@ async function handleTodayStats(chatId: string) {
     const { data: stockIn } = await supabase.from("stock_in").select("quantity").gte("date_time", today);
     const { data: stockOut } = await supabase.from("stock_out").select("quantity").gte("date_time", today);
 
-    const inQty = stockIn?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
-    const outQty = stockOut?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+    const inQty = stockIn?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
+    const outQty = stockOut?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
 
     await sendMessage(chatId, `📊 *BUGUNGI HOLAT*\n\n📥 Kirim: *${inQty}*\n📤 Chiqim: *${outQty}*`);
 }
