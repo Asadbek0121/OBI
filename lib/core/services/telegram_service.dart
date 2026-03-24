@@ -897,6 +897,16 @@ class TelegramService {
   Future<void> _runListener() async {
     await migrateFromPrefsToDb();
     await _cleanDuplicates();
+    
+    // Ensure Webhook is deactivated so Local Polling can take over
+    try {
+      final token = await getBotToken();
+      if (token != null && token.isNotEmpty) {
+        final deleteUrl = Uri.parse('$_baseUrl$token/deleteWebhook?drop_pending_updates=False');
+        await http.get(deleteUrl);
+      }
+    } catch (_) {}
+
     debugPrint("🤖 Telegram Bot: Polling started...");
     while (_isListening) {
       try {
