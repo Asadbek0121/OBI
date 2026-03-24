@@ -150,12 +150,16 @@ class ClinicalWarehouseApp extends StatefulWidget {
   State<ClinicalWarehouseApp> createState() => _ClinicalWarehouseAppState();
 }
 
-class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
+class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with WindowListener {
   Timer? _updateTimer;
+  bool _isClosing = false;
 
   @override
   void initState() {
     super.initState();
+    windowManager.addListener(this);
+    windowManager.setPreventClose(true); // Don't close immediately
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService.checkUpdate();
     });
@@ -167,7 +171,21 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> {
   }
 
   @override
+  void onWindowClose() async {
+    if (_isClosing) return;
+    _isClosing = true;
+    
+    // Before closing, gracefully give Bot power back to Cloud (Webhook)
+    try {
+      await TelegramService().setWebhookToCloud();
+    } catch (_) {}
+    
+    await windowManager.destroy(); // Now perform actual exit
+  }
+
+  @override
   void dispose() {
+    windowManager.removeListener(this);
     _updateTimer?.cancel();
     super.dispose();
   }

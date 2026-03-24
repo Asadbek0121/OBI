@@ -903,7 +903,7 @@ class TelegramService {
       final token = await getBotToken();
       if (token != null && token.isNotEmpty) {
         final deleteUrl = Uri.parse('$_baseUrl$token/deleteWebhook?drop_pending_updates=False');
-        await http.get(deleteUrl);
+        await http.get(deleteUrl).timeout(const Duration(seconds: 5));
       }
     } catch (_) {}
 
@@ -915,6 +915,21 @@ class TelegramService {
         await Future.delayed(const Duration(seconds: 5));
       }
       await Future.delayed(const Duration(seconds: 2));
+    }
+  }
+
+  /// Sends control to the Cloud Bot (Supabase Edge Function)
+  Future<void> setWebhookToCloud() async {
+    try {
+      final token = await getBotToken();
+      if (token != null && token.isNotEmpty) {
+        debugPrint("🤖 Telegram Bot: Transferring to Cloud...");
+        const cloudUrl = "https://zrsorgdjmsadqksdykyq.supabase.co/functions/v1/telegram-bot";
+        final setUrl = Uri.parse('$_baseUrl$token/setWebhook?url=$cloudUrl');
+        await http.get(setUrl).timeout(const Duration(seconds: 5));
+      }
+    } catch (e) {
+      debugPrint("⚠️ Telegram Bot: Failed to transfer to Cloud: $e");
     }
   }
 
