@@ -72,7 +72,37 @@ async function handleMessage(msg: any) {
     await handleTodayStats(chatId);
   } else if (text.includes("Umumiy Hisobot")) {
     await handleTotalStats(chatId);
+  } else if (text.includes("Kam Qolganlar")) {
+    await handleLowStock(chatId);
+  } else if (text.includes("Jihozlar")) {
+    await handleEquipments(chatId);
+  } else if (text.includes("Yangilash")) {
+    await sendMainMenu(chatId, "🔄 Ma'lumotlar yangilandi", user.role);
+  } else {
+    if (text.includes("AI") || text.includes("Qidirish") || text.includes("Harakatlar") || text.includes("Excel") || text.includes("Foto Buyurtma") || text.includes("Buyurtma") || text.includes("QR Skanerlash")) {
+        await sendMessage(chatId, "⏳ *Tez orada...*\n\nBu yangi funksiyalar ayni paytda Cloud (Bulutli) bot uchun moslashtirilmoqda. Iltimos biroz kuting!");
+    }
   }
+}
+
+async function handleLowStock(chatId: string) {
+    const { data: products } = await supabase.from("products").select("name, stock, unit").lte("stock", 5).limit(20);
+    if (!products || products.length === 0) {
+        await sendMessage(chatId, "✅ Kam qolgan mahsulotlar yo'q!");
+        return;
+    }
+    const msg = products.map((p: any) => `⚠️ ${p.name}: *${p.stock} ${p.unit}*`).join('\n');
+    await sendMessage(chatId, `📉 *KAM QOLGAN MAHSULOTLAR*\n\n${msg}`);
+}
+
+async function handleEquipments(chatId: string) {
+    const { data: equipments } = await supabase.from("equipments").select("name, condition").limit(20);
+    if (!equipments || equipments.length === 0) {
+        await sendMessage(chatId, "🖥 Jihozlar topilmadi.");
+        return;
+    }
+    const msg = equipments.map((e: any) => `🔹 ${e.name} (${e.condition})`).join('\n');
+    await sendMessage(chatId, `🖥 *JIHOZLAR RO'YXATI*\n\n${msg}`);
 }
 
 async function handleTodayStats(chatId: string) {
@@ -98,11 +128,21 @@ async function sendMainMenu(chatId: string, text: string, role: string) {
   if (role === 'admin') {
     keyboard = [
       [{ text: "📊 Bugungi Holat" }, { text: "💰 Umumiy Hisobot" }],
+      [{ text: "🧠 AI Analizator" }],
       [{ text: "⚠️ Kam Qolganlar" }, { text: "🖥 Jihozlar" }],
+      [{ text: "🔄 Oxirgi Harakatlar" }, { text: "🔎 Mahsulot Qidirish" }],
+      [{ text: "📥 Excel Hisobot" }, { text: "🔄 Yangilash" }]
+    ];
+  } else if (role === 'branch') {
+    keyboard = [
+      [{ text: "📷 Foto Buyurtma" }, { text: "📷 QR Skanerlash" }],
+      [{ text: "📝 Buyurtma Holati" }],
       [{ text: "🔄 Yangilash" }]
     ];
   } else {
-    keyboard = [[{ text: "🖥 Jihozlar" }, { text: "🔄 Yangilash" }]];
+    keyboard = [
+      [{ text: "ℹ️ Ma'lumot" }, { text: "🔄 Yangilash" }]
+    ];
   }
 
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
