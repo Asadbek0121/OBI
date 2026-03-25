@@ -87,10 +87,7 @@ class DatabaseHelper {
       onUpgrade: _upgradeDB,
     );
 
-    // After opening, ensure optimizations and missing tables
-    await _ensureOptimized(db);
-
-    // Audit Logs table
+    // 1. Audit Logs table
     await db.execute('''
       CREATE TABLE IF NOT EXISTS audit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +101,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Contracts table for PDF management
+    // 2. Contracts table for PDF management
     await db.execute('''
       CREATE TABLE IF NOT EXISTS contracts (
         id TEXT PRIMARY KEY,
@@ -117,6 +114,9 @@ class DatabaseHelper {
         created_at TEXT
       )
     ''');
+
+    // After creating base tables, ensure optimizations and missing columns
+    await _ensureOptimized(db);
 
     return db;
   }
