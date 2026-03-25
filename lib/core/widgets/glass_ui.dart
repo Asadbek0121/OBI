@@ -363,14 +363,14 @@ class GlassBackground extends StatelessWidget {
         gradient: LinearGradient(
           colors: isDark 
             ? [
-                const Color(0xFF0F172A), // Slate 900
-                const Color(0xFF1E293B), // Slate 800
-                const Color(0xFF0F172A),
+                const Color(0xFF0F172A), 
+                const Color(0xFF111827), 
+                const Color(0xFF0B0E14),
               ]
             : [
-                const Color(0xFFE0E8F8),
-                const Color(0xFFF0F4FF),
-                const Color(0xFFDDEEFF),
+                const Color(0xFFF8FAFC), 
+                const Color(0xFFF1F5F9), 
+                const Color(0xFFF8FAFC),
               ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

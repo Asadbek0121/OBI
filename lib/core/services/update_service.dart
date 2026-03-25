@@ -53,7 +53,7 @@ class UpdateService {
               fileName: asset['name'],
             notes: data['body'] != null && data['body'].toString().length > 10 
                 ? data['body'] 
-                : "🚀 Yangi Premium Dizayn • 💎 Shaffof 3D Logotip • 🔄 Tezkor Sinxronizatsiya • 📊 Excel Hisobotlar Tizimi • 🔧 Ma'lumotlar Bazasi Migratsiyasi • 🤖 Telegram Bot Backup • ⚡️ Ishlash Tezligi Oshirildi • 🛡 Xavfsizlik Tizimi Takomillashdi",
+                : "📄 PDF Shartnomalar Boshqaruvi • 📂 Ierarxik Navigatsiya (Tashkilot ➔ Hamkor ➔ Hujjat) • ✨ Yangi Glassmorphism Dizayni • 🌍 To'liq Lotin Alifbosiga O'tish • 🛠 UI/UX Optimizatsiyasi • 🔄 Tezkor Sinxronizatsiya • ⚡️ Ishlash Tezligi Oshirildi • 🛡 Xavfsizlik Tizimi Takomillashdi",
             );
             _prompted = true;
           }

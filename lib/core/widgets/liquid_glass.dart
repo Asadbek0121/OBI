@@ -15,14 +15,14 @@ class LiquidColors {
 
   List<Color> get bg => dark
       ? const [
-          Color(0xFF0A1628), // yuqori chap — to'q ko'k
-          Color(0xFF1A0A3D), // o'rta — to'q binafsha
-          Color(0xFF0D1F4A), // quyi o'ng — indigo
+          Color(0xFF0F172A), 
+          Color(0xFF111827), 
+          Color(0xFF0B0E14),
         ]
       : const [
-          Color(0xFFD0EAFF),
-          Color(0xFFE8F5FF),
-          Color(0xFFF0F8FF),
+          Color(0xFFF8FAFC), 
+          Color(0xFFF1F5F9), 
+          Color(0xFFF8FAFC),
         ];
 
   // ── Glass Colors ───────────────────────────────────────────────────

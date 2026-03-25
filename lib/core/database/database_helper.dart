@@ -104,6 +104,20 @@ class DatabaseHelper {
       )
     ''');
 
+    // Contracts table for PDF management
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS contracts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company_name TEXT,
+        our_organization TEXT,
+        file_url TEXT,
+        local_path TEXT,
+        status TEXT,
+        created_at TEXT
+      )
+    ''');
+
     return db;
   }
 
@@ -128,6 +142,17 @@ class DatabaseHelper {
     try {
       await db.execute('ALTER TABLE assets ADD COLUMN description TEXT');
     } catch (e) { /* already exists */ }
+
+    try {
+      await db.execute('ALTER TABLE contracts ADD COLUMN our_organization TEXT');
+    } catch (e) { /* already exists */ }
+    try {
+      await db.execute('ALTER TABLE contracts ADD COLUMN company_name TEXT');
+    } catch (e) { /* already exists */ }
+
+    // Fill NULL values for old contracts
+    await db.execute("UPDATE contracts SET our_organization = 'Noma''lum tashkilot' WHERE our_organization IS NULL;");
+    await db.execute("UPDATE contracts SET company_name = 'Noma''lum hamkor' WHERE company_name IS NULL;");
 
     // 2. Ensure all tables exist FIRST
     await db.execute('''
@@ -316,6 +341,25 @@ class DatabaseHelper {
 
     // 4. Payment Types Table
     await db.execute('CREATE TABLE IF NOT EXISTS payment_types (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE)');
+    
+    // 5. Contracts Table (Ensuring it exists in existing DBs)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS contracts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company_name TEXT,
+        file_url TEXT,
+        local_path TEXT,
+        status TEXT,
+        created_at TEXT
+      )
+    ''');
+
+    // Migration for existing databases
+    try {
+      await db.execute('ALTER TABLE contracts ADD COLUMN company_name TEXT');
+    } catch (_) {}
+
     // Seed if empty
     try {
       final res = await db.rawQuery('SELECT COUNT(*) FROM payment_types');
@@ -446,6 +490,32 @@ class DatabaseHelper {
         FOREIGN KEY (to_location_id) REFERENCES asset_locations (id)
       )
     ''');
+
+    // 6. Contracts
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS contracts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company_name TEXT,
+        our_organization TEXT,
+        file_url TEXT,
+        local_path TEXT,
+        status TEXT,
+        created_at TEXT
+      )
+    ''');
+
+    // Dynamic Migrations for contracts
+    final List<Map<String, dynamic>> columns = await db.rawQuery('PRAGMA table_info(contracts)');
+    final bool hasOurOrg = columns.any((column) => column['name'] == 'our_organization');
+    final bool hasCompanyName = columns.any((column) => column['name'] == 'company_name');
+
+    if (!hasCompanyName) {
+      await db.execute('ALTER TABLE contracts ADD COLUMN company_name TEXT;');
+    }
+    if (!hasOurOrg) {
+      await db.execute('ALTER TABLE contracts ADD COLUMN our_organization TEXT;');
+    }
 
     // 4. SEED DATA INSERTION
     debugPrint("🌱 Seeding Data...");

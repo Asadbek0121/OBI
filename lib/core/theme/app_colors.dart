@@ -35,7 +35,7 @@ class AppColors {
   );
   
   static const LinearGradient auraGradient = LinearGradient(
-    colors: [Color(0xFF2D5BFF), Color(0xFF8B5CF6)],
+    colors: [Color(0xFF2D5BFF), Color(0xFF64748B)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

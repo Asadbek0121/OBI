@@ -108,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorText = "Login yoki parol noto'g'ri!";
+          _errorText = AppTranslations().text('msg_login_error');
         });
       }
     }
@@ -310,7 +310,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                  : Row(
                                    mainAxisAlignment: MainAxisAlignment.center,
                                    children: [
-                                     Text(t.text('set_lang_title').contains('Til') ? "KIRISH" : (t.text('set_lang_title').contains('Настройки') ? "ВОЙTI" : "GİRİŞ"), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                     Text(t.text('btn_login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
                                      const SizedBox(width: 8),
                                      const Icon(Icons.login_rounded),
                                     ],

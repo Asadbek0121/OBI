@@ -12,6 +12,7 @@ import '../stock_out/stock_out_view.dart';
 import '../database/product_database_view.dart';
 import '../assets/assets_view.dart';
 import '../reports/reports_view.dart';
+import '../contracts/contracts_view.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/auth_provider.dart';
 import 'package:intl/intl.dart';
@@ -55,12 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _startBackgroundRefresh() {
+    final t = Provider.of<AppTranslations>(context, listen: false);
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
        final count = await DatabaseHelper.instance.getPendingBranchOrdersCount();
        if (mounted && count != _pendingTelegramOrders) {
          if (count > _pendingTelegramOrders) {
-           _playVoiceAlert("Yangi buyurtma keldi");
-           AppNotifications.showInfo(context, "Yangi Telegram buyurtmasi qabul qilindi!");
+           _playVoiceAlert(t.text('notif_new_order'));
+           AppNotifications.showInfo(context, t.text('msg_new_order_telegram'));
          }
          setState(() => _pendingTelegramOrders = count);
        }
@@ -229,6 +231,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     isActive: _selectedIndex == 8,
                                     badgeCount: _pendingTelegramOrders,
                                     onTap: () => setState(() => _selectedIndex = 8),
+                                  ),
+                                   _SidebarItem(
+                                    icon: Icons.description_rounded, 
+                                    label: t.text('menu_contracts'), 
+                                    isActive: _selectedIndex == 9,
+                                    onTap: () => setState(() => _selectedIndex = 9),
                                   ),
                                   _SidebarItem(
                                     icon: Icons.settings_rounded, 
@@ -610,6 +618,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 6: return const ReportsView();
       case 7: return const SettingsView();
       case 8: return const TelegramManagementView();
+      case 9: return const ContractsView();
       default: return _buildDashboardView();
     }
   }
@@ -974,7 +983,7 @@ class _SidebarItemState extends State<_SidebarItem> {
         onExit: (_) => setState(() => _isHovered = false),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: LiquidInkWell(
+        child: InkWell(
           onTap: widget.onTap,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(28),
