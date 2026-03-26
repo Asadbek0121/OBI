@@ -65,9 +65,12 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
       // Calculate avg daily use over last 30 days
       final thirtyDaysAgo = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 30)));
       
+      // Calculate real current stock and movement in one query
       final productUsageRes = await db.rawQuery('''
-        SELECT p.id, p.name, p.quantity as currentStock, 
-               (SELECT SUM(quantity) FROM stock_out WHERE product_id = p.id AND date_time >= ? AND is_deleted = 0) as totalOut
+        SELECT p.id, p.name,
+               ((SELECT COALESCE(SUM(quantity), 0) FROM stock_in WHERE product_id = p.id AND is_deleted = 0) - 
+                (SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND is_deleted = 0)) as currentStock,
+               (SELECT COALESCE(SUM(quantity), 0) FROM stock_out WHERE product_id = p.id AND date_time >= ? AND is_deleted = 0) as totalOut
         FROM products p
         WHERE p.is_deleted = 0
       ''', [thirtyDaysAgo]);
@@ -76,8 +79,8 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
       List<double> velocities = [];
 
       for (var row in productUsageRes) {
-        final currentStock = double.tryParse(row['currentStock'].toString()) ?? 0;
-        final totalOut = double.tryParse(row['totalOut'].toString()) ?? 0;
+        final currentStock = double.tryParse(row['currentStock']?.toString() ?? '0') ?? 0;
+        final totalOut = double.tryParse(row['totalOut']?.toString() ?? '0') ?? 0;
         final dailyVelocity = totalOut / 30.0;
         velocities.add(totalOut);
 
