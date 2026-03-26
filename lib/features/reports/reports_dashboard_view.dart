@@ -106,90 +106,204 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
   }
 
   Widget _buildLineChart() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text("Haftalik Kirim/Chiqim Trendi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: LineChart(
-                LineChartData(
-                  gridData: const FlGridData(show: false),
-                  titlesData: FlTitlesData(
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (val, meta) {
-                          if (val.toInt() >= 0 && val.toInt() < _weeklyStats.length) {
-                            return Text(_weeklyStats[val.toInt()]['day']);
-                          }
-                          return const Text("");
-                        },
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.show_chart_rounded, color: Colors.blue, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text("Haftalik Trend", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+            ],
+          ),
+          const SizedBox(height: 30),
+          SizedBox(
+            height: 220,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.white.withOpacity(0.05), strokeWidth: 1),
+                ),
+                titlesData: FlTitlesData(
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 30,
+                      interval: 1,
+                      getTitlesWidget: (val, meta) {
+                        if (val.toInt() < 0 || val.toInt() >= _weeklyStats.length) return const Text("");
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            _weeklyStats[val.toInt()]['day'],
+                            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (val, meta) => Text(
+                        val.toInt().toString(),
+                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10),
                       ),
                     ),
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    LineChartBarData(
-                      spots: _weeklyStats.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value['in'])).toList(),
-                      isCurved: true,
-                      color: Colors.green,
-                      barWidth: 3,
-                    ),
-                    LineChartBarData(
-                      spots: _weeklyStats.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value['out'])).toList(),
-                      isCurved: true,
-                      color: Colors.red,
-                      barWidth: 3,
-                    ),
-                  ],
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
+                borderData: FlBorderData(show: false),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _weeklyStats.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value['in'])).toList(),
+                    isCurved: true,
+                    curveSmoothness: 0.3, // Changed from curveLib.cubic to curveSmoothness
+                    color: Colors.greenAccent,
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.greenAccent.withOpacity(0.1),
+                    ),
+                  ),
+                  LineChartBarData(
+                    spots: _weeklyStats.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value['out'])).toList(),
+                    isCurved: true,
+                    curveSmoothness: 0.3, // Changed from curveLib.cubic to curveSmoothness
+                    color: Colors.redAccent,
+                    barWidth: 4,
+                    isStrokeCapRound: true,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: Colors.redAccent.withOpacity(0.1),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildLegendRow(Colors.greenAccent, "Kirim"),
+              const SizedBox(width: 24),
+              _buildLegendRow(Colors.redAccent, "Chiqim"),
+            ],
+          )
+        ],
       ),
     );
   }
 
+  Widget _buildLegendRow(Color color, String label) {
+    return Row(
+      children: [
+        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+      ],
+    );
+  }
+
   Widget _buildPieChart() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Text("Kategoriyalar Bo'yicha Taqsimot", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: _categoryData.entries.map((e) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.pie_chart_rounded, color: Colors.orange, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text("Kategoriyalar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 200,
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 4,
+                      centerSpaceRadius: 40,
+                      sections: _categoryData.entries.map((e) {
+                        final index = _categoryData.keys.toList().indexOf(e.key);
+                        final color = Colors.primaries[index % Colors.primaries.length];
+                        return PieChartSectionData(
+                          value: e.value,
+                          title: "", // Title hidden, legend used instead
+                          radius: 30,
+                          color: color,
+                          badgeWidget: _buildBadge(e.value.toInt().toString(), color),
+                          badgePositionPercentageOffset: 1.4,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 1,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _categoryData.entries.map((e) {
                     final index = _categoryData.keys.toList().indexOf(e.key);
-                    return PieChartSectionData(
-                      value: e.value,
-                      title: "${e.key}\n${e.value.toInt()}",
-                      radius: 50,
-                      color: Colors.primaries[index % Colors.primaries.length],
-                      titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: _buildLegendRow(Colors.primaries[index % Colors.primaries.length], e.key),
                     );
                   }).toList(),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
+      ),
+      child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
     );
   }
 }
