@@ -75,16 +75,22 @@ class UpdateService {
     }
   }
 
-  static bool _isNewer(String latest, String current) {
-    try {
-      final lParts = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      final cParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      for (int i = 0; i < lParts.length; i++) {
-        if (i >= cParts.length) return true;
-        if (lParts[i] > cParts[i]) return true;
-        if (lParts[i] < cParts[i]) return false;
-      }
-    } catch (_) {}
+  static  bool _isNewer(String latest, String current) {
+    List<int> latestParts = latest.replaceAll('v', '').split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    List<int> currentParts = current.split('+')[0].split('.').map((e) => int.tryParse(e) ?? 0).toList();
+
+    int length = latestParts.length < currentParts.length ? latestParts.length : currentParts.length;
+    for (int i = 0; i < length; i++) {
+      if (latestParts[i] > currentParts[i]) return true;
+      if (latestParts[i] < currentParts[i]) return false;
+    }
+    
+    // If major segments are same, only consider newer if the extra part is non-zero
+    if (latestParts.length > currentParts.length) {
+       for(int i = currentParts.length; i < latestParts.length; i++) {
+         if (latestParts[i] > 0) return true;
+       }
+    }
     return false;
   }
 

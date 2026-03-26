@@ -9,6 +9,10 @@ import '../../../core/utils/app_notifications.dart';
 import '../../../core/widgets/app_dialogs.dart';
 import '../../../core/widgets/glass_container.dart';
 import '../../../core/widgets/liquid_glass.dart';
+import '../../reports/reports_dashboard_view.dart';
+import 'package:excel/excel.dart' as excel_pkg;
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
@@ -154,6 +158,94 @@ class _InventoryViewState extends State<InventoryView> {
     );
   }
 
+  Future<void> _exportToExcel() async {
+    final t = Provider.of<AppTranslations>(context, listen: false);
+    try {
+      var excel = excel_pkg.Excel.createExcel();
+      excel_pkg.Sheet sheet = excel['Inventory'];
+      
+      // Headers
+      List<excel_pkg.CellValue> headers = [
+        excel_pkg.TextCellValue(t.text('col_id')),
+        excel_pkg.TextCellValue(t.text('col_product')),
+        excel_pkg.TextCellValue(t.text('col_qty')),
+        excel_pkg.TextCellValue(t.text('col_unit')),
+      ];
+      sheet.appendRow(headers);
+      
+      // Data
+      for (var row in rows) {
+        sheet.appendRow([
+          excel_pkg.TextCellValue(row.cells['id']?.value.toString() ?? ''),
+          excel_pkg.TextCellValue(row.cells['name']?.value.toString() ?? ''),
+          excel_pkg.DoubleCellValue(double.tryParse(row.cells['stock']?.value.toString() ?? '0') ?? 0),
+          excel_pkg.TextCellValue(row.cells['unit']?.value.toString() ?? ''),
+        ]);
+      }
+
+      if (excel.sheets.containsKey('Sheet1')) excel.delete('Sheet1');
+      
+      final fileBytes = excel.save();
+      if (fileBytes == null) return;
+
+      String fileName = "Inventory_${DateTime.now().toString().substring(0,10)}.xlsx";
+      
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: t.text('btn_export_excel'),
+        fileName: fileName,
+        allowedExtensions: ['xlsx'],
+        type: FileType.custom,
+      );
+
+      if (outputFile != null) {
+        File(outputFile)
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(fileBytes);
+        if (mounted) AppNotifications.showSuccess(context, t.text('msg_saved'));
+      }
+    } catch (e) {
+      if (mounted) AppNotifications.showError(context, "${t.text('msg_error')}: $e");
+    }
+  }
+
+  void _showAnalytics() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(40),
+        child: GlassContainer(
+          borderRadius: 24,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      Provider.of<AppTranslations>(context).text('rep_dashboard_title'),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Expanded(
+                child: SingleChildScrollView(
+                  child: ReportsDashboardView(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) return const Center(child: CircularProgressIndicator());
@@ -212,7 +304,7 @@ class _InventoryViewState extends State<InventoryView> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                     _HeaderBtn(
+                    _HeaderBtn(
                       onPressed: _loadInventory, 
                       icon: Icons.refresh_rounded, 
                       label: "Yangilash",
@@ -221,7 +313,16 @@ class _InventoryViewState extends State<InventoryView> {
                     ),
                     const SizedBox(width: 12),
                     _HeaderBtn(
-                      onPressed: _loadInventory, 
+                      onPressed: _showAnalytics, 
+                      icon: Icons.analytics_outlined, 
+                      label: "Analytics",
+                      color: AppColors.primary,
+                      textColor: Colors.white,
+                      isPrimary: true,
+                    ),
+                    const SizedBox(width: 12),
+                    _HeaderBtn(
+                      onPressed: _exportToExcel, 
                       icon: Icons.download_rounded, 
                       label: "Excel",
                       color: AppColors.success,

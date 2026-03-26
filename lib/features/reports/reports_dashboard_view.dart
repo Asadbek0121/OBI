@@ -22,63 +22,85 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
   }
 
   Future<void> _loadData() async {
-    final db = await DatabaseHelper.instance.database;
-    
-    // 1. Weekly Movement (Last 7 days)
-    final now = DateTime.now();
-    final List<Map<String, dynamic>> stats = [];
-    for (int i = 6; i >= 0; i--) {
-      final day = now.subtract(Duration(days: i));
-      final dayStr = DateFormat('yyyy-MM-dd').format(day);
+    try {
+      final db = await DatabaseHelper.instance.database;
       
-      final inRes = await db.rawQuery("SELECT SUM(quantity) as q FROM stock_in WHERE date_time LIKE '$dayStr%' AND is_deleted = 0");
-      final outRes = await db.rawQuery("SELECT SUM(quantity) as q FROM stock_out WHERE date_time LIKE '$dayStr%' AND is_deleted = 0");
-      
-      stats.add({
-        'day': DateFormat('E').format(day),
-        'in': double.tryParse(inRes.first['q']?.toString() ?? '0') ?? 0,
-        'out': double.tryParse(outRes.first['q']?.toString() ?? '0') ?? 0,
-      });
-    }
+      // 1. Weekly Movement (Last 7 days)
+      final now = DateTime.now();
+      final List<Map<String, dynamic>> stats = [];
+      for (int i = 6; i >= 0; i--) {
+        final day = now.subtract(Duration(days: i));
+        final dayStr = DateFormat('yyyy-MM-dd').format(day);
+        
+        final inRes = await db.rawQuery("SELECT SUM(quantity) as q FROM stock_in WHERE date_time LIKE '$dayStr%' AND is_deleted = 0");
+        final outRes = await db.rawQuery("SELECT SUM(quantity) as q FROM stock_out WHERE date_time LIKE '$dayStr%' AND is_deleted = 0");
+        
+        stats.add({
+          'day': DateFormat('E').format(day),
+          'in': double.tryParse(inRes.first['q']?.toString() ?? '0') ?? 0,
+          'out': double.tryParse(outRes.first['q']?.toString() ?? '0') ?? 0,
+        });
+      }
 
-    // 2. Category Distribution
-    final catRes = await db.rawQuery('''
-      SELECT c.name, COUNT(p.id) as count
-      FROM products p
-      JOIN categories c ON p.category_id = c.id
-      WHERE p.is_deleted = 0
-      GROUP BY c.id
-    ''');
-    
-    final Map<String, double> cats = {};
-    for (var row in catRes) {
-      cats[row['name'].toString()] = double.tryParse(row['count'].toString()) ?? 0;
-    }
+      // 2. Category Distribution
+      final Map<String, double> cats = {};
+      try {
+        final catRes = await db.rawQuery('''
+          SELECT c.name, COUNT(p.id) as count
+          FROM products p
+          LEFT JOIN categories c ON p.category_id = c.id
+          WHERE p.is_deleted = 0
+          GROUP BY c.id
+        ''');
+        for (var row in catRes) {
+          final name = row['name']?.toString() ?? 'No Category';
+          cats[name] = double.tryParse(row['count'].toString()) ?? 0;
+        }
+      } catch (_) {
+        final totalRes = await db.rawQuery("SELECT COUNT(*) as count FROM products WHERE is_deleted = 0");
+        cats['Total Products'] = double.tryParse(totalRes.first['count'].toString()) ?? 0;
+      }
 
-    if (mounted) {
-      setState(() {
-        _weeklyStats = stats;
-        _categoryData = cats;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _weeklyStats = stats;
+          _categoryData = cats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Analytics Error: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_isLoading) {
+      return const SizedBox(
+        height: 300,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text("Grafik Hisobotlar (Analytics)")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildLineChart(),
-            const SizedBox(height: 32),
-            _buildPieChart(),
-          ],
-        ),
+    if (_weeklyStats.isEmpty && _categoryData.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text("Hozircha ma'lumot yo'q")),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildLineChart(),
+          const SizedBox(height: 24),
+          _buildPieChart(),
+        ],
       ),
     );
   }

@@ -390,6 +390,7 @@ class AppTranslations extends ChangeNotifier {
       'contracts_hint_new_partner': 'Yangi hamkor nomi',
       'contracts_add_org': 'Yangi tashkilot qo\'shish',
       'contracts_add_partner': 'Yangi hamkor qo\'shish',
+      'rep_dashboard_title': 'Analitika Markazi',
     },
     'ru': {
       // Sidebar
@@ -729,8 +730,9 @@ class AppTranslations extends ChangeNotifier {
       'contracts_lbl_partner': 'Компания Партнер',
       'contracts_hint_new_org': 'Название новой организации',
       'contracts_hint_new_partner': 'Название нового партнера',
-      'contracts_add_org': 'Добавить новую организацию',
-      'contracts_add_partner': 'Добавить нового партнера',
+      'contracts_add_org': 'Добавить организацию',
+      'contracts_add_partner': 'Добавить партнера',
+      'rep_dashboard_title': 'Центр Аналитики',
     },
     'tr': {
       // Sidebar
@@ -1057,8 +1059,9 @@ class AppTranslations extends ChangeNotifier {
       'contracts_lbl_partner': 'Ortak Firma',
       'contracts_hint_new_org': 'Yeni kuruluş adı',
       'contracts_hint_new_partner': 'Yeni ortak adı',
-      'contracts_add_org': 'Yeni kuruluş ekle',
-      'contracts_add_partner': 'Yeni ortak ekle',
+      'contracts_add_org': 'Organizasyon ekle',
+      'contracts_add_partner': 'Ortak ekle',
+      'rep_dashboard_title': 'Analitik Merkezi',
       'set_restore_desc': 'Buluttan geri yükleme',
       'notif_new_order': 'Yeni sipariş geldi',
       'msg_new_order_telegram': 'Yeni Telegram siparişi alındı!',
