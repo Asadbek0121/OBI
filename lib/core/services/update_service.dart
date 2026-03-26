@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart'; // To access navigatorKey and scaffoldMessengerKey
 import '../database/database_helper.dart';
 
@@ -37,6 +38,10 @@ class UpdateService {
         final String latestVersion = latestTag.replaceFirst('v', '').split('+')[0];
 
         if (_isNewer(latestVersion, currentVersion)) {
+           final prefs = await SharedPreferences.getInstance();
+           final String? lastDismissed = prefs.getString('update_dismissed_$latestVersion');
+           if (lastDismissed == 'true' && !forceShowNoUpdate) return;
+
           if (_prompted && !forceShowNoUpdate) return;
 
           final assets = data['assets'] as List;
@@ -103,9 +108,11 @@ class UpdateService {
           _removeNotification();
           _showDownloadDialog(url, fileName, notes, version);
         },
-        onDismiss: () {
+        onDismiss: () async {
           _removeNotification();
-          // Reset prompted after 30 mins to remind again
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('update_dismissed_$version', 'true');
+          // Reset prompted after 30 mins to remind again (optional)
           Future.delayed(const Duration(minutes: 30), () => _prompted = false);
         },
       ),

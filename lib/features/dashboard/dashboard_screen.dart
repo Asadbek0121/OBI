@@ -53,6 +53,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _loadDashboardData();
     _startBackgroundRefresh();
+    // 🛡️ SECURITY/UX FIX: Auto-start cloud sync if configured
+    SyncService().init(autoStart: true);
   }
 
   void _startBackgroundRefresh() {

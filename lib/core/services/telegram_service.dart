@@ -918,19 +918,9 @@ class TelegramService {
     }
   }
 
-  /// Sends control to the Cloud Bot (Supabase Edge Function)
+  /// DISABLED: Bot stays local only as per request.
   Future<void> setWebhookToCloud() async {
-    try {
-      final token = await getBotToken();
-      if (token != null && token.isNotEmpty) {
-        debugPrint("🤖 Telegram Bot: Transferring to Cloud...");
-        const cloudUrl = "https://zrsorgdjmsadqksdykyq.supabase.co/functions/v1/telegram-bot";
-        final setUrl = Uri.parse('$_baseUrl$token/setWebhook?url=$cloudUrl');
-        await http.get(setUrl).timeout(const Duration(seconds: 5));
-      }
-    } catch (e) {
-      debugPrint("⚠️ Telegram Bot: Failed to transfer to Cloud: $e");
-    }
+    debugPrint("🤖 Telegram Bot: Local mode only. Cloud transfer skipped.");
   }
 
   Future<void> _checkUpdates() async {

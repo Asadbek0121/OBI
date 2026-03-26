@@ -175,9 +175,9 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
     if (_isClosing) return;
     _isClosing = true;
     
-    // Before closing, gracefully give Bot power back to Cloud (Webhook)
+    // Skip transferring to Cloud (Local bot only)
     try {
-      await TelegramService().setWebhookToCloud();
+      // await TelegramService().setWebhookToCloud();
     } catch (_) {}
     
     await windowManager.destroy(); // Now perform actual exit

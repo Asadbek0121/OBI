@@ -38,9 +38,10 @@ class SyncService {
     'asset_categories',
     'asset_locations',
     'assets',
-    'branch_orders',
-    'branch_order_items',
-    'telegram_users'
+    // 🛡️ RE-MOVED: Bot stays local only as per request
+    // 'branch_orders',
+    // 'branch_order_items',
+    // 'telegram_users'
   ];
 
   Future<void> init({bool autoStart = true}) async {
