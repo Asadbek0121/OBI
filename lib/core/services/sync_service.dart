@@ -55,10 +55,16 @@ class SyncService {
   }
 
   Future<void> startSync() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      _updateStatus("Not Auth");
+      return;
+    }
+    
     if (_isSyncing) return;
     _isSyncing = true;
     _updateStatus("Syncing...");
-    debugPrint("🔄 SyncService: Starting background synchronization...");
+    debugPrint("🔄 SyncService: Starting background synchronization for user: ${user.email}...");
 
     try {
       // 1. Push Local Changes to Cloud
@@ -82,12 +88,17 @@ class SyncService {
   /// This ensures ALL data from the cloud is fetched to the local machine.
   Future<void> fullResync({List<String>? tables}) async {
     if (tables == null || tables.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_lastSyncKey);
+      await resetSyncMetadata();
       await startSync();
     } else {
       await pullCloudChanges(tables: tables, forceFull: true);
     }
+  }
+
+  Future<void> resetSyncMetadata() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_lastSyncKey);
+    debugPrint("🧹 SyncService: Last sync timestamp cleared.");
   }
 
   Future<void> pushLocalChanges() async {
@@ -115,7 +126,11 @@ class SyncService {
              }
           }
 
+          final user = _supabase.auth.currentUser;
+          if (user == null) return;
+
           final data = Map<String, dynamic>.from(row);
+          data['user_id'] = user.id; // Assign current user
           
           final localOnlyColumns = [
             'sync_status', 
@@ -134,7 +149,7 @@ class SyncService {
             data.remove(col);
           }
           
-          if (data.length > 1) {
+          if (data.length > 2) { // 2 because id + user_id
              await _supabase.from(table).upsert(data);
           }
           
@@ -163,8 +178,11 @@ class SyncService {
     
     debugPrint("⬇️ SyncService: Pulling changes from cloud since ${forceFull || lastSyncStr == null ? 'BEGINNING' : lastSyncStr}...");
 
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
     for (var table in tablesToPull) {
-      var query = _supabase.from(table).select();
+      var query = _supabase.from(table).select().eq('user_id', user.id);
       
       // If we are NOT forcing full, use the last sync timestamp
       if (lastSyncStr != null && !forceFull) {

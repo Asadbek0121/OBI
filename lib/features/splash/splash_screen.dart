@@ -97,13 +97,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     if (auth.login(_userController.text, _passController.text)) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 1000),
-          pageBuilder: (ctx, anim, secAnim) => const DashboardScreen(),
-          transitionsBuilder: (ctx, anim, secAnim, child) => FadeTransition(opacity: anim, child: child),
-        ),
-      );
+      _navigateToDashboard();
     } else {
       if (mounted) {
         setState(() {
@@ -112,6 +106,39 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         });
       }
     }
+  }
+
+  void _handleGoogleLogin() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    
+    setState(() {
+      _isLoading = true;
+      _errorText = ''; 
+    });
+
+    final success = await auth.signInWithGoogle();
+
+    if (success) {
+      if (!mounted) return;
+      _navigateToDashboard();
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorText = "Google orqali kirishda xatolik yuz berdi";
+        });
+      }
+    }
+  }
+
+  void _navigateToDashboard() {
+     Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 1000),
+          pageBuilder: (ctx, anim, secAnim) => const DashboardScreen(),
+          transitionsBuilder: (ctx, anim, secAnim, child) => FadeTransition(opacity: anim, child: child),
+        ),
+      );
   }
 
   @override
@@ -287,47 +314,84 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             const SizedBox(height: 40),
 
                             // Button
-                            Container(
-                              height: 56,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF0038F3), Color(0xFF00D2FF)],
+                                  Container(
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(16),
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF0038F3), Color(0xFF00D2FF)],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(color: const Color(0xFF0038F3).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8)),
+                                      ]
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: _isLoading ? null : _handleLogin,
+                                      style: ElevatedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        shadowColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      ),
+                                      child: _isLoading 
+                                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                       : Row(
+                                         mainAxisAlignment: MainAxisAlignment.center,
+                                         children: [
+                                           Text(t.text('btn_login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                           const SizedBox(width: 8),
+                                           const Icon(Icons.login_rounded),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Row(
+                                      children: [
+                                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                                          child: Text("YOKI", style: TextStyle(color: Colors.grey.shade500, fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ),
+                                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Container(
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: Colors.grey.shade300),
+                                        boxShadow: [
+                                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                                        ]
+                                      ),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(16),
+                                        onTap: _isLoading ? null : _handleGoogleLogin,
+                                        child: Center(
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              const Icon(Icons.account_circle_outlined, color: Color(0xFF4285F4)),
+                                              const SizedBox(width: 12),
+                                              const Text("Google bilan kirish", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                boxShadow: [
-                                  BoxShadow(color: const Color(0xFF0038F3).withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 8)),
-                                ]
                               ),
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _handleLogin,
-                                style: ElevatedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                ),
-                                child: _isLoading 
-                                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                 : Row(
-                                   mainAxisAlignment: MainAxisAlignment.center,
-                                   children: [
-                                     Text(t.text('btn_login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                                     const SizedBox(width: 8),
-                                     const Icon(Icons.login_rounded),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-          ],
-        ),
+                ],
+              ),
           if (_isPinMode)
             PinEntryScreen(
               onCancel: () => setState(() => _isPinMode = false),

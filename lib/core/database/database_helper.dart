@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:sqflite_sqlcipher/sqflite_sqlcipher.dart'; // Temporarily disabled for build fix
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,29 +13,44 @@ import 'package:shared_preferences/shared_preferences.dart';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  String? _sessionUserId; // Track which user is currently connected to _database
   final String _prefKeyDbPath = 'clinical_warehouse_db_path';
   String? _customDbPath;
 
   DatabaseHelper._init();
 
   Future<Database> get database async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final String? currentId = currentUser?.id;
+
+    // If the user has changed, we must close the current connection and re-open for the new user
+    if (_database != null && _sessionUserId != currentId) {
+      debugPrint("🔄 DatabaseHelper: User changed from '$_sessionUserId' to '$currentId'. Reconnecting...");
+      await _database!.close();
+      _database = null;
+    }
+
     if (_database != null) return _database!;
     
+    _sessionUserId = currentId;
+
     // 1. Try to load custom path if not set in memory
     if (_customDbPath == null) {
       final prefs = await SharedPreferences.getInstance();
       _customDbPath = prefs.getString(_prefKeyDbPath);
     }
     
-    // 2. If still null, use default internal default (fallback) 
-    // BUT strictly we want the user to pick one. For now, we keep a fallback for safety 
-    // or if the UI flow hasn't been blocked yet.
+    // 2. Determine path based on user
     if (_customDbPath != null) {
        _database = await _initDB(_customDbPath!);
     } else {
        // Fallback to internal app storage if nothing configured
        final dbPath = await getDatabasesPath();
-       final path = join(dbPath, 'clinical_warehouse_v3_connected.db');
+       // Use user-specific filename for isolation
+       final fileName = currentId != null 
+           ? 'clinical_warehouse_user_$currentId.db' 
+           : 'clinical_warehouse_v3_connected.db'; // Fallback for legacy or anonymous
+       final path = join(dbPath, fileName);
        _database = await _initDB(path);
     }
     
@@ -254,6 +270,11 @@ class DatabaseHelper {
       // 🛡️ CRITICAL: 'created_at' is sometimes missing in existing local tables
       try {
         await db.execute("ALTER TABLE $table ADD COLUMN created_at TEXT");
+      } catch (_) {}
+
+      // 🛡️ MULTI-USER: Ensure 'user_id' exists for session isolation
+      try {
+        await db.execute('ALTER TABLE $table ADD COLUMN user_id TEXT');
       } catch (_) {}
     }
 
@@ -614,13 +635,23 @@ class DatabaseHelper {
     var map = Map<String, dynamic>.from(data);
     map['updated_at'] = DateTime.now().toUtc().toIso8601String();
     map['sync_status'] = 'pending_insert';
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      map['user_id'] = user.id;
+    }
     return map;
   }
 
   Map<String, dynamic> _prepareUpdate(Map<String, dynamic> data) {
     var map = Map<String, dynamic>.from(data);
     map['updated_at'] = DateTime.now().toUtc().toIso8601String();
-    map['sync_status'] = 'pending_update';
+    if (map['sync_status'] != 'pending_insert') {
+       map['sync_status'] = 'pending_update';
+    }
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      map['user_id'] = user.id;
+    }
     return map;
   }
 
