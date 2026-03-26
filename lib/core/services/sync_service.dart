@@ -105,34 +105,39 @@ class SyncService {
 
       for (var row in unsynced) {
         try {
+          // Special Check: If we are pushing stock_in/out, verify the product_id is synced first
+          if (table == 'stock_in' || table == 'stock_out') {
+             final productId = row['product_id'];
+             final productCheck = await db.query('products', where: 'id = ? AND sync_status = ?', whereArgs: [productId, 'synced']);
+             if (productCheck.isEmpty) {
+               debugPrint("⏳ SyncService: Skipping $table ID: ${row['id']} because Product $productId is not yet synced.");
+               continue; 
+             }
+          }
+
           final data = Map<String, dynamic>.from(row);
           
-          // 🛡️ Filter out local-only columns to prevent Cloud Sync errors
-          // These columns might not exist in the basic Supabase schema yet
           final localOnlyColumns = [
             'sync_status', 
             'is_deleted', 
             'deleted_at',
-            'short_code',     // Only for asset_locations
-            'payment_status', // Only for stock_in
-            'location',        // Error log mention
-            'tax_percent',    // New column mismatch with cloud
+            'short_code',
+            'payment_status',
+            'location',
+            'tax_percent',
             'tax_sum',
             'surcharge_percent',
             'surcharge_sum',
-            // 'min_stock_alert'  // Now allowed to sync as it exists in Supabase
           ];
           
           for (var col in localOnlyColumns) {
             data.remove(col);
           }
           
-          // Only send if not empty (besides ID)
           if (data.length > 1) {
              await _supabase.from(table).upsert(data);
           }
           
-          // Mark as synced locally
           await db.update(
             table,
             {'sync_status': 'synced'},
@@ -140,7 +145,8 @@ class SyncService {
             whereArgs: [row['id']],
           );
         } catch (e) {
-          debugPrint("⚠️ SyncService Push Error ($table, ID: ${row['id']}): $e");
+          debugPrint("❌ SyncService Push Error ($table, ID: ${row['id']}): $e");
+          // If a product fails to push, we don't mark it synced, so dependencies will naturally wait.
         }
       }
     }
