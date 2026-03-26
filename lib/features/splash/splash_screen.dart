@@ -192,7 +192,22 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             children: [
                               ScaleTransition(
                                 scale: _logoScaleAnimation,
-                                child: Image.asset('assets/logo.png', width: 200, height: 200, fit: BoxFit.contain),
+                                child: Container(
+                                  padding: const EdgeInsets.all(24),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.05),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF00D2FF).withValues(alpha: 0.1),
+                                        blurRadius: 40,
+                                        spreadRadius: 10,
+                                      ),
+                                    ],
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: Image.asset('assets/logo.png', width: 140, height: 140, fit: BoxFit.contain),
+                                ),
                               ),
                               const SizedBox(height: 32),
                               const Text(
@@ -366,17 +381,38 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4)),
                                         ]
                                       ),
-                                      child: InkWell(
-                                        borderRadius: BorderRadius.circular(16),
-                                        onTap: _isLoading ? null : _handleGoogleLogin,
-                                        child: Center(
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              const Icon(Icons.account_circle_outlined, color: Color(0xFF4285F4)),
-                                              const SizedBox(width: 12),
-                                              const Text("Google bilan kirish", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                            ],
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(16),
+                                          onTap: _isLoading ? null : _handleGoogleLogin,
+                                          child: Center(
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                // Professional Google-Style "G" icon mockup using standard Flutter elements
+                                                Container(
+                                                  width: 24, height: 24,
+                                                  decoration: const BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: Colors.white,
+                                                  ),
+                                                  child: const Center(
+                                                    child: Text(
+                                                      "G",
+                                                      style: TextStyle(
+                                                        color: Color(0xFF4285F4),
+                                                        fontWeight: FontWeight.w900,
+                                                        fontSize: 18,
+                                                        fontFamily: 'serif'
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                const Text("Google orqali kirish", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
