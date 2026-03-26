@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Clinical Aura Premium Theme
-  static const Color background = Color(0xFFF8F9FE); // ultra-clean light blue-white
-  static const Color surface = Colors.white;
+  // Clinical Aura Premium Theme - Fresh Sky Blue
+  static const Color background = Color(0xFFEBF5FF); // Clean sky blue
+  static const Color surface = Color(0xFFFDFDFF);
   
   // UI Constants
   static const double borderRadius = 20.0;

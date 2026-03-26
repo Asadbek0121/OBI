@@ -37,6 +37,18 @@ class UpdateService {
         final String latestTag = (data['tag_name'] as String);
         final String latestVersion = latestTag.replaceFirst('v', '').split('+')[0];
 
+        // IMPORTANT: If versions are strictly equal, don't even check _isNewer
+        if (latestVersion == currentVersion) {
+          _checking = false;
+          _prompted = false;
+          if (forceShowNoUpdate) {
+            scaffoldMessengerKey.currentState?.showSnackBar(
+              const SnackBar(content: Text("Siz eng oxirgi talqindan foydalanmoqdasiz.")),
+            );
+          }
+          return;
+        }
+
         if (_isNewer(latestVersion, currentVersion)) {
            final prefs = await SharedPreferences.getInstance();
            final String? lastDismissed = prefs.getString('update_dismissed_$latestVersion');

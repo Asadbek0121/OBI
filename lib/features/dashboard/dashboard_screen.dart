@@ -28,6 +28,8 @@ import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/notification_provider.dart';
 import '../../core/services/profile_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart' as p;
 import '../../core/services/telegram_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -49,6 +51,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _branchAnalytics = [];
   int _pendingTelegramOrders = 0;
   Timer? _refreshTimer;
+
+  void _openDatabaseFolder() async {
+    final path = await DatabaseHelper.instance.getConfiguredPath();
+    if (path == null) return;
+    
+    final directory = p.dirname(path);
+    final uri = Uri.file(directory);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+         AppNotifications.showError(context, "Papkani ochib bo'lmadi: $directory");
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -573,7 +591,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       opacity: 0.02,
       child: Row(
         children: [
-          StatusIndicator(label: t.text('menu_database').toUpperCase(), status: "SQLite", icon: Icons.storage_rounded, color: Colors.blue),
+          StatusIndicator(
+            label: t.text('menu_database').toUpperCase(), 
+            status: "SQLite", 
+            icon: Icons.storage_rounded, 
+            color: Colors.blue,
+            onTap: _openDatabaseFolder,
+          ),
           const SizedBox(width: 24),
           GestureDetector(
             onTap: () {
@@ -1134,9 +1158,40 @@ class _HeaderClockState extends State<_HeaderClock> {
 }
 
 class StatusIndicator extends StatelessWidget {
-  final String label, status; final IconData icon; final Color color;
-  const StatusIndicator({super.key, required this.label, required this.status, required this.icon, required this.color});
-  @override Widget build(BuildContext context) {
-    return Row(children: [Icon(icon, color: color, size: 14), const SizedBox(width: 8), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: TextStyle(fontSize: 9, color: Colors.grey[500], fontWeight: FontWeight.bold)), Text(status, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold))])]);
+  final String label, status; 
+  final IconData icon; 
+  final Color color;
+  final VoidCallback? onTap;
+
+  const StatusIndicator({
+    super.key, 
+    required this.label, 
+    required this.status, 
+    required this.icon, 
+    required this.color,
+    this.onTap,
+  });
+
+  @override 
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 14), 
+            const SizedBox(width: 8), 
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start, 
+              children: [
+                Text(label, style: TextStyle(fontSize: 9, color: Colors.grey[500], fontWeight: FontWeight.bold)), 
+                Text(status, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold))
+              ]
+            )
+          ]
+        ),
+      ),
+    );
   }
 }
