@@ -18,7 +18,9 @@ import 'core/services/profile_provider.dart';
 import 'features/splash/splash_screen.dart';
 import 'core/services/auth_provider.dart';
 import 'core/services/notification_provider.dart';
+import 'core/services/session_timer_service.dart';
 import 'features/setup/database_setup_screen.dart';
+import 'features/auth/pin_entry_screen.dart';
 import 'dart:ui';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -137,6 +139,7 @@ void main() async {
         ChangeNotifierProvider.value(value: profileProvider),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => SessionTimerService()),
       ],
       child: ClinicalWarehouseApp(home: startScreen),
     )
@@ -193,24 +196,58 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final sessionTimer = Provider.of<SessionTimerService>(context);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    // Sync Timer enable status with Auth pin status
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       if (auth.isPinEnabled && auth.isLoggedIn) {
+          sessionTimer.enable(true);
+       } else {
+          sessionTimer.enable(false);
+       }
+    });
     
-    return MaterialApp(
-      scaffoldMessengerKey: scaffoldMessengerKey,
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      scrollBehavior: AppScrollBehavior(),
-      title: 'Omborxona Boshqaruv Tizimi',
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeProvider.themeMode,
-      builder: (context, child) {
-        return AnimatedTheme(
-          data: themeProvider.isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
-          duration: const Duration(milliseconds: 500),
-          child: child!,
-        );
-      },
-      home: widget.home,
+    return Listener(
+      onPointerDown: (_) => sessionTimer.resetTimer(),
+      onPointerMove: (_) => sessionTimer.resetTimer(),
+      child: MaterialApp(
+        scaffoldMessengerKey: scaffoldMessengerKey,
+        navigatorKey: navigatorKey,
+        debugShowCheckedModeBanner: false,
+        scrollBehavior: AppScrollBehavior(),
+        title: 'Omborxona Boshqaruv Tizimi',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeProvider.themeMode,
+        builder: (context, child) {
+          return AnimatedTheme(
+            data: themeProvider.isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
+            duration: const Duration(milliseconds: 500),
+            child: Stack(
+              children: [
+                child!,
+                if (sessionTimer.isLocked && auth.isLoggedIn)
+                  Positioned.fill(
+                    child: PinEntryScreen(
+                       onSuccess: () => sessionTimer.unlock(),
+                       onCancel: () {
+                         auth.logout();
+                         sessionTimer.unlock(); // Dismiss overlay
+                         // Force head back to login
+                         navigatorKey.currentState?.pushAndRemoveUntil(
+                           MaterialPageRoute(builder: (_) => const SplashScreen()),
+                           (route) => false,
+                         );
+                       },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+        home: widget.home,
+      ),
     );
   }
 }

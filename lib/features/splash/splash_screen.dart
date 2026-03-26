@@ -4,6 +4,7 @@ import 'package:clinical_warehouse/core/services/auth_provider.dart';
 import 'package:clinical_warehouse/features/dashboard/dashboard_screen.dart';
 import 'package:clinical_warehouse/features/auth/pin_entry_screen.dart';
 import '../../core/localization/app_translations.dart';
+import '../../core/services/profile_provider.dart';
 import '../../core/widgets/window_buttons.dart';
 import 'dart:io';
 
@@ -68,6 +69,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     await Future.delayed(const Duration(milliseconds: 2000));
     
     if (mounted) {
+      if (auth.isLoggedIn) {
+        _navigateToDashboard();
+        return;
+      }
+      
       if (auth.isPinEnabled) {
         setState(() => _isPinMode = true);
       }
@@ -120,6 +126,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     if (success) {
       if (!mounted) return;
+      // Refresh profiling so it picks up Google metadata
+      await Provider.of<ProfileProvider>(context, listen: false).init();
       _navigateToDashboard();
     } else {
       if (mounted) {
@@ -390,25 +398,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                             child: Row(
                                               mainAxisAlignment: MainAxisAlignment.center,
                                               children: [
-                                                // Professional Google-Style "G" icon mockup using standard Flutter elements
-                                                Container(
-                                                  width: 24, height: 24,
-                                                  decoration: const BoxDecoration(
-                                                    shape: BoxShape.circle,
-                                                    color: Colors.white,
-                                                  ),
-                                                  child: const Center(
-                                                    child: Text(
-                                                      "G",
-                                                      style: TextStyle(
-                                                        color: Color(0xFF4285F4),
-                                                        fontWeight: FontWeight.w900,
-                                                        fontSize: 18,
-                                                        fontFamily: 'serif'
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
+                                                // Original multi-colored Google logo
+                                                Image.asset('assets/google_logo.png', width: 24, height: 24),
                                                 const SizedBox(width: 12),
                                                 const Text("Google orqali kirish", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
                                               ],

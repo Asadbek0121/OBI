@@ -10,7 +10,8 @@ import '../../core/widgets/glass_container.dart';
 
 class PinEntryScreen extends StatefulWidget {
   final VoidCallback onCancel;
-  const PinEntryScreen({super.key, required this.onCancel});
+  final VoidCallback? onSuccess;
+  const PinEntryScreen({super.key, required this.onCancel, this.onSuccess});
 
   @override
   State<PinEntryScreen> createState() => _PinEntryScreenState();
@@ -47,13 +48,17 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
     
     if (auth.verifyPin(_enteredPin)) {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (ctx, anim, secAnim) => const DashboardScreen(),
-          transitionsBuilder: (ctx, anim, secAnim, child) => FadeTransition(opacity: anim, child: child),
-        ),
-      );
+      if (widget.onSuccess != null) {
+        widget.onSuccess!();
+      } else {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 800),
+            pageBuilder: (ctx, anim, secAnim) => const DashboardScreen(),
+            transitionsBuilder: (ctx, anim, secAnim, child) => FadeTransition(opacity: anim, child: child),
+          ),
+        );
+      }
     } else {
       setState(() {
         _enteredPin = '';

@@ -64,8 +64,8 @@ class AuthProvider extends ChangeNotifier {
       // We will use the Supabase OAuth flow.
       final googleSignIn = GoogleSignIn(
         clientId: Platform.isIOS || Platform.isMacOS 
-            ? '676648795908-p7ujn5n2it9q6ndk1qgh6qf3m0p1vpk9.apps.googleusercontent.com' // Example ID, user should replace
-            : null,
+            ? '575519548512-eid704v2ghhoe1e49qaeqfaj4u0jftjh.apps.googleusercontent.com' 
+            : '575519548512-9cmofokav83sd3mv9j5v0ma5tdpd77q9.apps.googleusercontent.com', // Web Client for Windows
         scopes: ['email', 'profile'],
       );
       

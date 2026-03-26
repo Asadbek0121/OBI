@@ -511,7 +511,9 @@ class _SettingsViewState extends State<SettingsView> {
                 shape: BoxShape.circle,
                 image: profile.imagePath != null
                     ? DecorationImage(
-                        image: FileImage(File(profile.imagePath!)),
+                        image: profile.imagePath!.contains('http')
+                            ? NetworkImage(profile.imagePath!) as ImageProvider
+                            : FileImage(File(profile.imagePath!)),
                         fit: BoxFit.cover,
                       )
                     : null,
@@ -777,7 +779,9 @@ class _SettingsViewState extends State<SettingsView> {
                         shape: BoxShape.circle,
                         image: profile.imagePath != null
                             ? DecorationImage(
-                                image: FileImage(File(profile.imagePath!)),
+                                image: profile.imagePath!.contains('http')
+                                    ? NetworkImage(profile.imagePath!) as ImageProvider
+                                    : FileImage(File(profile.imagePath!)),
                                 fit: BoxFit.cover,
                               )
                             : null,

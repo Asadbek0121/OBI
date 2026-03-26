@@ -286,17 +286,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         width: 36,
                                         height: 36,
                                         decoration: BoxDecoration(
-                                          color: AppColors.primary,
+                                          color: AppColors.primary.withValues(alpha: 0.1),
                                           shape: BoxShape.circle,
                                           image: profile.imagePath != null
                                               ? DecorationImage(
-                                                  image: FileImage(File(profile.imagePath!)),
+                                                  image: profile.imagePath!.contains('http')
+                                                      ? NetworkImage(profile.imagePath!) as ImageProvider
+                                                      : FileImage(File(profile.imagePath!)),
                                                   fit: BoxFit.cover,
+                                                  onError: (exception, stackTrace) {
+                                                    debugPrint("❌ Dashboard: Image load error: $exception");
+                                                  },
                                                 )
                                               : null,
                                         ),
                                         child: profile.imagePath == null
-                                            ? const Icon(Icons.person_rounded, color: Colors.white, size: 18)
+                                            ? Icon(Icons.person_rounded, color: AppColors.primary, size: 20)
                                             : null,
                                       ),
                                       const SizedBox(width: 12),
