@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,7 @@ import 'package:zxing_lib/common.dart';
 import 'package:excel/excel.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import './pdf_service.dart';
 
 class TelegramService {
@@ -86,6 +88,92 @@ class TelegramService {
       'chatId': e['chat_id'],
       'role': e['role'],
     }).toList();
+  }
+
+  String? _deviceId;
+  String? _deviceName;
+
+  Future<void> _initDeviceDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    _deviceId = prefs.getString('device_id');
+    if (_deviceId == null) {
+      _deviceId = DateTime.now().millisecondsSinceEpoch.toString();
+      await prefs.setString('device_id', _deviceId!);
+    }
+    _deviceName = prefs.getString('device_name') ?? Platform.localHostname;
+  }
+
+  void startHeartbeat() async {
+    await _initDeviceDetails();
+    // Use an immediate ping and then every minute
+    _sendHeartbeat();
+    Timer.periodic(const Duration(minutes: 1), (_) => _sendHeartbeat());
+    
+    // Also start listening for cloud tasks assigned to THIS device
+    _listenForTasks();
+  }
+
+  void _listenForTasks() {
+    Timer.periodic(const Duration(seconds: 5), (_) async {
+      try {
+        final supabase = Supabase.instance.client;
+        if (_deviceId == null) return;
+
+        final tasks = await supabase
+            .from('bot_tasks')
+            .select()
+            .eq('target_device_id', _deviceId!)
+            .eq('status', 'pending');
+
+        for (var task in tasks) {
+          await _processTask(task);
+        }
+      } catch (e) {
+        // Silently fail to avoid overwhelming logs
+      }
+    });
+  }
+
+  Future<void> _sendHeartbeat() async {
+    try {
+      final supabase = Supabase.instance.client;
+      if (_deviceId != null) {
+        await supabase.from('device_status').upsert({
+          'id': _deviceId,
+          'name': _deviceName,
+          'last_seen': DateTime.now().toUtc().toIso8601String(),
+          'is_active': true,
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ TelegramService Heartbeat Error: $e");
+    }
+  }
+
+  Future<void> _processTask(Map<String, dynamic> task) async {
+    final supabase = Supabase.instance.client;
+    final String taskId = task['id'].toString();
+    final String chatId = task['chat_id'].toString();
+    final String command = task['command'] ?? "";
+
+    // 1. Mark as processing
+    await supabase.from('bot_tasks').update({'status': 'processing'}).eq('id', taskId);
+
+    try {
+      if (command.contains("Excel")) {
+         await _handleExcelExport(chatId);
+      } else if (command.contains("AI")) {
+         await _handleAIAnalytics(chatId);
+      } else if (command.contains("Jihozlar")) {
+         await _handleAssetsStatMenu(chatId);
+      }
+      
+      // 2. Mark as completed
+      await supabase.from('bot_tasks').update({'status': 'completed'}).eq('id', taskId);
+    } catch (e) {
+      debugPrint("❌ Task Error: $e");
+      await supabase.from('bot_tasks').update({'status': 'failed', 'error': e.toString()}).eq('id', taskId);
+    }
   }
 
   Future<void> addUser(String name, String chatId, String role) async {

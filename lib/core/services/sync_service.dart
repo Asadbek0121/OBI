@@ -45,8 +45,8 @@ class SyncService {
   ];
 
   Future<void> init({bool autoStart = true}) async {
-    // Start periodic sync every 5 minutes
-    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) => startSync());
+    // Start periodic sync every 1 minute
+    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) => startSync());
     
     // Initial sync - only if autoStart is true
     if (autoStart) {
@@ -155,18 +155,13 @@ class SyncService {
   Future<void> pullCloudChanges({List<String>? tables, bool forceFull = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final lastSyncStr = prefs.getString(_lastSyncKey);
-    
-    // 🛡️ SECURITY/UX FIX: If never synced before and not forced, SKIP pulling.
-    // This prevents automatic messy restore after factory reset.
-    if (lastSyncStr == null && !forceFull) {
-      debugPrint("⏭️ SyncService: Skipping automatic pull (No previous sync history). Use Manual Restore.");
-      return;
-    }
-
     final db = await DatabaseHelper.instance.database;
     final tablesToPull = tables ?? syncTables;
 
-    debugPrint("⬇️ SyncService: Pulling changes from cloud since ${forceFull ? 'BEGINNING' : lastSyncStr}...");
+    // Ensure we pull core tables first (products, etc) before transactional ones (stock_in)
+    // to avoid dependency/foreign key errors.
+    
+    debugPrint("⬇️ SyncService: Pulling changes from cloud since ${forceFull || lastSyncStr == null ? 'BEGINNING' : lastSyncStr}...");
 
     for (var table in tablesToPull) {
       var query = _supabase.from(table).select();

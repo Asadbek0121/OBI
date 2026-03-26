@@ -64,7 +64,19 @@ async function handleMessage(msg: any) {
 
   // 2. Handle Commands
   if (text === "/start" || text.includes("Asosiy Menyu")) {
-    await sendMainMenu(chatId, "👋 Xush kelibsiz!", user.role);
+    await sendMainMenu(chatId, "👋 Xush kelibsiz!", user.role, user.active_device_id);
+    return;
+  }
+
+  if (text.includes("Qurilmalar")) {
+    await handleDeviceSelectionMenu(chatId);
+    return;
+  }
+
+  if (text.startsWith("/select_")) {
+    const deviceId = text.split("/select_")[1];
+    await supabase.from("telegram_users").update({ active_device_id: deviceId }).eq("chat_id", chatId);
+    await sendMainMenu(chatId, "✅ Qurilma tanlandi!", user.role, deviceId);
     return;
   }
 
@@ -77,12 +89,49 @@ async function handleMessage(msg: any) {
   } else if (text.includes("Jihozlar")) {
     await handleEquipments(chatId);
   } else if (text.includes("Yangilash")) {
-    await sendMainMenu(chatId, "🔄 Ma'lumotlar yangilandi", user.role);
+    await sendMainMenu(chatId, "🔄 Ma'lumotlar yangilandi", user.role, user.active_device_id);
   } else {
-    if (text.includes("AI") || text.includes("Qidirish") || text.includes("Harakatlar") || text.includes("Excel") || text.includes("Foto Buyurtma") || text.includes("Buyurtma") || text.includes("QR Skanerlash")) {
-        await sendMessage(chatId, "⏳ *Tez orada...*\n\nBu yangi funksiyalar ayni paytda Cloud (Bulutli) bot uchun moslashtirilmoqda. Iltimos biroz kuting!");
+    if (text.includes("AI") || text.includes("Qidirish") || text.includes("Harakatlar") || text.includes("Excel") || text.includes("Foto Buyurtma") || text.includes("Buyurtma") || text.includes("QR Skanerlash") || text.includes("Jihozlar")) {
+        if (!user.active_device_id) {
+            await handleDeviceSelectionMenu(chatId, "⚠️ Bu funksiya uchun avval qurilmani tanlang:");
+        } else {
+            // Forward task to PC
+            await supabase.from("bot_tasks").insert({
+                chat_id: chatId,
+                target_device_id: user.active_device_id,
+                command: text,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            });
+            await sendMessage(chatId, "📡 So'rov tanlangan qurilmaga yuborildi. Iltimos kuting...");
+        }
     }
   }
+}
+
+async function handleDeviceSelectionMenu(chatId: string, customText?: string) {
+    const now = new Date();
+    const sub5min = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+
+    const { data: devices } = await supabase
+        .from("device_status")
+        .select("*")
+        .gte("last_seen", sub5min)
+        .order("name");
+
+    if (!devices || devices.length === 0) {
+        await sendMessage(chatId, "❌ Hozirda birorta ham onlayn qurilma (PC) topilmadi. Ilova kompyuterda ochiqligini tekshiring.");
+        return;
+    }
+
+    const keyboard = devices.map((d: any) => [{ text: `🖥 ${d.name || d.id}`, callback_data: `select_${d.id}` }]);
+    // Telegram long polling apps might prefer text commands over callbacks sometimes, 
+    // but for Webhooks we can use inline or commands. Let's use simple text buttons for now to be safe.
+    
+    let msg = customText || "🛠 *Qurilmalarni boshqarish*\n\nQuyidagi onlayn qurilmalardan birini tanlang:";
+    const deviceButtons = devices.map((d: any) => `/select_${d.id} — ${d.name || d.id}`).join('\n');
+    
+    await sendMessage(chatId, `${msg}\n\n${deviceButtons}`);
 }
 
 async function handleLowStock(chatId: string) {
@@ -123,21 +172,24 @@ async function handleTotalStats(chatId: string) {
     await sendMessage(chatId, `💰 *UMUMIY HISOBOT*\n\n📦 Mahsulotlar turi: *${count} ta*`);
 }
 
-async function sendMainMenu(chatId: string, text: string, role: string) {
+async function sendMainMenu(chatId: string, text: string, role: string, activeDeviceId?: string) {
   let keyboard = [];
+  
+  const deviceLabel = activeDeviceId ? `🖥 PC: ${activeDeviceId.slice(-4)}` : "🖥 Qurilmani tanlash";
+
   if (role === 'admin') {
     keyboard = [
       [{ text: "📊 Bugungi Holat" }, { text: "💰 Umumiy Hisobot" }],
-      [{ text: "🧠 AI Analizator" }],
       [{ text: "⚠️ Kam Qolganlar" }, { text: "🖥 Jihozlar" }],
       [{ text: "🔄 Oxirgi Harakatlar" }, { text: "🔎 Mahsulot Qidirish" }],
-      [{ text: "📥 Excel Hisobot" }, { text: "🔄 Yangilash" }]
+      [{ text: "📥 Excel Hisobot" }, { text: "🧠 AI Analizator" }],
+      [{ text: "🔄 Yangilash" }, { text: deviceLabel }]
     ];
   } else if (role === 'branch') {
     keyboard = [
       [{ text: "📷 Foto Buyurtma" }, { text: "📷 QR Skanerlash" }],
       [{ text: "📝 Buyurtma Holati" }],
-      [{ text: "🔄 Yangilash" }]
+      [{ text: "🔄 Yangilash" }, { text: deviceLabel }]
     ];
   } else {
     keyboard = [

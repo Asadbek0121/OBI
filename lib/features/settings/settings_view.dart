@@ -16,6 +16,7 @@ import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsView extends StatefulWidget {
   final bool showHeader;
@@ -39,6 +40,7 @@ class _SettingsViewState extends State<SettingsView> {
     _nameController.text = profile.name;
     _emailController.text = profile.email;
     _getAppInfo();
+    _loadDeviceName();
   }
 
   Future<void> _getAppInfo() async {
@@ -58,6 +60,7 @@ class _SettingsViewState extends State<SettingsView> {
     _emailController.dispose();
     _loginController.dispose();
     _passwordController.dispose();
+    _deviceNameController.dispose();
     super.dispose();
   }
 
@@ -453,6 +456,19 @@ class _SettingsViewState extends State<SettingsView> {
                   const SizedBox(height: 4),
                   Text("Powered by Asadbek © 2026", 
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: LiquidColors.of(context).muted.withValues(alpha: 0.3))),
+                  const SizedBox(height: 6),
+                  GestureDetector(
+                    onTap: () => _updateDeviceName(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: LiquidColors.of(context).muted.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text("🖥 Qurilma: ${_deviceNameController.text}", 
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: LiquidColors.of(context).muted.withValues(alpha: 0.5))),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -648,6 +664,44 @@ class _SettingsViewState extends State<SettingsView> {
             letterSpacing: 0.5,
           ),
         ),
+      ),
+    );
+  }
+
+  final _deviceNameController = TextEditingController();
+
+  Future<void> _loadDeviceName() async {
+    final prefs = await SharedPreferences.getInstance();
+    _deviceNameController.text = prefs.getString('device_name') ?? Platform.localHostname;
+  }
+
+  void _updateDeviceName() {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Qurilmani nomlash"),
+        content: TextField(
+          controller: _deviceNameController,
+          decoration: const InputDecoration(hintText: "Masalan: Ombor PC, Registratura"),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("Bekor qilish")),
+          TextButton(
+            onPressed: () async {
+              final name = _deviceNameController.text;
+              final navigator = Navigator.of(c);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('device_name', name);
+              if (mounted) {
+                setState(() {});
+                if (navigator.canPop()) {
+                  navigator.pop();
+                }
+              }
+            },
+            child: const Text("Saqlash"),
+          ),
+        ],
       ),
     );
   }

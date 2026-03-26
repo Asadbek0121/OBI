@@ -28,6 +28,8 @@ import '../../core/widgets/window_buttons.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/notification_provider.dart';
 import '../../core/services/profile_provider.dart';
+import '../../core/services/telegram_service.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -55,6 +57,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _startBackgroundRefresh();
     // 🛡️ SECURITY/UX FIX: Auto-start cloud sync if configured
     SyncService().init(autoStart: true);
+    // 🤖 Heartbeat for Telegram Bot (Device Separation)
+    TelegramService().startHeartbeat();
   }
 
   void _startBackgroundRefresh() {

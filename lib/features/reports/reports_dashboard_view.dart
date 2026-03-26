@@ -107,9 +107,13 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
         
         int aCount = 0, bCount = 0, cCount = 0;
         for (var v in velocities) {
-          if (v >= aLimit && v > 0) aCount++;
-          else if (v >= bLimit && v > 0) bCount++;
-          else cCount++;
+          if (v >= aLimit && v > 0) {
+            aCount++;
+          } else if (v >= bLimit && v > 0) {
+            bCount++;
+          } else {
+            cCount++;
+          }
         }
         _abcData = {'A': aCount, 'B': bCount, 'C': cCount};
       }
@@ -187,9 +191,9 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                 margin: const EdgeInsets.only(right: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isHighRisk ? Colors.redAccent.withOpacity(0.15) : Colors.orangeAccent.withOpacity(0.1),
+                  color: isHighRisk ? Colors.redAccent.withValues(alpha: 0.15) : Colors.orangeAccent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isHighRisk ? Colors.redAccent.withOpacity(0.3) : Colors.orangeAccent.withOpacity(0.2)),
+                  border: Border.all(color: isHighRisk ? Colors.redAccent.withValues(alpha: 0.3) : Colors.orangeAccent.withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +212,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                       ],
                     ),
                     Text("Tezlik: ${item['velocity']}/kun", 
-                        style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
                   ],
                 ),
               );
@@ -223,9 +227,9 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -241,10 +245,10 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
   Widget _buildABCItem(String label, int count, Color color) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: color.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 10, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(count.toString(), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        Text("mahsulot", style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 9)),
+        Text("mahsulot", style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 9)),
       ],
     );
   }
@@ -253,9 +257,9 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +268,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.show_chart_rounded, color: Colors.blue, size: 20),
               ),
               const SizedBox(width: 12),
@@ -279,7 +283,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.white.withOpacity(0.05), strokeWidth: 1),
+                  getDrawingHorizontalLine: (value) => FlLine(color: Colors.white.withValues(alpha: 0.05), strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
                   bottomTitles: AxisTitles(
@@ -293,7 +297,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
                             _weeklyStats[val.toInt()]['day'],
-                            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10, fontWeight: FontWeight.bold),
                           ),
                         );
                       },
@@ -305,7 +309,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                       reservedSize: 40,
                       getTitlesWidget: (val, meta) => Text(
                         val.toInt().toString(),
-                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.3), fontSize: 10),
                       ),
                     ),
                   ),
@@ -324,7 +328,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.greenAccent.withOpacity(0.1),
+                      color: Colors.greenAccent.withValues(alpha: 0.1),
                     ),
                   ),
                   LineChartBarData(
@@ -337,7 +341,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: Colors.redAccent.withValues(alpha: 0.1),
                     ),
                   ),
                 ],
@@ -363,7 +367,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
       children: [
         Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+        Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
       ],
     );
   }
@@ -372,9 +376,9 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +387,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
                 child: const Icon(Icons.pie_chart_rounded, color: Colors.orange, size: 20),
               ),
               const SizedBox(width: 12),
@@ -445,7 +449,7 @@ class _ReportsDashboardViewState extends State<ReportsDashboardView> {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4)],
       ),
       child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
     );
