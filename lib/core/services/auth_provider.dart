@@ -96,8 +96,8 @@ class AuthProvider extends ChangeNotifier {
   /// New Google Sign In Method (Updated for both macOS and Windows)
   Future<bool> signInWithGoogle() async {
     try {
-      if (Platform.isWindows) {
-        debugPrint("🪟 [Auth] Starting Browser-based Google Sign-In for Windows...");
+      if (Platform.isWindows || Platform.isLinux) {
+        debugPrint("🪟 [Auth] Starting Browser-based Google Sign-In for Linux/Windows...");
         _authCompleter = Completer<bool>();
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.google,

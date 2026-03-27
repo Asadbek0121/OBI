@@ -9,7 +9,7 @@ class WindowButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Platform.isWindows) {
+    if (Platform.isWindows || Platform.isLinux) {
       return const _WindowsButtons();
     }
     return const _MacOSButtons();
