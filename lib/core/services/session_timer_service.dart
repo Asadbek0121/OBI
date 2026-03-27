@@ -6,6 +6,7 @@ class SessionTimerService extends ChangeNotifier {
   Timer? _timer;
   bool _isLocked = false;
   bool _isEnabled = false;
+  DateTime _lastResetTime = DateTime.now();
 
   bool get isLocked => _isLocked;
 
@@ -21,6 +22,13 @@ class SessionTimerService extends ChangeNotifier {
 
   void resetTimer() {
     if (!_isEnabled) return;
+    
+    // 🛡️ Throttle: Only reset once every 3 seconds to avoid lag on mouse move
+    final now = DateTime.now();
+    if (now.difference(_lastResetTime) < const Duration(seconds: 3)) {
+       return; 
+    }
+    _lastResetTime = now;
     
     _timer?.cancel();
     _timer = Timer(_timeout, () {

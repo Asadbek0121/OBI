@@ -740,20 +740,27 @@ class _ContractsViewState extends State<ContractsView> {
   }
 
   Widget _buildLabel(String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(text, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
+      child: Text(text, style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.6) : Colors.grey[600], fontSize: 13, fontWeight: FontWeight.bold)),
     );
   }
 
   Widget _buildCustomTextField({required TextEditingController controller, required String hint}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03), 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.2)),
+      ),
       child: TextField(
         controller: controller,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black),
         decoration: InputDecoration(
           hintText: hint,
+          hintStyle: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.3)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),

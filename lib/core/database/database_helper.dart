@@ -23,7 +23,6 @@ class DatabaseHelper {
     final currentUser = Supabase.instance.client.auth.currentUser;
     final String? currentId = currentUser?.id;
 
-    // If the user has changed, we must close the current connection and re-open for the new user
     if (_database != null && _sessionUserId != currentId) {
       debugPrint("🔄 DatabaseHelper: User changed from '$_sessionUserId' to '$currentId'. Reconnecting...");
       await _database!.close();

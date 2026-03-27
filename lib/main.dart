@@ -182,10 +182,15 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
     _appLinks = AppLinks();
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
        debugPrint("🔗 System: Incoming Deep Link Received: $uri");
-       // On Windows, manually handle the link fragments for Supabase to parse session
+       // On Windows/Linux, handle the link for Supabase to parse session
        if (uri.scheme == 'com.obi.clinicalwarehouse') {
-          // Allow Supabase to handle the link
-          await Supabase.instance.client.auth.getSessionFromUrl(uri);
+          debugPrint("🔑 [Auth] Deep link matched scheme. Parsing session...");
+          try {
+            await Supabase.instance.client.auth.getSessionFromUrl(uri);
+            debugPrint("✅ [Auth] Session successfully parsed from URL.");
+          } catch (e) {
+            debugPrint("❌ [Auth] Failed to parse session from URL: $e");
+          }
        }
     });
   }

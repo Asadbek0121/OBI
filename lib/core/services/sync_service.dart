@@ -45,8 +45,11 @@ class SyncService {
   ];
 
   Future<void> init({bool autoStart = true}) async {
-    // Start periodic sync every 1 minute
-    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) => startSync());
+    // 🛡️ Safety: Cancel existing timer if any
+    _syncTimer?.cancel();
+    
+    // Start periodic sync every 5 minutes (reduced frequency for performance)
+    _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) => startSync());
     
     // Initial sync - only if autoStart is true
     if (autoStart) {

@@ -12,7 +12,7 @@ import '../../core/widgets/app_dialogs.dart';
 import 'package:excel/excel.dart' as excel_pkg;
 import 'package:file_picker/file_picker.dart';
 import '../../core/services/telegram_service.dart';
-import '../../core/widgets/liquid_glass.dart';
+import '../../core/widgets/glass_ui.dart';
 
 class ReportsView extends StatefulWidget {
   const ReportsView({super.key});
@@ -37,68 +37,85 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-       if (_tabController.indexIsChanging) {
-         _loadData();
-       }
-    });
+    // Removed _loadData from TabController listener to avoid redundant calls
     _loadData();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadData();
-  }
+  bool _isDataLoading = false; // Guard for concurrent loads
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (_isDataLoading) return;
+    _isDataLoading = true;
+    
+    if (mounted) setState(() => _isLoading = true);
+    debugPrint("🔄 ReportsView: Starting _loadData... (Guard set)");
     final startStr = _startDate.toIso8601String().substring(0, 10);
     final endStr = _endDate.toIso8601String().substring(0, 10);
 
     try {
+      debugPrint("📅 ReportsView: Loading data for $startStr to $endStr");
       // Load Stock In Data
       final inData = await DatabaseHelper.instance.getStockInReport(startDate: startStr, endDate: endStr);
-      _inRows = inData.map((item) => PlutoRow(
-        key: ValueKey(item['id']),
-        cells: {
-          'date': PlutoCell(value: item['date_time'].toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
-          'product_id': PlutoCell(value: item['product_id']),
-          'product': PlutoCell(value: item['product_name']),
-          'price': PlutoCell(value: item['price_per_unit']),
-          'unit': PlutoCell(value: item['unit']),
-          'quantity': PlutoCell(value: item['quantity']),
-          'tax_percent': PlutoCell(value: item['tax_percent'] ?? 0),
-          'tax_sum': PlutoCell(value: item['tax_sum'] ?? 0),
-          'surcharge_percent': PlutoCell(value: item['surcharge_percent'] ?? 0),
-          'surcharge_sum': PlutoCell(value: item['surcharge_sum'] ?? 0),
-          'party': PlutoCell(value: item['supplier_name']),
-          'payment_status': PlutoCell(value: item['payment_status'] ?? '-'),
-          'total': PlutoCell(value: item['total_amount']),
-          'actions': PlutoCell(value: ''),
+      debugPrint("📥 ReportsView: Received ${inData.length} stock-in records");
+      
+      _inRows = inData.map((item) {
+        try {
+          return PlutoRow(
+            key: ValueKey(item['id']),
+            cells: {
+              'date': PlutoCell(value: (item['date_time'] ?? '-').toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
+              'product_id': PlutoCell(value: item['product_id'] ?? '-'),
+              'product': PlutoCell(value: item['product_name'] ?? 'Noma\'lum'),
+              'price': PlutoCell(value: item['price_per_unit'] ?? 0),
+              'unit': PlutoCell(value: item['unit'] ?? '-'),
+              'quantity': PlutoCell(value: item['quantity'] ?? 0),
+              'tax_percent': PlutoCell(value: item['tax_percent'] ?? 0),
+              'tax_sum': PlutoCell(value: item['tax_sum'] ?? 0),
+              'surcharge_percent': PlutoCell(value: item['surcharge_percent'] ?? 0),
+              'surcharge_sum': PlutoCell(value: item['surcharge_sum'] ?? 0),
+              'party': PlutoCell(value: item['supplier_name'] ?? '-'),
+              'payment_status': PlutoCell(value: item['payment_status'] ?? '-'),
+              'total': PlutoCell(value: item['total_amount'] ?? 0),
+              'actions': PlutoCell(value: ''),
+            }
+          );
+        } catch (e) {
+          debugPrint("⚠️ ReportsView: Error mapping InRow: $e");
+          return PlutoRow(cells: {'date': PlutoCell(value: 'Error')});
         }
-      )).toList();
+      }).toList();
 
       // Load Stock Out Data
       final outData = await DatabaseHelper.instance.getStockOutReport(startDate: startStr, endDate: endStr);
-      _outRows = outData.map((item) => PlutoRow(
-        key: ValueKey(item['id']),
-        cells: {
-          'date': PlutoCell(value: item['date_time'].toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
-          'product': PlutoCell(value: item['product_name']),
-          'quantity': PlutoCell(value: item['quantity']),
-          'unit': PlutoCell(value: item['unit']),
-          'party': PlutoCell(value: item['receiver_name']),
-          'notes': PlutoCell(value: item['notes'] ?? ''),
-          'actions': PlutoCell(value: ''),
+      debugPrint("📤 ReportsView: Received ${outData.length} stock-out records");
+      
+      _outRows = outData.map((item) {
+        try {
+          return PlutoRow(
+            key: ValueKey(item['id']),
+            cells: {
+              'date': PlutoCell(value: (item['date_time'] ?? '-').toString().length >= 16 ? item['date_time'].toString().substring(0, 16) : item['date_time'].toString()),
+              'product': PlutoCell(value: item['product_name'] ?? 'Noma\'lum'),
+              'quantity': PlutoCell(value: item['quantity'] ?? 0),
+              'unit': PlutoCell(value: item['unit'] ?? '-'),
+              'party': PlutoCell(value: item['receiver_name'] ?? '-'),
+              'notes': PlutoCell(value: item['notes'] ?? ''),
+              'actions': PlutoCell(value: ''),
+            }
+          );
+        } catch (e) {
+          debugPrint("⚠️ ReportsView: Error mapping OutRow: $e");
+          return PlutoRow(cells: {'date': PlutoCell(value: 'Error')});
         }
-      )).toList();
+      }).toList();
     } catch (e) {
-      debugPrint("Error loading reports: $e");
-    }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
+      debugPrint("❌ ReportsView: Error loading reports: $e");
+    } finally {
+      _isDataLoading = false;
+      if (mounted) {
+        setState(() => _isLoading = false);
+        debugPrint("✅ ReportsView: _loadData completed.");
+      }
     }
   }
 
@@ -753,139 +770,108 @@ class _ReportsViewState extends State<ReportsView> with SingleTickerProviderStat
       ),
     );
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(t.text('rep_title'), style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: LiquidColors.of(context).title,
-                      letterSpacing: -0.5,
-                    )),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.calendar_month_rounded, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Text(
-                            "${_startDate.toString().substring(0,10)} — ${_endDate.toString().substring(0,10)}",
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlassTopBar(
+            title: t.text('rep_title'),
+            subtitle: "${_startDate.toString().substring(0,10)} — ${_endDate.toString().substring(0,10)}",
+            actions: [
+              _HeaderBtn(
+                onPressed: _selectDateRange,
+                icon: Icons.date_range_rounded,
+                label: t.text('rep_select_date'),
+                color: AppColors.primary.withValues(alpha: isDark ? 0.2 : 0.1),
+                textColor: isDark ? const Color(0xFF64AAFF) : AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              _HeaderBtn(
+                onPressed: _exportToExcel,
+                icon: Icons.download_rounded,
+                label: "Excel",
+                color: AppColors.success,
+                textColor: Colors.white,
+                isPrimary: true,
+              ),
+              const SizedBox(width: 8),
+              _HeaderBtn(
+                onPressed: _sendToTelegram,
+                icon: Icons.send_rounded,
+                label: "Telegram",
+                color: const Color(0xFF229ED9),
+                textColor: Colors.white,
+                isPrimary: true,
+              ),
+            ],
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              child: Column(
+                children: [
+                  Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: TabBar(
+                      controller: _tabController,
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      indicator: BoxDecoration(
+                        color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: isDark ? [] : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
+                      labelColor: isDark ? Colors.white : AppColors.primary,
+                      unselectedLabelColor: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.grey[600],
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                      tabs: [
+                        Tab(text: t.text('rep_in_report')),
+                        Tab(text: t.text('rep_out_report')),
+                      ],
                     ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _HeaderBtn(
-                      onPressed: _selectDateRange,
-                      icon: Icons.date_range_rounded,
-                      label: t.text('rep_select_date'),
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      textColor: AppColors.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    _HeaderBtn(
-                      onPressed: _exportToExcel,
-                      icon: Icons.download_rounded,
-                      label: "Excel",
-                      color: AppColors.success,
-                      textColor: Colors.white,
-                      isPrimary: true,
-                    ),
-                    const SizedBox(width: 12),
-                    _HeaderBtn(
-                      onPressed: _sendToTelegram,
-                      icon: Icons.send_rounded,
-                      label: "Telegram",
-                      color: const Color(0xFF229ED9), // Telegram Blue
-                      textColor: Colors.white,
-                      isPrimary: true,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: TabBar(
-                controller: _tabController,
-                dividerColor: Colors.transparent,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                labelColor: AppColors.primary,
-                unselectedLabelColor: Colors.grey[600],
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                tabs: [
-                  Tab(text: t.text('rep_in_report')),
-                  Tab(text: t.text('rep_out_report')),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildGridContainer(
-                    context,
-                    columns: _getInColumns(t), 
-                    rows: _inRows, 
-                    onLoaded: (e) => _inStateManager = e.stateManager,
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildGridContainer(
+                          context,
+                          columns: _getInColumns(t), 
+                          rows: _inRows, 
+                          onLoaded: (e) => _inStateManager = e.stateManager,
+                          config: gridConfig,
+                        ),
+                        _buildGridContainer(
+                          context,
+                          columns: _getOutColumns(t), 
+                          rows: _outRows, 
+                          onLoaded: (e) => _outStateManager = e.stateManager,
                     config: gridConfig,
                   ),
-                  _buildGridContainer(
-                    context,
-                    columns: _getOutColumns(t), 
-                    rows: _outRows, 
-                    onLoaded: (e) => _outStateManager = e.stateManager,
-                    config: gridConfig,
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

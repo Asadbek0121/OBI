@@ -276,27 +276,30 @@ enum GlassButtonStyle { ghost, excel, primary }
 class GlassTopBar extends StatelessWidget {
   final String title;
   final String subtitle;
-  final Color titleColor;
+  final Color? titleColor;
   final List<Widget> actions;
 
   const GlassTopBar({
     super.key,
     required this.title,
     required this.subtitle,
-    this.titleColor = AppColors.textPrimary,
+    this.titleColor,
     this.actions = const [],
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayTitleColor = titleColor ?? (isDark ? Colors.white : AppColors.textPrimary);
+    final displaySubtitleColor = isDark ? Colors.white.withValues(alpha: 0.5) : AppColors.textSecondary;
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: const EdgeInsets.fromLTRB(24, 18, 24, 14),
           decoration: BoxDecoration(
-            color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.2), // Darker glass in dark mode
+            color: isDark ? Colors.black.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.2), 
             border: Border(
               bottom: BorderSide(
                 color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.5),
@@ -318,7 +321,7 @@ class GlassTopBar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 26, 
                         fontWeight: FontWeight.w700,
-                        color: titleColor, 
+                        color: displayTitleColor, 
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -327,9 +330,9 @@ class GlassTopBar extends StatelessWidget {
                       subtitle, 
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12, 
-                        color: AppColors.textSecondary,
+                        color: displaySubtitleColor,
                       ),
                     ),
                   ],

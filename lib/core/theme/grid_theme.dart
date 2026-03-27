@@ -8,6 +8,8 @@ class GridTheme {
     final textPrimary = Theme.of(context).textTheme.bodyLarge?.color ?? (isDark ? Colors.white : Colors.black87);
     final surfaceColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
+    final displayHeaderColor = isDark ? const Color(0xFF64AAFF) : AppColors.primary;
+
     return PlutoGridStyleConfig(
       // Backgrounds
       gridBackgroundColor: surfaceColor,
@@ -26,7 +28,7 @@ class GridTheme {
       // Headers
       columnHeight: 60,
       columnTextStyle: TextStyle(
-        color: AppColors.primary,
+        color: displayHeaderColor,
         fontWeight: FontWeight.w700,
         fontSize: 15,
         letterSpacing: 0.5,
@@ -41,7 +43,7 @@ class GridTheme {
       ),
       
       // Icons and UI
-      iconColor: AppColors.primary,
+      iconColor: displayHeaderColor,
       menuBackgroundColor: surfaceColor,
       enableGridBorderShadow: !isDark,
     );

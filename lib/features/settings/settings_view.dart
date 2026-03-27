@@ -92,41 +92,44 @@ class _SettingsViewState extends State<SettingsView> {
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.1),
       builder: (c) => StatefulBuilder(
-        builder: (c, setDialogState) => Center(
-          child: GlassContainer(
-            width: 360,
-            padding: const EdgeInsets.all(32),
-            borderRadius: 32,
-            opacity: 0.12,
-            child: Material(
-              color: Colors.transparent,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.cloud_download_rounded, size: 48, color: Colors.orange),
-                  const SizedBox(height: 16),
-                  Text(trans.text("set_restore_title"), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                  Text(trans.text("set_restore_desc"), style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                  const SizedBox(height: 24),
-                  ...selectedTables.keys.map((key) => _buildRestoreOption(
-                    title: trans.text(key),
-                    value: selectedTables[key]!,
-                    onChanged: (v) => setDialogState(() => selectedTables[key] = v!),
-                  )),
-                  const SizedBox(height: 32),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
-                      const SizedBox(width: 12),
-                      _buildModalBtn(trans.text("btn_confirm"), Colors.orange, Colors.white, () => Navigator.pop(c, selectedTables)),
-                    ],
-                  ),
-                ],
+        builder: (c, setDialogState) {
+          final isDark = Theme.of(c).brightness == Brightness.dark;
+          return Center(
+            child: GlassContainer(
+              width: 360,
+              padding: const EdgeInsets.all(32),
+              borderRadius: 32,
+              opacity: 0.12,
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.cloud_download_rounded, size: 48, color: Colors.orange),
+                    const SizedBox(height: 16),
+                    Text(trans.text("set_restore_title"), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: isDark ? Colors.white : AppColors.textPrimary)),
+                    Text(trans.text("set_restore_desc"), style: TextStyle(fontSize: 12, color: isDark ? Colors.white.withValues(alpha: 0.6) : AppColors.textSecondary)),
+                    const SizedBox(height: 24),
+                    ...selectedTables.keys.map((key) => _buildRestoreOption(
+                      title: trans.text(key),
+                      value: selectedTables[key]!,
+                      onChanged: (v) => setDialogState(() => selectedTables[key] = v!),
+                    )),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, isDark ? Colors.white.withValues(alpha: 0.6) : AppColors.textSecondary, () => Navigator.pop(c)),
+                        const SizedBox(width: 12),
+                        _buildModalBtn(trans.text("btn_confirm"), Colors.orange, Colors.white, () => Navigator.pop(c, selectedTables)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
 

@@ -101,7 +101,7 @@ class AuthProvider extends ChangeNotifier {
         _authCompleter = Completer<bool>();
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.google,
-          redirectTo: 'com.obi.clinicalwarehouse://login-callback',
+          redirectTo: 'com.obi.clinicalwarehouse://login-callback/',
         );
         // Wait for onAuthStateChange to complete the completer
         return await _authCompleter!.future.timeout(
