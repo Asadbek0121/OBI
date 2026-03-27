@@ -13,7 +13,6 @@ import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/services/update_service.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
-import 'package:clinical_warehouse/features/splash/splash_screen.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -75,24 +74,6 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  Future<void> _logout() async {
-     final confirmed = await AppDialogs.showConfirmDialog(
-       context: context,
-       title: AppTranslations().text("confirm_exit"),
-       content: "Haqiqatan ham tizimdan chiqmoqchimisiz?",
-       confirmText: AppTranslations().text("btn_confirm"),
-       cancelText: AppTranslations().text("btn_cancel"),
-     );
-     if (confirmed == true && mounted) {
-       await context.read<AuthProvider>().logout();
-       if (mounted) {
-         Navigator.of(context).pushAndRemoveUntil(
-           MaterialPageRoute(builder: (_) => const SplashScreen()),
-           (route) => false,
-         );
-       }
-     }
-  }
 
   Future<void> _fullCloudSync() async {
     final trans = AppTranslations();
@@ -380,13 +361,7 @@ class _SettingsViewState extends State<SettingsView> {
                     color: Colors.blueAccent,
                     onTap: () => _showPinSetupDialog(context, trans),
                   ),
-                  _buildActionCard(
-                    title: "Tizimdan chiqish",
-                    subtitle: "Boshqa akkaunt bilan kirish uchun",
-                    icon: Icons.logout_rounded,
-                    color: Colors.redAccent,
-                    onTap: _logout,
-                  ),
+
                   _buildActionCard(
                     title: trans.text("menu_backup"),
                     subtitle: trans.text("set_backup_subtitle"),
@@ -815,6 +790,20 @@ class _SettingsViewState extends State<SettingsView> {
                   _buildModalInput(controller: _nameController, label: trans.text("col_name"), icon: Icons.badge_outlined),
                   const SizedBox(height: 16),
                   _buildModalInput(controller: _emailController, label: "Email", icon: Icons.email_outlined),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.lock_outline, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(c); // Close profile dialog
+                          _showPasswordChangeDialog(context, trans); // Open password change dialog
+                        },
+                        child: const Text("Parolni o'zgartirish", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,

@@ -31,6 +31,7 @@ import '../../core/services/profile_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
 import '../../core/services/telegram_service.dart';
+import '../../core/widgets/app_dialogs.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -341,17 +342,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                            child: _SidebarItem(
-                              icon: Icons.logout_rounded, 
-                              label: t.text('menu_logout'), 
-                              isActive: false,
-                              onTap: () {
-                                Provider.of<AuthProvider>(context, listen: false).logout();
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (c) => const SplashScreen()),
-                                  (route) => false,
+                            child: InkWell(
+                              onTap: () async {
+                                final confirmed = await AppDialogs.showConfirmDialog(
+                                  context: context,
+                                  title: t.text("confirm_exit"),
+                                  content: "Haqiqatan ham tizimdan chiqmoqchimisiz?",
+                                  confirmText: t.text("btn_confirm"),
+                                  cancelText: t.text("btn_cancel"),
                                 );
+                                if (confirmed == true && mounted) {
+                                  await context.read<AuthProvider>().logout();
+                                  if (mounted) {
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute(builder: (c) => const SplashScreen()),
+                                      (route) => false,
+                                    );
+                                  }
+                                }
                               },
+                              borderRadius: BorderRadius.circular(50),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(50),
+                                  border: Border.all(color: Colors.grey.shade300, width: 1),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.logout_rounded, color: Color(0xFF475569), size: 22),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      t.text('menu_logout'), 
+                                      style: const TextStyle(
+                                        color: Color(0xFF475569), 
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ],
