@@ -69,5 +69,5 @@ msix_config:
   capabilities: internetClient, internetClientServer, privateNetworkClientServer
   architecture: x64
   install: false
-  publisher: CN=OBI, O=OBI, L=Tashkent, S=Tashkent, C=UZ
+  publisher: CN=OBI
   install_certificate: true
