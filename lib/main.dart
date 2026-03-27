@@ -184,7 +184,8 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
        debugPrint("🔗 System: Incoming Deep Link Received: $uri");
        // On Windows, manually handle the link fragments for Supabase to parse session
        if (uri.scheme == 'com.obi.clinicalwarehouse') {
-          // Allow Supabase to handle the link (it will trigger onAuthStateChange)
+          // Allow Supabase to handle the link
+          await Supabase.instance.client.auth.getSessionFromUrl(uri);
        }
     });
   }
