@@ -351,15 +351,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   confirmText: t.text("btn_confirm"),
                                   cancelText: t.text("btn_cancel"),
                                 );
-                                if (confirmed == true && mounted) {
-                                  await context.read<AuthProvider>().logout();
-                                  if (mounted) {
-                                    Navigator.of(context).pushAndRemoveUntil(
-                                      MaterialPageRoute(builder: (c) => const SplashScreen()),
-                                      (route) => false,
-                                    );
-                                  }
-                                }
+                                if (confirmed != true) return;
+                                if (!context.mounted) return;
+                                
+                                await context.read<AuthProvider>().logout();
+                                if (!context.mounted) return;
+                                
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (c) => const SplashScreen()),
+                                  (route) => false,
+                                );
                               },
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
