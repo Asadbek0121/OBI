@@ -14,6 +14,7 @@ import 'package:clinical_warehouse/core/services/update_service.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
 import 'dart:io';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,7 +90,7 @@ class _SettingsViewState extends State<SettingsView> {
 
     final result = await showDialog<Map<String, bool>>(
       context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.1),
+      barrierColor: Colors.black.withOpacity(0.1),
       builder: (c) => StatefulBuilder(
         builder: (c, setDialogState) => Center(
           child: GlassContainer(
@@ -653,7 +654,7 @@ class _SettingsViewState extends State<SettingsView> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(flag, style: const TextStyle(fontSize: 14)),
+            Text(flag, style: GoogleFonts.notoColorEmoji(fontSize: 14)),
             const SizedBox(width: 8),
             Text(
               label.toUpperCase(), 

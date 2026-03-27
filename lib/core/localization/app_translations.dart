@@ -289,8 +289,10 @@ class AppTranslations extends ChangeNotifier {
       'msg_not_found': 'Topilmadi',
       'inventory_desc': 'Ombordagi mahsulotlarning umumiy holati va qoldig\'i.',
       'btn_select_folder': 'Papkani tanlash',
-      'msg_confirm_delete': 'Ushbu ma\'lumotni o\'chirmoqchimisiz?',
+      'msg_confirm_delete': 'Haqiqatan ham ushbu elementni o\'chirmoqchimisiz?',
       'msg_deleted': 'O\'chirildi',
+      'msg_confirm_logout': 'Haqiqatan ham tizimdan chiqmoqchimisiz?',
+      'confirm_exit': 'Tizimdan chiqish',
 
       // Telegram & Assets New
       'menu_assets': 'Jihozlar',
@@ -427,7 +429,7 @@ class AppTranslations extends ChangeNotifier {
       'label_reagent': 'Продукт / Реактив',
       'label_consumable': 'Расходный материал',
       'label_expiry': 'Срок годности',
-      'label_batch': 'Партия / Серия',
+      'label_batch': 'Парти / Серия',
       'label_quantity': 'Количество (Остаток)',
       'label_unit': 'Единица изм.',
       'label_box': 'Коробка',
@@ -631,8 +633,10 @@ class AppTranslations extends ChangeNotifier {
       'label_critical': 'кончились',
       'msg_not_found': 'Не найдено',
       'inventory_desc': 'Общее состояние и остатки товаров на складе.',
-      'msg_confirm_delete': 'Вы уверены, что хотите удалить?',
+      'msg_confirm_delete': 'Вы действительно хотите удалить этот элемент?',
       'msg_deleted': 'Удалено',
+      'msg_confirm_logout': 'Вы действительно хотите выйти из системы?',
+      'confirm_exit': 'Выйти из системы',
 
       // Telegram & Assets New
       'menu_assets': 'Имущество',
@@ -970,6 +974,7 @@ class AppTranslations extends ChangeNotifier {
       'inventory_desc': 'Depodaki ürünlerin genel durumu ve bakiyesi.',
       'msg_confirm_delete': 'Silmek istediğinizden emin misiniz?',
       'msg_deleted': 'Silindi',
+      'confirm_exit': 'Çıkış Yap',
 
       // Telegram & Assets New
       'menu_assets': 'Varlıklar',
@@ -1326,6 +1331,8 @@ class AppTranslations extends ChangeNotifier {
       'btn_select_folder': 'Select Folder',
       'msg_confirm_delete': 'Are you sure you want to delete this item?',
       'msg_deleted': 'Deleted',
+      'msg_confirm_logout': 'Are you sure you want to log out?',
+      'confirm_exit': 'Log Out',
 
       // Telegram & Assets New
       'menu_assets': 'Assets',

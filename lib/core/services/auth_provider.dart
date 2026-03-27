@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:io';
+import 'dart:async'; // Import for Completer and StreamSubscription
 import 'sync_service.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -12,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
   User? _user;
   bool _isPinEnabled = false;
+  Completer<bool>? _authCompleter;
   String _pinCode = '';
 
   User? get user => _user;
@@ -35,8 +37,19 @@ class AuthProvider extends ChangeNotifier {
     // Check Supabase session
     _user = _supabase.auth.currentUser;
     
-    _supabase.auth.onAuthStateChange.listen((data) {
+    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
       _user = data.session?.user;
+      if (data.event == AuthChangeEvent.signedIn || data.event == AuthChangeEvent.initialSession) {
+        if (_authCompleter != null && !_authCompleter!.isCompleted) {
+          _authCompleter!.complete(true);
+          _authCompleter = null;
+        }
+      } else if (data.event == AuthChangeEvent.signedOut) {
+        if (_authCompleter != null && !_authCompleter!.isCompleted) {
+          _authCompleter!.complete(false);
+          _authCompleter = null;
+        }
+      }
       notifyListeners();
     });
     
@@ -85,11 +98,19 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (Platform.isWindows) {
         debugPrint("🪟 [Auth] Starting Browser-based Google Sign-In for Windows...");
+        _authCompleter = Completer<bool>();
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'com.obi.clinicalwarehouse://login-callback',
         );
-        return true; 
+        // Wait for onAuthStateChange to complete the completer
+        return await _authCompleter!.future.timeout(
+          const Duration(minutes: 5), 
+          onTimeout: () {
+            _authCompleter = null;
+            return false;
+          }
+        );
       }
 
       final googleSignIn = GoogleSignIn(
