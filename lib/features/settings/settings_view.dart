@@ -13,6 +13,7 @@ import 'package:clinical_warehouse/core/utils/app_notifications.dart';
 import 'package:clinical_warehouse/core/services/update_service.dart';
 import 'package:clinical_warehouse/core/widgets/glass_container.dart';
 import 'package:clinical_warehouse/core/theme/app_colors.dart';
+import 'package:clinical_warehouse/features/splash/splash_screen.dart';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -74,16 +75,23 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  Future<void> _updateLogin() async {
-    final auth = context.read<AuthProvider>();
-    await auth.updateCredentials(_loginController.text, _passwordController.text);
-    _loginController.clear();
-    _passwordController.clear();
-    if (mounted) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppTranslations().text('saved'))),
-      );
-    }
+  Future<void> _logout() async {
+     final confirmed = await AppDialogs.showConfirmDialog(
+       context: context,
+       title: AppTranslations().text("confirm_exit"),
+       content: "Haqiqatan ham tizimdan chiqmoqchimisiz?",
+       confirmText: AppTranslations().text("btn_confirm"),
+       cancelText: AppTranslations().text("btn_cancel"),
+     );
+     if (confirmed == true && mounted) {
+       await context.read<AuthProvider>().logout();
+       if (mounted) {
+         Navigator.of(context).pushAndRemoveUntil(
+           MaterialPageRoute(builder: (_) => const SplashScreen()),
+           (route) => false,
+         );
+       }
+     }
   }
 
   Future<void> _fullCloudSync() async {
@@ -373,11 +381,11 @@ class _SettingsViewState extends State<SettingsView> {
                     onTap: () => _showPinSetupDialog(context, trans),
                   ),
                   _buildActionCard(
-                    title: trans.text("set_auth_title"),
-                    subtitle: trans.text("set_auth_subtitle"),
-                    icon: Icons.security_rounded,
-                    color: Colors.orange,
-                    onTap: () => _showCredentialsDialog(context, trans),
+                    title: "Tizimdan chiqish",
+                    subtitle: "Boshqa akkaunt bilan kirish uchun",
+                    icon: Icons.logout_rounded,
+                    color: Colors.redAccent,
+                    onTap: _logout,
                   ),
                   _buildActionCard(
                     title: trans.text("menu_backup"),
@@ -889,45 +897,6 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  void _showCredentialsDialog(BuildContext context, AppTranslations trans) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.1),
-      builder: (c) => Center(
-        child: GlassContainer(
-          width: 360,
-          padding: const EdgeInsets.all(32),
-          borderRadius: 32,
-          opacity: 0.08,
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(trans.text("set_auth_title"), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                const SizedBox(height: 24),
-                _buildModalInput(controller: _loginController, label: trans.text("login"), icon: Icons.alternate_email_rounded),
-                const SizedBox(height: 16),
-                _buildModalInput(controller: _passwordController, label: trans.text("password"), icon: Icons.lock_outline_rounded, isPassword: true),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
-                    const SizedBox(width: 12),
-                    _buildModalBtn(trans.text("btn_save"), AppColors.primary, Colors.white, () {
-                      _updateLogin();
-                      Navigator.pop(c);
-                    }),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildModalInput({required TextEditingController controller, required String label, required IconData icon, bool isPassword = false}) {
     return Column(

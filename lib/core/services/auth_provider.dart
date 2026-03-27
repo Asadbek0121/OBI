@@ -6,75 +6,92 @@ import 'dart:io';
 import 'sync_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  static const String _kUsernameKey = 'login_username';
-  static const String _kPasswordKey = 'login_password';
   static const String _kPinKey = 'auth_pin_code';
   static const String _kPinEnabledKey = 'auth_pin_enabled';
 
   final _supabase = Supabase.instance.client;
   User? _user;
-  bool _isLoggedIn = false;
   bool _isPinEnabled = false;
-  String _username = 'Depo';
-  String _password = 'depo11';
   String _pinCode = '';
 
   User? get user => _user;
-  bool get isLoggedIn => _isLoggedIn || _user != null;
+  bool get isLoggedIn => _user != null;
   bool get isPinEnabled => _isPinEnabled;
-  String get username => _username;
-  String get password => _password;
   String get pinCode => _pinCode;
   bool get hasPin => _pinCode.isNotEmpty;
 
+  // Profiles and names from metadata or DB
+  String get firstName => _user?.userMetadata?['first_name'] ?? '';
+  String get lastName => _user?.userMetadata?['last_name'] ?? '';
+  String get displayName => "$firstName $lastName".trim().isNotEmpty 
+      ? "$firstName $lastName" 
+      : (_user?.userMetadata?['full_name'] ?? _user?.email?.split('@')[0] ?? 'User');
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    _username = prefs.getString(_kUsernameKey) ?? 'Depo';
-    _password = prefs.getString(_kPasswordKey) ?? 'depo11';
     _pinCode = prefs.getString(_kPinKey) ?? '';
     _isPinEnabled = prefs.getBool(_kPinEnabledKey) ?? false;
     
     // Check Supabase session
     _user = _supabase.auth.currentUser;
-    _isLoggedIn = _user != null;
     
     _supabase.auth.onAuthStateChange.listen((data) {
       _user = data.session?.user;
-      _isLoggedIn = _user != null;
       notifyListeners();
     });
     
     notifyListeners();
   }
 
-  /// Original local login (Legacy support)
-  bool login(String user, String pass) {
-    if (user == _username && pass == _password) {
-      _isLoggedIn = true;
-      notifyListeners();
-      return true;
+  /// Real Supabase Login (Email/Password)
+  Future<bool> login(String email, String password) async {
+    try {
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return response.user != null;
+    } catch (e) {
+      debugPrint("❌ [Auth] Login Failed: $e");
+      return false;
     }
-    return false;
   }
 
-  /// New Google Sign In Method
+  /// Real Supabase Registration
+  Future<bool> signUp({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+  }) async {
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'first_name': firstName,
+          'last_name': lastName,
+        },
+      );
+      return response.user != null;
+    } catch (e) {
+      debugPrint("❌ [Auth] Registration Failed: $e");
+      return false;
+    }
+  }
+
+  /// New Google Sign In Method (Updated for both macOS and Windows)
   Future<bool> signInWithGoogle() async {
     try {
       if (Platform.isWindows) {
         debugPrint("🪟 [Auth] Starting Browser-based Google Sign-In for Windows...");
-        
-        // Use Supabase OAuth flow directly for Windows
-        // This will open the default system browser
         await _supabase.auth.signInWithOAuth(
           OAuthProvider.google,
           redirectTo: 'com.obi.clinicalwarehouse://login-callback',
         );
-        
-        // On Windows, the actual logic continues in main.dart deep link listener
         return true; 
       }
 
-      // For Mobile/macOS, keep using the native google_sign_in package
       final googleSignIn = GoogleSignIn(
         clientId: Platform.isIOS || Platform.isMacOS 
             ? '575519548512-eid704v2ghhoe1e49qaeqfaj4u0jftjh.apps.googleusercontent.com' 
@@ -108,7 +125,7 @@ class AuthProvider extends ChangeNotifier {
 
   bool verifyPin(String code) {
     if (_isPinEnabled && code == _pinCode) {
-      _isLoggedIn = true;
+      // In a real multi-user app, PIN just unlocks the screen
       notifyListeners();
       return true;
     }
@@ -117,8 +134,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _supabase.auth.signOut();
-    await SyncService().resetSyncMetadata(); // Reset sync timestamps on logout
-    _isLoggedIn = false;
+    await SyncService().resetSyncMetadata();
     _user = null;
     notifyListeners();
   }
@@ -134,15 +150,6 @@ class AuthProvider extends ChangeNotifier {
     _isPinEnabled = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kPinEnabledKey, _isPinEnabled);
-    notifyListeners();
-  }
-
-  Future<void> updateCredentials(String newUser, String newPass) async {
-    _username = newUser;
-    _password = newPass;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kUsernameKey, _username);
-    await prefs.setString(_kPasswordKey, _password);
     notifyListeners();
   }
 }

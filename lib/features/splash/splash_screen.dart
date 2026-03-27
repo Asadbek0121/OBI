@@ -27,8 +27,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   bool _showLogin = false;
   bool _isLoading = false;
   bool _isPinMode = false;
+  bool _isSignUp = false;
   final TextEditingController _userController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
+  final TextEditingController _firstNameController = TextEditingController();
+  final TextEditingController _lastNameController = TextEditingController();
   String _errorText = '';
 
   @override
@@ -88,27 +91,51 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _logoController.dispose();
     _userController.dispose();
     _passController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
     super.dispose();
   }
 
   void _handleLogin() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     
+    if (_userController.text.isEmpty || _passController.text.isEmpty) {
+      setState(() => _errorText = "Iltimos, barcha maydonlarni to'ldiring");
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorText = ''; 
     });
 
-    await Future.delayed(const Duration(milliseconds: 1200));
+    bool success = false;
+    if (_isSignUp) {
+      if (_firstNameController.text.isEmpty || _lastNameController.text.isEmpty) {
+         setState(() {
+            _isLoading = false;
+            _errorText = "Ism va familiyani kiriting";
+         });
+         return;
+      }
+      success = await auth.signUp(
+        email: _userController.text,
+        password: _passController.text,
+        firstName: _firstNameController.text,
+        lastName: _lastNameController.text,
+      );
+    } else {
+      success = await auth.login(_userController.text, _passController.text);
+    }
 
-    if (auth.login(_userController.text, _passController.text)) {
+    if (success) {
       if (!mounted) return;
       _navigateToDashboard();
     } else {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorText = AppTranslations().text('msg_login_error');
+          _errorText = _isSignUp ? "Ro'yxatdan o'tishda xatolik" : AppTranslations().text('msg_login_error');
         });
       }
     }
@@ -294,12 +321,31 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             const SizedBox(height: 48),
 
                             // Inputs
-                            _buildInputLabel(t.text('login')), // Foydalanuvchi (Login)
+                            if (_isSignUp) ...[
+                               _buildInputLabel("Ism"),
+                               const SizedBox(height: 8),
+                               _buildInput(
+                                 controller: _firstNameController, 
+                                 hint: "Asadbek", 
+                                 icon: Icons.badge_outlined
+                               ),
+                               const SizedBox(height: 16),
+                               _buildInputLabel("Familiya"),
+                               const SizedBox(height: 8),
+                               _buildInput(
+                                 controller: _lastNameController, 
+                                 hint: "Aliyev", 
+                                 icon: Icons.badge_outlined
+                               ),
+                               const SizedBox(height: 16),
+                            ],
+
+                            _buildInputLabel(t.text('login') + " (Email)"), // Foydalanuvchi (Login)
                             const SizedBox(height: 8),
                             _buildInput(
                               controller: _userController, 
-                              hint: "admin", 
-                              icon: Icons.person_outline
+                              hint: "example@gmail.com", 
+                              icon: Icons.email_outlined
                             ),
                             
                             const SizedBox(height: 24),
@@ -356,17 +402,28 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                       ),
                                       child: _isLoading 
-                                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                       : Row(
-                                         mainAxisAlignment: MainAxisAlignment.center,
-                                         children: [
-                                           Text(t.text('btn_login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                                           const SizedBox(width: 8),
-                                           const Icon(Icons.login_rounded),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
+                                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                        : Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(_isSignUp ? "RO'YXATDAN O'TISH" : t.text('btn_login'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                                            const SizedBox(width: 8),
+                                            const Icon(Icons.login_rounded),
+                                           ],
+                                         ),
+                                       ),
+                                     ),
+                                     const SizedBox(height: 16),
+                                     TextButton(
+                                       onPressed: () => setState(() {
+                                         _isSignUp = !_isSignUp;
+                                         _errorText = '';
+                                       }),
+                                       child: Text(
+                                         _isSignUp ? "HISOBINGIZ BORMU? KIRISH" : "YANGI HISOB YARATISH (RO'YXATDAN O'TISH)",
+                                         style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold),
+                                       ),
+                                     ),
                                     const SizedBox(height: 24),
                                     Row(
                                       children: [
