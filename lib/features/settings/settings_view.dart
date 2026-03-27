@@ -621,6 +621,8 @@ class _SettingsViewState extends State<SettingsView> {
               _buildLangBtn("ru", trans.currentLocale == 'ru', () => trans.setLocale('ru')),
               const SizedBox(width: 4),
               _buildLangBtn("tr", trans.currentLocale == 'tr', () => trans.setLocale('tr')),
+              const SizedBox(width: 4),
+              _buildLangBtn("en", trans.currentLocale == 'en', () => trans.setLocale('en')),
             ],
           ),
         ],
