@@ -631,25 +631,40 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildLangBtn(String label, bool isActive, VoidCallback onTap) {
+    String flag = '';
+    switch (label) {
+      case 'uz': flag = '🇺🇿'; break;
+      case 'ru': flag = '🇷🇺'; break;
+      case 'tr': flag = '🇹🇷'; break;
+      case 'en': flag = '🇺🇸'; break;
+    }
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: isActive ? AppColors.primary : Colors.transparent,
           border: Border.all(color: isActive ? AppColors.primary : AppColors.glassBorder.withValues(alpha: 0.15)),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Text(
-          label, 
-          style: TextStyle(
-            color: isActive ? Colors.white : AppColors.textSecondary, 
-            fontSize: 13, 
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 8),
+            Text(
+              label.toUpperCase(), 
+              style: TextStyle(
+                color: isActive ? Colors.white : AppColors.textSecondary, 
+                fontSize: 12, 
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
