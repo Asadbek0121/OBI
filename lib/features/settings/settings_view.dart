@@ -393,13 +393,6 @@ class _SettingsViewState extends State<SettingsView> {
                     onTap: _restoreLocalBackup,
                   ),
                    _buildActionCard(
-                    title: "Parolni o'zgartirish",
-                    subtitle: "Hisob paroli yangilash",
-                    icon: Icons.password_rounded,
-                    color: Colors.amber,
-                    onTap: () => _showPasswordChangeDialog(context, trans),
-                  ),
-                   _buildActionCard(
                     title: trans.text("set_update_title"),
                     subtitle: trans.text("set_update_subtitle"),
                     icon: Icons.system_update_rounded,
