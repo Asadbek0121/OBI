@@ -60,12 +60,25 @@ class AuthProvider extends ChangeNotifier {
   /// New Google Sign In Method
   Future<bool> signInWithGoogle() async {
     try {
-      // For Desktop (macOS/Windows), standard google_sign_in can behave differently.
-      // We will use the Supabase OAuth flow.
+      if (Platform.isWindows) {
+        debugPrint("🪟 [Auth] Starting Browser-based Google Sign-In for Windows...");
+        
+        // Use Supabase OAuth flow directly for Windows
+        // This will open the default system browser
+        await _supabase.auth.signInWithOAuth(
+          OAuthProvider.google,
+          redirectTo: 'com.obi.clinicalwarehouse://login-callback',
+        );
+        
+        // On Windows, the actual logic continues in main.dart deep link listener
+        return true; 
+      }
+
+      // For Mobile/macOS, keep using the native google_sign_in package
       final googleSignIn = GoogleSignIn(
         clientId: Platform.isIOS || Platform.isMacOS 
             ? '575519548512-eid704v2ghhoe1e49qaeqfaj4u0jftjh.apps.googleusercontent.com' 
-            : '575519548512-9cmofokav83sd3mv9j5v0ma5tdpd77q9.apps.googleusercontent.com', // Web Client for Windows
+            : '575519548512-9cmofokav83sd3mv9j5v0ma5tdpd77q9.apps.googleusercontent.com',
         scopes: ['email', 'profile'],
       );
       

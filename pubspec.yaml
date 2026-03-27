@@ -47,6 +47,7 @@ dependencies:
   pdfx: ^2.6.0
   sqlite3_flutter_libs: ^0.6.0+eol
   package_info_plus: ^8.1.0
+  app_links: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -71,3 +72,4 @@ msix_config:
   install: false
   publisher: CN=OBI
   install_certificate: true
+  protocol: com.obi.clinicalwarehouse

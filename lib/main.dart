@@ -22,6 +22,7 @@ import 'core/services/session_timer_service.dart';
 import 'features/setup/database_setup_screen.dart';
 import 'features/auth/pin_entry_screen.dart';
 import 'dart:ui';
+import 'package:app_links/app_links.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -156,12 +157,16 @@ class ClinicalWarehouseApp extends StatefulWidget {
 class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with WindowListener {
   Timer? _updateTimer;
   bool _isClosing = false;
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
     windowManager.setPreventClose(true); // Don't close immediately
+
+    _initDeepLinkListener();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       UpdateService.checkUpdate();
@@ -170,6 +175,17 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
     // Check every 5 minutes for updates while app is open
     _updateTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
       if (mounted) UpdateService.checkUpdate();
+    });
+  }
+
+  void _initDeepLinkListener() {
+    _appLinks = AppLinks();
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) async {
+       debugPrint("🔗 System: Incoming Deep Link Received: $uri");
+       // On Windows, manually handle the link fragments for Supabase to parse session
+       if (uri.scheme == 'com.obi.clinicalwarehouse') {
+          // Allow Supabase to handle the link (it will trigger onAuthStateChange)
+       }
     });
   }
 
@@ -190,6 +206,7 @@ class _ClinicalWarehouseAppState extends State<ClinicalWarehouseApp> with Window
   void dispose() {
     windowManager.removeListener(this);
     _updateTimer?.cancel();
+    _linkSubscription?.cancel();
     super.dispose();
   }
 
