@@ -57,14 +57,21 @@ class SyncService {
   Future<void> startSync() async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
-      _updateStatus("Not Auth");
-      return;
+      // Session might still be loading — retry once after a short delay
+      _updateStatus("Connecting...");
+      await Future.delayed(const Duration(seconds: 4));
+      final retryUser = _supabase.auth.currentUser;
+      if (retryUser == null) {
+        _updateStatus("Not Auth");
+        return;
+      }
     }
     
+    final activeUser = _supabase.auth.currentUser!;
     if (_isSyncing) return;
     _isSyncing = true;
     _updateStatus("Syncing...");
-    debugPrint("🔄 SyncService: Starting background synchronization for user: ${user.email}...");
+    debugPrint("🔄 SyncService: Starting background synchronization for user: ${activeUser.email}...");
 
     try {
       // 1. Push Local Changes to Cloud
