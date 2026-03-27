@@ -37,7 +37,7 @@ class AuthProvider extends ChangeNotifier {
     // Check Supabase session
     _user = _supabase.auth.currentUser;
     
-    _authSubscription = _supabase.auth.onAuthStateChange.listen((data) {
+    _supabase.auth.onAuthStateChange.listen((data) {
       _user = data.session?.user;
       if (data.event == AuthChangeEvent.signedIn || data.event == AuthChangeEvent.initialSession) {
         if (_authCompleter != null && !_authCompleter!.isCompleted) {

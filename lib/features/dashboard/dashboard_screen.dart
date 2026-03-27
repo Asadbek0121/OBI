@@ -346,10 +346,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               onTap: () async {
                                 final confirmed = await AppDialogs.showConfirmDialog(
                                   context: context,
-                                  title: t.text("confirm_exit"),
-                                  content: t.text("msg_confirm_logout"), // We might need to add this key too, or use the string if it's fine.
-                                  confirmText: t.text("btn_confirm"),
-                                  cancelText: t.text("btn_cancel"),
+                                   title: t.text("confirm_exit"),
+                                   content: t.text("msg_confirm_logout"),
+                                   confirmText: t.text("btn_confirm"),
+                                   cancelText: t.text("btn_cancel"),
                                 );
                                 if (confirmed != true) return;
                                 if (!context.mounted) return;

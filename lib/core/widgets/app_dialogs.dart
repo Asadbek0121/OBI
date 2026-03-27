@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
-import 'glass_container.dart';
 
 class AppDialogs {
   static Future<T?> showBlurDialog<T>({
@@ -9,61 +8,57 @@ class AppDialogs {
     required Widget content,
     List<Widget>? actions,
   }) {
-    return showGeneralDialog<T>(
+    return showDialog<T>(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: '',
-      barrierColor: Colors.black.withValues(alpha: 0.1),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => const SizedBox(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        final curve = Curves.easeOutBack.transform(anim1.value);
-        return Transform.scale(
-          scale: curve,
-          child: Opacity(
-            opacity: anim1.value,
-            child: AlertDialog(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              contentPadding: EdgeInsets.zero,
-              content: GlassContainer(
-                borderRadius: 28,
-                padding: const EdgeInsets.all(24),
-                blur: 30,
-                opacity: 0.8,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.5,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
-                    content,
-                    const SizedBox(height: 24),
-                    if (actions != null)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: actions.map((a) {
-                          return Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: a,
-                          );
-                        }).toList(),
-                      ),
-                  ],
-                ),
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420, minWidth: 320),
+          decoration: BoxDecoration(
+            color: Theme.of(context).dialogBackgroundColor,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 40,
+                offset: const Offset(0, 16),
               ),
-            ),
+            ],
           ),
-        );
-      },
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.5,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              content,
+              const SizedBox(height: 24),
+              if (actions != null)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: actions.map((a) {
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: a,
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+
   static Future<bool?> showConfirmDialog({
     required BuildContext context,
     required String title,
@@ -74,7 +69,14 @@ class AppDialogs {
     return showBlurDialog<bool>(
       context: context,
       title: title,
-      content: Text(content),
+      content: Text(
+        content,
+        style: TextStyle(
+          fontSize: 14,
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+          height: 1.5,
+        ),
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
@@ -85,8 +87,12 @@ class AppDialogs {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          child: Text(confirmText ?? "Ha, o'chirish"),
+          child: Text(confirmText ?? "Ha"),
         ),
       ],
     );
