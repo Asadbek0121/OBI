@@ -340,7 +340,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                const SizedBox(height: 16),
                             ],
 
-                            _buildInputLabel(t.text('login') + " (Email)"), // Foydalanuvchi (Login)
+                            _buildInputLabel("${t.text('login')} (Email)"), // Foydalanuvchi (Login)
                             const SizedBox(height: 8),
                             _buildInput(
                               controller: _userController, 
