@@ -90,7 +90,7 @@ class _SettingsViewState extends State<SettingsView> {
 
     final result = await showDialog<Map<String, bool>>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.1),
+      barrierColor: Colors.black.withValues(alpha: 0.1),
       builder: (c) => StatefulBuilder(
         builder: (c, setDialogState) => Center(
           child: GlassContainer(

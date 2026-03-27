@@ -17,7 +17,7 @@ class AppDialogs {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 420, minWidth: 320),
           decoration: BoxDecoration(
-            color: Theme.of(context).dialogBackgroundColor,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(

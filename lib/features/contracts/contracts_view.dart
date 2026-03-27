@@ -271,6 +271,7 @@ class _ContractsViewState extends State<ContractsView> {
 
   Widget _buildCustomHeader() {
     final t = Provider.of<AppTranslations>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassTopBar(
       title: t.text('menu_contracts'),
       subtitle: t.text('contracts_subtitle'),
@@ -279,18 +280,38 @@ class _ContractsViewState extends State<ContractsView> {
           width: 200,
           height: 38,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: isDark 
+              ? Colors.white.withValues(alpha: 0.08) 
+              : Colors.black.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.1)),
+            border: Border.all(
+              color: isDark 
+                ? Colors.white.withValues(alpha: 0.12) 
+                : Colors.black.withValues(alpha: 0.1)
+            ),
           ),
           child: TextField(
             controller: _searchController,
             onChanged: (val) => setState(() => _searchQuery = val),
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            style: TextStyle(
+              fontSize: 13, 
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
             decoration: InputDecoration(
               hintText: t.text('search_hint'),
-              hintStyle: TextStyle(color: AppColors.textPrimary.withValues(alpha: 0.4), fontSize: 13),
-              prefixIcon: Icon(Icons.search_rounded, size: 16, color: AppColors.textPrimary.withValues(alpha: 0.4)),
+              hintStyle: TextStyle(
+                color: isDark 
+                  ? Colors.white.withValues(alpha: 0.4) 
+                  : AppColors.textPrimary.withValues(alpha: 0.4), 
+                fontSize: 13,
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded, 
+                size: 16, 
+                color: isDark 
+                  ? Colors.white.withValues(alpha: 0.4) 
+                  : AppColors.textPrimary.withValues(alpha: 0.4),
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 9),
             ),
@@ -741,18 +762,29 @@ class _ContractsViewState extends State<ContractsView> {
   }
 
   Widget _buildCustomDropdown({required String? value, required List<DropdownMenuItem<String>> items, required Function(String?) onChanged}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.2))),
+      decoration: BoxDecoration(
+        color: isDark 
+          ? Colors.white.withValues(alpha: 0.08) 
+          : Colors.white.withValues(alpha: 0.1), 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: AppColors.glassBorder.withValues(alpha: 0.2)),
+      ),
       child: DropdownButtonHideUnderline(
         child: DropdownButtonFormField<String>(
           initialValue: value,
           items: items,
           onChanged: onChanged,
-          dropdownColor: Colors.white.withValues(alpha: 1.0),
+          dropdownColor: isDark ? const Color(0xFF1E2A3A) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           decoration: const InputDecoration(border: InputBorder.none),
-          style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black, 
+            fontSize: 14, 
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
