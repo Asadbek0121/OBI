@@ -417,7 +417,14 @@ class _SettingsViewState extends State<SettingsView> {
                     color: Colors.purple,
                     onTap: _restoreLocalBackup,
                   ),
-                  _buildActionCard(
+                   _buildActionCard(
+                    title: "Parolni o'zgartirish",
+                    subtitle: "Hisob paroli yangilash",
+                    icon: Icons.password_rounded,
+                    color: Colors.amber,
+                    onTap: () => _showPasswordChangeDialog(context, trans),
+                  ),
+                   _buildActionCard(
                     title: trans.text("set_update_title"),
                     subtitle: trans.text("set_update_subtitle"),
                     icon: Icons.system_update_rounded,
@@ -890,6 +897,73 @@ class _SettingsViewState extends State<SettingsView> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPasswordChangeDialog(BuildContext dialogCtx, AppTranslations trans) {
+    final passController = TextEditingController();
+    final auth = dialogCtx.read<AuthProvider>();
+    bool obscure = true;
+
+    showDialog(
+      context: dialogCtx,
+      barrierColor: Colors.black.withValues(alpha: 0.1),
+      builder: (c) => StatefulBuilder(
+        builder: (c, setDialogState) => Center(
+          child: GlassContainer(
+            width: 340,
+            padding: const EdgeInsets.all(32),
+            borderRadius: 32,
+            opacity: 0.1,
+            child: Material(
+              color: Colors.transparent,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.security_rounded, size: 48, color: Colors.amber),
+                  const SizedBox(height: 16),
+                  const Text("Yangi parol", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  const Text("Hisobingiz uchun yangi parol kiriting", style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 24),
+                  _buildModalInput(
+                    controller: passController, 
+                    label: "Yangi parol", 
+                    icon: Icons.lock_outline, 
+                    isPassword: obscure,
+                  ),
+                  TextButton(
+                    onPressed: () => setDialogState(() => obscure = !obscure),
+                    child: Text(obscure ? "Ko'rsatish" : "Berkitish", style: const TextStyle(fontSize: 10)),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _buildModalBtn(trans.text("btn_cancel"), Colors.transparent, AppColors.textSecondary, () => Navigator.pop(c)),
+                      const SizedBox(width: 12),
+                      _buildModalBtn(trans.text("btn_save"), Colors.amber, Colors.white, () async {
+                        if (passController.text.length >= 6) {
+                          final success = await auth.updatePassword(passController.text);
+                          if (!mounted) return;
+                          if (c.mounted) Navigator.pop(c);
+                          if (success) {
+                            AppNotifications.showSuccess(context, "Parol muvaffaqiyatli yangilandi");
+                          } else {
+                            AppNotifications.showError(context, "Xatolik yuz berdi");
+                          }
+                        } else {
+                          AppNotifications.showError(context, "Parol kamida 6 belgidan iborat bo'lishi kerak");
+                        }
+                      }),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

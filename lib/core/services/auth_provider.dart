@@ -139,6 +139,18 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> updatePassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      return true;
+    } catch (e) {
+      debugPrint("❌ [Auth] Password Update Failed: $e");
+      return false;
+    }
+  }
+
   Future<void> updatePin(String newPin) async {
     _pinCode = newPin;
     final prefs = await SharedPreferences.getInstance();
