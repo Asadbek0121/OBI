@@ -583,9 +583,9 @@ class _SettingsViewState extends State<SettingsView> {
             child: CupertinoSwitch(
               value: value,
               onChanged: onChanged,
-              activeTrackColor: Colors.white.withValues(alpha: 0.3),
+              activeTrackColor: AppColors.primary,
               thumbColor: Colors.white,
-              inactiveTrackColor: Colors.white.withValues(alpha: 0.15),
+              inactiveTrackColor: Colors.grey.withValues(alpha: 0.3),
             ),
           ),
         ],
