@@ -114,9 +114,8 @@ class AuthProvider extends ChangeNotifier {
       }
 
       final googleSignIn = GoogleSignIn(
-        clientId: Platform.isIOS || Platform.isMacOS 
-            ? '575519548512-eid704v2ghhoe1e49qaeqfaj4u0jftjh.apps.googleusercontent.com' 
-            : '575519548512-9cmofokav83sd3mv9j5v0ma5tdpd77q9.apps.googleusercontent.com',
+        clientId: '176655995611-jpcr86v24mpsqa7c451ud2hph56vhn87.apps.googleusercontent.com',
+        serverClientId: '176655995611-ee5d2p1jmicjf1j2ugjlo42fpa9jm8a9.apps.googleusercontent.com',
         scopes: ['email', 'profile'],
       );
       

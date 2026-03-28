@@ -35,7 +35,8 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.575519548512-eid704v2ghhoe1e49qaeqfaj4u0jftjh</string>
+				<string>com.googleusercontent.apps.176655995611-jpcr86v24mpsqa7c451ud2hph56vhn87</string>
+				<string>com.obi.clinicalwarehouse</string>
 			</array>
 		</dict>
 	</array>
