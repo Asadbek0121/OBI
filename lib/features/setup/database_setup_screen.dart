@@ -1,0 +1,230 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:clinical_warehouse/core/database/database_helper.dart';
+import 'package:clinical_warehouse/features/splash/splash_screen.dart';
+import '../../core/widgets/window_buttons.dart';
+
+class DatabaseSetupScreen extends StatefulWidget {
+  const DatabaseSetupScreen({super.key});
+
+  @override
+  State<DatabaseSetupScreen> createState() => _DatabaseSetupScreenState();
+}
+
+class _DatabaseSetupScreenState extends State<DatabaseSetupScreen> {
+  bool _isLoading = false;
+  String? _error;
+
+  Future<void> _createNewDatabase() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      if (kIsWeb) {
+        // In Web, browsers cannot pick local disk paths.
+        // Automatically initialize the web SQLite database (IndexedDB backed).
+        await _finalizeSetup('clinical_warehouse_web.db');
+        return;
+      }
+
+      // 1. Let user pick a DIRECTORY (Desktop)
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: "Ma'lumotlar bazasi saqlanadigan papkani tanlang",
+      );
+
+      if (selectedDirectory != null) {
+        // 2. Define the DB file name
+        final dbPath = p.join(selectedDirectory, 'omborxona_data.db');
+        
+        await _finalizeSetup(dbPath);
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Xatolik: $e";
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _pickExistingDatabase() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      if (kIsWeb) {
+        await _finalizeSetup('clinical_warehouse_web.db');
+        return;
+      }
+
+      // 1. Let user pick a FILE (.db)
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        dialogTitle: "Mavjud baza faylini (.db) tanlang",
+        type: FileType.any,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        
+        if (!path.endsWith('.db')) {
+          setState(() {
+            _error = "Iltimos, faqat .db formatidagi faylni tanlang!";
+            _isLoading = false;
+          });
+          return;
+        }
+
+        await _finalizeSetup(path);
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Xatolik: $e";
+        _isLoading = false;
+      });
+    }
+  }
+  
+  Future<void> _finalizeSetup(String path) async {
+    try {
+      await DatabaseHelper.instance.setDatabasePath(path);
+      
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SplashScreen()),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Xatolik: $e";
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0A0D14), // Vibrant Premium Dark
+      body: Stack(
+        children: [
+          Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset('assets/logo.png', width: 150, height: 150, fit: BoxFit.contain),
+                  const SizedBox(height: 24),
+                  const Text(
+                    "Baza Joylashuvi",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Dastur ishlashi uchun ma'lumotlar bazasi qayerda saqlanishini tanlang.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                  ),
+                  const SizedBox(height: 32),
+                  
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                    ),
+
+                  if (_isLoading)
+                    const CircularProgressIndicator()
+                  else ...[
+                    _OptionButton(
+                      icon: Icons.create_new_folder_rounded,
+                      title: "Yangi Baza Yaratish",
+                      subtitle: "Papkada yangi fayl ochiladi",
+                      color: Colors.blue,
+                      onTap: _createNewDatabase,
+                    ),
+                    const SizedBox(height: 16),
+                    _OptionButton(
+                      icon: Icons.folder_open_rounded,
+                      title: "Mavjud Bazani Tanlash",
+                      subtitle: "Eski .db faylni ko'rsating",
+                      color: Colors.orange,
+                      onTap: _pickExistingDatabase,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (!kIsWeb && !Platform.isMacOS)
+            const Positioned(
+              top: 0,
+              right: 0,
+              child: SafeArea(child: WindowButtons()),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OptionButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _OptionButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(16),
+            color: color.withValues(alpha: 0.1),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 32, color: color),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                    Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5))),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.white.withValues(alpha: 0.3)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

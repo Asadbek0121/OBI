@@ -1,0 +1,56 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+class SessionTimerService extends ChangeNotifier {
+  static const Duration _timeout = Duration(minutes: 5); // Default 5 minutes
+  Timer? _timer;
+  bool _isLocked = false;
+  bool _isEnabled = false;
+  DateTime _lastResetTime = DateTime.now();
+
+  bool get isLocked => _isLocked;
+
+  void enable(bool value) {
+    _isEnabled = value;
+    if (_isEnabled) {
+      resetTimer();
+    } else {
+      _timer?.cancel();
+    }
+    notifyListeners();
+  }
+
+  void resetTimer() {
+    if (!_isEnabled) return;
+    
+    // 🛡️ Throttle: Only reset once every 3 seconds to avoid lag on mouse move
+    final now = DateTime.now();
+    if (now.difference(_lastResetTime) < const Duration(seconds: 3)) {
+       return; 
+    }
+    _lastResetTime = now;
+    
+    _timer?.cancel();
+    _timer = Timer(_timeout, () {
+      _lockApp();
+    });
+  }
+
+  void _lockApp() {
+    if (_isLocked || !_isEnabled) return;
+    _isLocked = true;
+    notifyListeners();
+  }
+
+  void unlock() {
+    _isLocked = false;
+    resetTimer();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}

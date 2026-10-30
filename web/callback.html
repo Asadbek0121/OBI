@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Avtorizatsiya...</title>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f8f9fe;">
+  <div style="text-align: center;">
+    <h3>Kirish tasdiqlanmoqda...</h3>
+    <p>Iltimos, kuting, ushbu oyna avtomatik yopiladi.</p>
+  </div>
+  <script>
+    try {
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'SUPABASE_AUTH_CALLBACK',
+          url: window.location.href
+        }, '*');
+        setTimeout(function() {
+          window.close();
+        }, 800);
+      } else {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

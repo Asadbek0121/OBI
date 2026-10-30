@@ -1,0 +1,44 @@
+# Flutter-related
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# Web-related
+.web_plugins/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio-related
+.idea/
+*.iml
+.jks
+.keystore
+*.keystore
+*.jks
+
+# VS Code-related
+.vscode/
+
+# Local database and lock files
+*.db
+*.db-shm
+*.db-wal
+
+# MacOS-related
+.DS_Store
+macos/Flutter/ephemeral/
+macos/Pods/
+
+# Windows-related
+*.pdb
+*.msix
+*.zip
+*.exe
+windows/flutter/ephemeral/

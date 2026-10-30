@@ -1,0 +1,589 @@
+import 'dart:io';
+import 'package:spreadsheet_decoder/spreadsheet_decoder.dart';
+import 'package:excel/excel.dart' as xl;
+import 'package:flutter/foundation.dart';
+import 'package:clinical_warehouse/core/database/database_helper.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+class ExcelService {
+  static Future<Map<String, int>> importData(String path) async {
+    int importedIn = 0;
+    int importedOut = 0;
+
+    try {
+      var bytes = File(path).readAsBytesSync();
+      var decoder = SpreadsheetDecoder.decodeBytes(bytes, update: false);
+
+      debugPrint("📂 Excel Loaded. Tables: ${decoder.tables.keys.toList()}");
+
+      for (var tableKey in decoder.tables.keys) {
+        final sheetName = tableKey.toLowerCase();
+        final table = decoder.tables[tableKey];
+        if (table == null || table.rows.isEmpty) {
+          debugPrint("⚠️ Sheet '$tableKey' is empty.");
+          continue;
+        }
+
+        // 🔍 Find the Header Row dynamically
+        final headerInfo = _findHeaderRow(table.rows);
+        final headerRowIndex = headerInfo['index'] as int;
+        final headerRow = headerInfo['headers'] as List<String>;
+
+        if (headerRowIndex == -1) {
+             debugPrint("⚠️ No recognizable header found in sheet '$tableKey'. Skipping.");
+             continue;
+        }
+
+        debugPrint("📄 Sheet '$tableKey' Header found at Row $headerRowIndex: $headerRow");
+        
+        final dataRows = table.rows.sublist(headerRowIndex + 1);
+
+        bool isStockIn = false;
+        bool isStockOut = false;
+
+        // 1. Check Sheet Name Keywords (High Priority)
+        if (_hasKeyword(sheetName, ['kirim', 'income', 'in', 'prixod', 'giris', 'input', 'buy'])) isStockIn = true;
+        if (_hasKeyword(sheetName, ['chiqim', 'out', 'export', 'rasxod', 'cikis', 'output', 'sell', 'sale'])) isStockOut = true;
+
+        // 2. If name is ambiguous, Check Headers
+        if (!isStockIn && !isStockOut) {
+           // If it has "Supplier/From" OR "Price" -> Likely Stock In
+           if (_findCol(headerRow, _kwSupplier) != -1 || _findCol(headerRow, _kwPrice) != -1) {
+               isStockIn = true;
+           } 
+           // If it has "Receiver/To" -> Likely Stock Out
+           else if (_findCol(headerRow, _kwReceiver) != -1) {
+               isStockOut = true;
+           }
+        }
+        
+        // 3. Last Resort: Default to Stock In if it looks like a product list (Product + Qty exist)
+        if (!isStockIn && !isStockOut) {
+            // Assume Stock In (Safe default for inventory loading)
+             debugPrint("⚠️ Sheet '$tableKey' ambiguous. Defaulting to 'Stock In'.");
+             isStockIn = true; 
+        }
+
+        if (isStockIn) {
+          debugPrint("✅ Detected 'Stock In' data in sheet: $tableKey");
+          importedIn += await _processStockIn(dataRows, headerRow);
+        } else if (isStockOut) {
+          debugPrint("✅ Detected 'Stock Out' data in sheet: $tableKey");
+          importedOut += await _processStockOut(dataRows, headerRow);
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Excel Import Error: $e");
+      rethrow;
+    }
+
+    return {'in': importedIn, 'out': importedOut};
+  }
+  
+  // --- Keywords Definitions (Multilingual) ---
+  static final _kwProduct = ['product', 'nomi', 'mahsulot', 'item', 'name', 'наименование', 'товар', 'nazvanie', 'ürün', 'ad', 'ism'];
+  static final _kwQty = ['qty', 'soni', 'quantity', 'miqdor', 'count', 'количество', 'kol-vo', 'adet', 'miktar'];
+  static final _kwPrice = ['price', 'narx', 'summa', 'cost', 'rate', 'baho', 'цена', 'stoimost', 'fiyat', 'tutar'];
+  static final _kwSupplier = ['supplier', 'kimdan', 'yetkazib', 'from', 'source', 'поставщик', 'ot kogo', 'tedarikçi', 'kimden', 'kaynak'];
+  static final _kwReceiver = ['receiver', 'kimga', 'bo\'lim', 'bolim', 'to', 'dest', 'target', 'получатель', 'komu', 'alıcı', 'kime', 'hedef'];
+  // FIX: Added 'date & time', 'datetime', 'data', 'дата' to support more formats
+  static final _kwDate = ['date & time', 'datetime', 'date_time', 'date', 'sana', 'vaqt', 'time', 'when', 'дата', 'vremya', 'tarih', 'zaman', 'data'];
+  static final _kwId = ['id', 'kod', 'code', 'barcode', 'shtrix', 'код', 'barkod'];
+  static final _kwTax = ['tax', 'qqs', 'nds', 'vergi'];
+  static final _kwSurcharge = ['surcharge', 'ustama', 'nakladnoy'];
+  static final _kwUnit = ['unit', 'birlik', 'birlik', 'dona', 'ed.izm', 'ölçü'];
+
+  static bool _hasKeyword(String text, List<String> keywords) {
+      for(var k in keywords) {
+          if (text.contains(k)) return true;
+      }
+      return false;
+  }
+
+  // 🔍 Helper to find the header row
+  static Map<String, dynamic> _findHeaderRow(List<List<dynamic>> rows) {
+    int limit = rows.length > 20 ? 20 : rows.length; // Increased lookahead to 20
+    
+    for (int i = 0; i < limit; i++) {
+        final rowStr = rows[i].map((e) => e?.toString().toLowerCase() ?? '').toList();
+        int matches = 0;
+        
+        // Check for presence of key columns
+        if (rowStr.any((cell) => _hasKeyword(cell, _kwProduct))) matches++;
+        if (rowStr.any((cell) => _hasKeyword(cell, _kwQty))) matches++;
+        if (rowStr.any((cell) => _hasKeyword(cell, _kwId))) matches++;
+        if (rowStr.any((cell) => _hasKeyword(cell, _kwDate))) matches++;
+        if (rowStr.any((cell) => _hasKeyword(cell, _kwPrice))) matches++;
+        
+        // If we found at least 2 key columns, assume this is header
+        if (matches >= 2) {
+            return {'index': i, 'headers': rowStr};
+        }
+    }
+    return {'index': -1, 'headers': <String>[]};
+  }
+
+  static Future<int> _processStockIn(List<List<dynamic>> rows, List<String> headerRow) async {
+    int count = 0;
+    if (rows.isEmpty) return 0;
+    
+    int idxProduct = _findCol(headerRow, _kwProduct);
+    int idxQty = _findCol(headerRow, _kwQty);
+    int idxPrice = _findCol(headerRow, _kwPrice);
+    int idxSupplier = _findCol(headerRow, _kwSupplier);
+    int idxDate = _findCol(headerRow, _kwDate);
+    int idxId = _findCol(headerRow, _kwId);
+    int idxTaxPct = _findColContaining(headerRow, _kwTax, excludeWord: 'sum');
+    int idxTaxSum = _findColContaining(headerRow, ['taxsum', 'tax_sum', 'qqs_summa', 'nds_sum']);
+    int idxSurchargePct = _findColContaining(headerRow, _kwSurcharge, excludeWord: 'sum');
+    int idxSurchargeSum = _findColContaining(headerRow, ['surchargesum', 'surcharge_sum', 'ustama_summa']);
+    int idxUnit = _findCol(headerRow, _kwUnit);
+
+    // FIX: If idxId column looks like row numbers (#, №, n, row), ignore it 
+    if (idxId != -1) {
+      final headerVal = headerRow[idxId];
+      if (headerVal == '#' || headerVal == '№' || headerVal == 'n' || headerVal == 'row' || headerVal == 'no') {
+        idxId = -1; // It's a row number, not a product ID
+      }
+    }
+
+    // --- FALLBACK LOGIC ---
+    if (idxProduct == -1 || idxQty == -1) {
+       debugPrint("⚠️ Named columns missing. Attempting content-based detection...");
+       final firstRow = rows.first;
+       
+       if (idxProduct == -1) {
+          for(int i=0; i<firstRow.length; i++) {
+             final val = firstRow[i]?.toString() ?? '';
+             if (val.length > 3 && double.tryParse(val) == null) {
+                idxProduct = i;
+                debugPrint("   -> Guessed Product Col: $i ($val)");
+                break;
+             }
+          }
+       }
+       
+       if (idxQty == -1) {
+          for(int i=0; i<firstRow.length; i++) {
+             if (i == idxProduct || i == idxPrice) continue;
+             final val = firstRow[i]?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '';
+             if (val.isNotEmpty && double.tryParse(val) != null) {
+                idxQty = i;
+                 debugPrint("   -> Guessed Qty Col: $i ($val)");
+                break;
+             }
+          }
+       }
+    }
+    // ---------------------
+
+    debugPrint("   Testing In Columns: Prod=$idxProduct, Qty=$idxQty, From=$idxSupplier, ID=$idxId, Date=$idxDate, Tax=$idxTaxPct, TaxSum=$idxTaxSum, Surcharge=$idxSurchargePct");
+
+    if (idxProduct == -1 || idxQty == -1) {
+       debugPrint("   ⚠️ Missing required columns (Product or Qty) for Stock In. Skipping.");
+       return 0;
+    }
+
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      if (row.isEmpty) continue;
+
+      try {
+        final productName = _getVal(row, idxProduct);
+        if (productName.isEmpty) continue;
+        
+        // FIX: Use ID column only for product lookup (not as stock-in transaction ID)
+        String excelProductId = idxId != -1 ? _getVal(row, idxId) : '';
+        String productId = await _resolveProduct(excelProductId, productName);
+
+        double qty = double.tryParse(_getVal(row, idxQty).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+        double price = double.tryParse(_getVal(row, idxPrice).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+        String supplier = idxSupplier != -1 ? _getVal(row, idxSupplier) : '';
+        String unit = idxUnit != -1 ? _getVal(row, idxUnit) : '';
+        double taxPct = idxTaxPct != -1 ? double.tryParse(_getVal(row, idxTaxPct).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0 : 0;
+        double taxSum = idxTaxSum != -1 ? double.tryParse(_getVal(row, idxTaxSum).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0 : 0;
+        double surchargePct = idxSurchargePct != -1 ? double.tryParse(_getVal(row, idxSurchargePct).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0 : 0;
+        double surchargeSum = idxSurchargeSum != -1 ? double.tryParse(_getVal(row, idxSurchargeSum).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0 : 0;
+        
+        // FIX: Preserve original date from Excel (don't replace with today)
+        String rawDate = idxDate != -1 ? _getVal(row, idxDate) : '';
+        String dateStr = rawDate.isNotEmpty ? _parseDate(rawDate) : DateTime.now().toIso8601String();
+        
+        if (qty <= 0) continue;
+
+        // FIX: Use unique ID that doesn't overwrite existing records
+        final txnId = 'IMP_${DateTime.now().microsecondsSinceEpoch}_$i';
+
+        await DatabaseHelper.instance.insertStockIn({
+          'id': txnId,
+          'product_id': productId,
+          'date_time': dateStr,   // ✅ Preserves original Excel date
+          'quantity': qty,
+          'price_per_unit': price,
+          'total_amount': qty * price,
+          'supplier_name': supplier,
+          'tax_percent': taxPct,
+          'tax_sum': taxSum,
+          'surcharge_percent': surchargePct,
+          'surcharge_sum': surchargeSum,
+          'batch_number': '',
+          'created_at': DateTime.now().toIso8601String(),
+        });
+
+        // Update unit if provided and product exists
+        if (unit.isNotEmpty) {
+          final db = await DatabaseHelper.instance.database;
+          await db.update('products', {'unit': unit}, where: 'id = ?', whereArgs: [productId]);
+        }
+
+        count++;
+      } catch (e) {
+        debugPrint("Row $i error: $e");
+      }
+    }
+    return count;
+  }
+
+  static Future<int> _processStockOut(List<List<dynamic>> rows, List<String> headerRow) async {
+    int count = 0;
+    if (rows.isEmpty) return 0;
+    
+    int idxProduct = _findCol(headerRow, _kwProduct);
+    int idxQty = _findCol(headerRow, _kwQty);
+    int idxReceiver = _findCol(headerRow, _kwReceiver);
+    int idxDate = _findCol(headerRow, _kwDate);
+    int idxId = _findCol(headerRow, _kwId);
+    
+    // FIX: Ignore row number column
+    if (idxId != -1) {
+      final headerVal = headerRow[idxId];
+      if (headerVal == '#' || headerVal == '№' || headerVal == 'n' || headerVal == 'row' || headerVal == 'no') {
+        idxId = -1;
+      }
+    }
+
+    // --- FALLBACK LOGIC ---
+    if (idxProduct == -1 || idxQty == -1) {
+       debugPrint("⚠️ Named columns missing (Out). Attempting content-based detection...");
+       final firstRow = rows.first;
+       if (idxProduct == -1) {
+          for(int i=0; i<firstRow.length; i++) {
+             final val = firstRow[i]?.toString() ?? '';
+             if (val.length > 3 && double.tryParse(val) == null) {
+                idxProduct = i;
+                break;
+             }
+          }
+       }
+       if (idxQty == -1) {
+          for(int i=0; i<firstRow.length; i++) {
+             if (i == idxProduct) continue;
+             final val = firstRow[i]?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '';
+             if (val.isNotEmpty && double.tryParse(val) != null) {
+                idxQty = i;
+                break;
+             }
+          }
+       }
+    }
+    // ---------------------
+
+    debugPrint("   Testing Out Columns: Prod=$idxProduct, Qty=$idxQty, Receiver=$idxReceiver, ID=$idxId, Date=$idxDate");
+
+    if (idxProduct == -1 || idxQty == -1) {
+       debugPrint("   ⚠️ Missing required columns (Product or Qty) for Stock Out. Skipping.");
+       return 0;
+    }
+
+    for (var i = 0; i < rows.length; i++) {
+        final row = rows[i];
+        if (row.isEmpty) continue;
+        
+        try {
+            final productName = _getVal(row, idxProduct);
+            if (productName.isEmpty) continue;
+
+            String excelProductId = idxId != -1 ? _getVal(row, idxId) : '';
+            String productId = await _resolveProduct(excelProductId, productName);
+
+            double qty = double.tryParse(_getVal(row, idxQty).replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+            String receiver = idxReceiver != -1 ? _getVal(row, idxReceiver) : '';
+            
+            // FIX: Preserve original date from Excel
+            String rawDate = idxDate != -1 ? _getVal(row, idxDate) : '';
+            String dateStr = rawDate.isNotEmpty ? _parseDate(rawDate) : DateTime.now().toIso8601String();
+
+            if (qty <= 0) continue;
+
+            final txnId = 'IMP_${DateTime.now().microsecondsSinceEpoch}_$i';
+
+            await DatabaseHelper.instance.insertStockOut({
+                'id': txnId,
+                'product_id': productId,
+                'date_time': dateStr,   // ✅ Preserves original Excel date
+                'quantity': qty,
+                'receiver_name': receiver,
+                'created_at': DateTime.now().toIso8601String(),
+            });
+            count++;
+        } catch (e) { debugPrint("Row Out $i error: $e"); }
+    }
+    return count;
+  }
+
+  // FIX: Find column by keyword, with optional exclude word
+  static int _findColContaining(List<String> headers, List<String> candidates, {String? excludeWord}) {
+    for (var i = 0; i < headers.length; i++) {
+      final h = headers[i];
+      if (excludeWord != null && h.contains(excludeWord)) continue;
+      for (var c in candidates) {
+        if (h.contains(c)) return i;
+      }
+    }
+    return -1;
+  }
+
+  static int _findCol(List<String> headers, List<String> candidates) {
+    for (var i = 0; i < headers.length; i++) {
+        for (var c in candidates) {
+            if (headers[i].contains(c)) return i;
+        }
+    }
+    return -1;
+  }
+
+  static String _getVal(List<dynamic> row, int idx) {
+    if (idx >= row.length || idx < 0) return '';
+    return row[idx]?.toString() ?? '';
+  }
+
+  static String _parseDate(String rawDate) {
+    if (rawDate.isEmpty) return DateTime.now().toIso8601String();
+    
+    // Check if it's already a standard ISO format
+    final iso = DateTime.tryParse(rawDate);
+    if (iso != null) return iso.toIso8601String();
+    
+    // Handle MM/DD/YYYY (US format like in the image: 12/01/2026)
+    try {
+      String clean = rawDate.trim().replaceAll('.', '/').replaceAll('\\', '/').replaceAll('-', '/');
+      if (clean.contains('/')) {
+        final parts = clean.split('/');
+        if (parts.length == 3) {
+          final p0 = int.tryParse(parts[0]) ?? 0;
+          final p1 = int.tryParse(parts[1]) ?? 0;
+          final p2 = int.tryParse(parts[2]) ?? 0;
+          
+          // Detect year position: if p2 > 31 -> year is last (dd/MM/yyyy or MM/dd/yyyy)
+          // if p0 > 31 -> year is first (yyyy/MM/dd)
+          if (p0 > 31) {
+            // yyyy/MM/dd
+            return DateTime(p0, p1, p2).toIso8601String();
+          } else if (p2 > 31) {
+            // Could be MM/dd/yyyy (US) or dd/MM/yyyy
+            // If p0 > 12 -> definitely dd/MM/yyyy
+            if (p0 > 12) {
+              return DateTime(p2, p1, p0).toIso8601String();
+            } else {
+              // Ambiguous: assume MM/dd/yyyy (US format, as in the image)
+              return DateTime(p2, p0, p1).toIso8601String();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    // Try Excel serial date number (days since 1900-01-01)
+    final serial = double.tryParse(rawDate);
+    if (serial != null && serial > 40000 && serial < 60000) {
+      // Excel date serial
+      final base = DateTime(1899, 12, 30);
+      final result = base.add(Duration(days: serial.toInt()));
+      return result.toIso8601String();
+    }
+
+    return DateTime.now().toIso8601String();
+  }
+
+  static Future<String> _resolveProduct(String excelId, String name) async {
+    final products = await DatabaseHelper.instance.getAllProducts();
+    
+    // 1. Try Find by Excel ID first (most accurate) — skip if it looks like a row# (R001, 001, etc short codes)
+    if (excelId.isNotEmpty && excelId.length > 3) {
+      for (var p in products) {
+        if (p['id'].toString().trim().toLowerCase() == excelId.trim().toLowerCase()) {
+           return p['id'].toString();
+        }
+      }
+    }
+
+    // 2. Try Find by Name (exact match)
+    for (var p in products) {
+        if (p['name'].toString().toLowerCase().trim() == name.toLowerCase().trim()) {
+            return p['id'].toString();
+        }
+    }
+
+    // 3. Try partial name match (for abbreviated names)
+    for (var p in products) {
+        final pName = p['name'].toString().toLowerCase().trim();
+        final searchName = name.toLowerCase().trim();
+        if (pName.contains(searchName) || searchName.contains(pName)) {
+            return p['id'].toString();
+        }
+    }
+
+    // 4. Create New product
+    final newId = excelId.isNotEmpty ? excelId : 'P_${DateTime.now().microsecondsSinceEpoch}_${name.hashCode % 1000}';
+    await DatabaseHelper.instance.insertProduct({
+        'id': newId,
+        'name': name,
+        'unit': 'dona', 
+        'created_at': DateTime.now().toIso8601String(),
+    });
+    debugPrint("🆕 New product created: $name (id: $newId)");
+    return newId;
+  }
+
+  // --- EXPORT LOGIC ---
+
+  static Future<void> exportAssetsHierarchy({int? buildingId, int? floorId, int? roomId}) async {
+    try {
+      final db = DatabaseHelper.instance;
+      List<Map<String, dynamic>> allAssets = await db.getAllAssetsDetailed();
+      List<Map<String, dynamic>> filteredAssets = [];
+
+      if (roomId != null) {
+        filteredAssets = allAssets.where((a) => a['location_id'] == roomId).toList();
+      } else if (floorId != null) {
+        filteredAssets = allAssets.where((a) => a['location_id'] == floorId || a['parent_id'] == floorId).toList();
+      } else if (buildingId != null) {
+        filteredAssets = allAssets.where((a) => 
+          a['location_id'] == buildingId || 
+          a['parent_id'] == buildingId || 
+          a['grandparent_id'] == buildingId
+        ).toList();
+      } else {
+        filteredAssets = allAssets;
+      }
+
+      if (filteredAssets.isEmpty) {
+        debugPrint("No assets to export.");
+        return;
+      }
+
+      final excel = xl.Excel.createExcel();
+      excel.rename('Sheet1', 'Jihozlar');
+
+      // Grouping Logic for Sheets
+      // If Building -> Group by Room (or Floor if we add Floor type)
+      // If Room -> Just one sheet
+      Map<String, List<Map<String, dynamic>>> sheetsData = {};
+
+      if (roomId != null) {
+        final roomName = filteredAssets.first['location_name'] ?? 'Xona';
+        sheetsData[roomName] = filteredAssets;
+      } else {
+        // Group by Location Name
+        for (var a in filteredAssets) {
+          final locName = a['location_name'] ?? 'Noma\'lum';
+          if (!sheetsData.containsKey(locName)) sheetsData[locName] = [];
+          sheetsData[locName]!.add(a);
+        }
+      }
+
+      // Styles
+      xl.CellStyle headerStyle = xl.CellStyle(
+        bold: true,
+        italic: false,
+        fontColorHex: xl.ExcelColor.fromHexString("#FFFFFF"),
+        backgroundColorHex: xl.ExcelColor.fromHexString("#046307"), // Emerald Green
+        fontFamily: xl.getFontFamily(xl.FontFamily.Calibri),
+        horizontalAlign: xl.HorizontalAlign.Center,
+        verticalAlign: xl.VerticalAlign.Center,
+      );
+
+      xl.CellStyle cellStyle = xl.CellStyle(
+        fontFamily: xl.getFontFamily(xl.FontFamily.Calibri),
+        horizontalAlign: xl.HorizontalAlign.Left,
+      );
+
+      // Create Sheets
+      for (var sheetName in sheetsData.keys) {
+        // Create or get sheet (Excel package creates default, we might have renamed the first one)
+        xl.Sheet sheet;
+        if (excel.sheets.keys.contains('Jihozlar') && excel.sheets.length == 1 && sheetsData.keys.first == sheetName) {
+           sheet = excel['Jihozlar'];
+           excel.rename('Jihozlar', _sanitizeSheetName(sheetName));
+        } else {
+           sheet = excel[_sanitizeSheetName(sheetName)];
+        }
+
+        // Add Headers
+        final headers = [
+          "ID", "Bino/Qavat", "Xona", "Kategoriya", "Buyum Nomi", 
+          "Model", "Seriya Raqami", "Rangi", "Holati", "Barcode", "Sana"
+        ];
+        
+        for(int i=0; i<headers.length; i++) {
+          var cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+          cell.value = xl.TextCellValue(headers[i]);
+          cell.cellStyle = headerStyle;
+        }
+
+        // Add Data
+        final items = sheetsData[sheetName]!;
+        for (int row = 0; row < items.length; row++) {
+          final item = items[row];
+          final rowData = [
+            item['id'],
+            item['parent_location_name'] ?? '-',
+            item['location_name'] ?? '-',
+            item['category_name'] ?? '-',
+            item['name'] ?? '-',
+            item['model'] ?? '-',
+            item['serial_number'] ?? '-',
+            item['color'] ?? '-',
+            item['status'] ?? '-',
+            item['barcode'] ?? '-',
+            item['created_at']?.toString().substring(0, 10) ?? '-',
+          ];
+
+          for (int col = 0; col < rowData.length; col++) {
+            var cell = sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row + 1));
+            cell.value = xl.TextCellValue(rowData[col]?.toString() ?? '-');
+            cell.cellStyle = cellStyle;
+          }
+        }
+        
+        // Auto-width hack (Rough estimation)
+        for(int i=0; i<headers.length; i++) {
+           sheet.setColumnWidth(i, 20.0);
+        }
+      }
+
+      // Save to File
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final directory = await getApplicationDocumentsDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = "Jihozlar_Eksport_$timestamp.xlsx";
+        final file = File("${directory.path}/$fileName");
+        await file.writeAsBytes(fileBytes);
+        
+        // Share/Open
+        await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Jihozlar Exporti'));
+      }
+
+    } catch (e) {
+      debugPrint("❌ Excel Export Error: $e");
+    }
+  }
+
+  static String _sanitizeSheetName(String name) {
+    // Excel sheets cannot have certain characters or be longer than 31 chars
+    return name.replaceAll(RegExp(r'[*?:/\\\[\]]'), '').substring(0, name.length > 31 ? 31 : name.length);
+  }
+}
+

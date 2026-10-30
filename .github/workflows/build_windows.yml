@@ -1,0 +1,71 @@
+name: Build Windows App
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows Release
+    runs-on: windows-latest
+    env:
+      MSIX_PATH: ""
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Windows App
+        run: flutter build windows --release
+
+      - name: Create MSIX Installer
+        run: echo n | flutter pub run msix:create
+
+      - name: Locate Build Output
+        id: build_output
+        shell: powershell
+        run: |
+          $msixFile = Get-ChildItem -Path "build\windows\x64\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $msixFile) {
+            $msixFile = Get-ChildItem -Path "build\windows\runner\Release\*.msix" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          
+          if ($msixFile) {
+            Add-Content -Path $env:GITHUB_ENV -Value "MSIX_PATH=$($msixFile.FullName)"
+            Add-Content -Path $env:GITHUB_ENV -Value "HAS_MSIX=true"
+          } else {
+            Add-Content -Path $env:GITHUB_ENV -Value "HAS_MSIX=false"
+            exit 1
+          }
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ env.MSIX_PATH }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            build/windows/x64/runner/Release/*.msix
+            build/windows/runner/Release/*.msix
