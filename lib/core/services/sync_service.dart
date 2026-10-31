@@ -38,10 +38,9 @@ class SyncService {
     'asset_categories',
     'asset_locations',
     'assets',
-    // 🛡️ RE-MOVED: Bot stays local only as per request
-    // 'branch_orders',
-    // 'branch_order_items',
-    // 'telegram_users'
+    'branch_orders',
+    'branch_order_items',
+    'telegram_users',
   ];
 
   Future<void> init({bool autoStart = true}) async {
@@ -117,7 +116,7 @@ class SyncService {
     for (var table in syncTables) {
       final unsynced = await db.query(
         table,
-        where: "sync_status != 'synced'",
+        where: "sync_status IS NULL OR sync_status != 'synced'",
       );
 
       if (unsynced.isEmpty) continue;
@@ -141,6 +140,7 @@ class SyncService {
 
           final data = Map<String, dynamic>.from(row);
           data['user_id'] = user.id; // Assign current user
+          data['organization_id'] = 'org_default'; // Shared company-wide warehouse
           
           final localOnlyColumns = [
             'sync_status', 
@@ -153,6 +153,9 @@ class SyncService {
             'tax_sum',
             'surcharge_percent',
             'surcharge_sum',
+            'color',
+            'photo_path',
+            'barcode',
           ];
           
           for (var col in localOnlyColumns) {
@@ -192,7 +195,7 @@ class SyncService {
     if (user == null) return;
 
     for (var table in tablesToPull) {
-      var query = _supabase.from(table).select().eq('user_id', user.id);
+      var query = _supabase.from(table).select().eq('organization_id', 'org_default');
       
       // If we are NOT forcing full, use the last sync timestamp
       if (lastSyncStr != null && !forceFull) {

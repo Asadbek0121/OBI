@@ -284,6 +284,11 @@ class DatabaseHelper {
       try {
         await db.execute('ALTER TABLE $table ADD COLUMN user_id TEXT');
       } catch (_) {}
+
+      // MULTI-TENANT: Ensure 'organization_id' exists for company-wide shared warehouse
+      try {
+        await db.execute("ALTER TABLE $table ADD COLUMN organization_id TEXT DEFAULT 'org_default'");
+      } catch (_) {}
     }
 
 

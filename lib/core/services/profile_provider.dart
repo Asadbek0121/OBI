@@ -69,6 +69,20 @@ class ProfileProvider extends ChangeNotifier {
           if (_imagePath != null) {
             await prefs.setString(_kImageKey, _imagePath!);
           }
+
+          // Sync to Supabase public.profiles table so users are visible in Supabase Table Editor
+          try {
+            await Supabase.instance.client.from('profiles').upsert({
+              'id': user.id,
+              'email': _email,
+              'full_name': _name,
+              'organization_id': 'org_default',
+              'role': 'staff',
+            });
+            debugPrint('✅ ProfileProvider: Synced profile to public.profiles table');
+          } catch (pe) {
+            debugPrint('⚠️ ProfileProvider: Error syncing to public.profiles: $pe');
+          }
         }
       }
     } catch (e) {
